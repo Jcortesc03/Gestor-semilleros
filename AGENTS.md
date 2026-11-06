@@ -12,7 +12,7 @@ Plataforma integral para gestionar los semilleros de investigación de una unive
 
 Se compone de tres entregables:
 
-| Entregable | Ruta propuesta | Responsabilidad |
+| Entregable | Ruta | Responsabilidad |
 | --- | --- | --- |
 | Aplicación web | `apps/web` | Administración, gestión y consulta |
 | Backend | `apps/backend` | Lógica de negocio, API, integraciones |
@@ -27,9 +27,9 @@ Idioma del proyecto: **español** para documentación, interfaz y nombres de dom
 ## 2. Estado actual — leer antes de actuar
 
 - El proyecto está en **fase de planificación**.
-- **El stack tecnológico está definido**, pero **no existe código fuente, ni dependencias, ni scripts, ni estructura de directorios implementada.**
-- El repositorio solo contiene documentación (`README.md`, `AGENTS.md`).
-- Las rutas de §1 y §6 son **propuestas**, no reales.
+- **El stack tecnológico y la estructura base están definidos**, pero **no existe código fuente, dependencias ni scripts.**
+- El repositorio contiene documentación y una estructura inicial de carpetas, preservadas con `.gitkeep`.
+- Las carpetas ya existen; los archivos de código aún no.
 
 En consecuencia:
 
@@ -108,23 +108,36 @@ No agregues una dependencia “porque hace falta” sin pasar por este flujo.
 
 ---
 
-## 6. Estructura propuesta del repositorio
+## 6. Estructura del repositorio
+
+La estructura inicial ya existe; consulta el árbol completo en [`docs/architecture/estructura.md`](docs/architecture/estructura.md). El backend es un **monolito modularizado**.
 
 ```text
 .
 ├── apps/
-│   ├── web/        # Aplicación web (React)
-│   ├── mobile/     # Aplicación móvil (React Native)
-│   └── backend/    # API y lógica de negocio (NestJS + Prisma)
-├── packages/       # Tipos, validaciones y utilidades compartidas
-├── docs/           # Documentación y ADRs
-└── README.md
+│   ├── backend/
+│   │   ├── prisma/migrations/
+│   │   └── src/
+│   │       ├── common/
+│   │       ├── config/
+│   │       ├── database/
+│   │       └── modules/<dominio>/{controllers,services,dtos,models}
+│   ├── web/src/
+│   └── mobile/src/
+├── packages/{types,validation,utils}/
+├── docker/
+├── docs/{architecture,api,decisions}/
+├── scripts/
+├── README.md
+└── AGENTS.md
 ```
 
-- Trátala como **propuesta** hasta que exista una decisión registrada que la confirme.
-- Código compartido entre entregables debe vivir en `packages/`, no duplicarse.
-- No crear directorios vacíos “para que exista la estructura”.
-- La ubicación de los Dockerfiles y de la configuración de Docker está **pendiente**.
+- Cada módulo del backend sigue el patrón `controllers/ · services/ · dtos/ · models/`.
+- Un módulo no importa archivos internos de otro ni accede a su persistencia.
+- `apps/*` puede importar `packages/*`; lo contrario no.
+- Código compartido entre entregables vive en `packages/`, no se duplica.
+- Los `.gitkeep` solo preservan carpetas vacías; no son contenido del proyecto.
+- La configuración de contenedores vive en `docker/`; los Dockerfiles se añadirán al implementar.
 
 ---
 

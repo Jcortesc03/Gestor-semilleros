@@ -11,7 +11,7 @@
 ![Arquitectura](https://img.shields.io/badge/arquitectura-MVC%20%C2%B7%20monorepo-blue)
 
 > [!IMPORTANT]
-> El proyecto se encuentra en **fase de planificación**. El stack tecnológico ya está definido, pero aún **no existe código fuente**: la estructura, las dependencias y los comandos siguen pendientes de definición.
+> El proyecto se encuentra en **fase de planificación**. El stack tecnológico y la estructura inicial de carpetas ya están definidos, pero aún **no existe código fuente**: las dependencias y los comandos siguen pendientes de definición.
 
 <a id="contenido"></a>
 
@@ -133,16 +133,18 @@ Solo se listan como definidas las decisiones ya tomadas. El resto permanece **po
 
 ## 📁 Estructura del proyecto
 
-La siguiente es una **estructura propuesta**, no una estructura existente. La herramienta de monorepo y la ubicación de los Dockerfiles se definirán al iniciar la implementación.
+La estructura inicial de carpetas ya está creada (todavía sin código). El backend se organiza como un **monolito modularizado** por dominios. El árbol completo y las convenciones están en [`docs/architecture/estructura.md`](docs/architecture/estructura.md).
 
 ```text
 .
 ├── apps/
-│   ├── web/        # Aplicación web (React)
-│   ├── mobile/     # Aplicación móvil (React Native)
-│   └── backend/    # API y lógica de negocio (NestJS + Prisma)
-├── packages/       # Tipos, validaciones y utilidades compartidas
-└── docs/           # Documentación del proyecto
+│   ├── backend/    # NestJS + Prisma (monolito modular)
+│   ├── web/        # React
+│   └── mobile/     # React Native
+├── packages/       # types · validation · utils
+├── docker/         # configuración de contenedores
+├── docs/           # arquitectura · API · ADRs
+└── scripts/        # utilidades del monorepo
 ```
 
 <a id="requisitos"></a>
@@ -250,6 +252,7 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 | Entregable | Estado | Notas |
 | --- | --- | --- |
 | Stack tecnológico | 🟢 Definido | React, React Native, NestJS, PostgreSQL, Prisma, AWS S3, Auth.js y Docker |
+| Estructura del proyecto | 🟢 Definida | Carpetas base del monorepo, sin código |
 | Aplicación web | 🟡 En planificación | Sin código fuente |
 | Backend | 🟡 En planificación | Sin código fuente |
 | Aplicación móvil | 🟡 En planificación | Sin código fuente |
@@ -264,6 +267,7 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 - [x] Definición del alcance y de los módulos funcionales
 - [x] Selección del stack tecnológico
 - [x] Selección de la base de datos y del ORM (PostgreSQL + Prisma)
+- [x] Estructura base del monorepo y de los módulos del backend
 - [ ] Definición del modelo de datos y migraciones iniciales
 - [ ] Definición de los contratos de la API y del flujo de autenticación
 - [ ] Configuración del monorepo
