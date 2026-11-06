@@ -80,13 +80,27 @@ pnpm db:migrate
 | `apps/backend/prisma/schema.prisma` | Esquema de datos |
 | `apps/backend/prisma/migrations/` | Migraciones versionadas |
 
+## Backend y pruebas
+
+```bash
+# AUTH_SECRET es obligatorio en apps/backend/.env (mínimo 32 caracteres):
+openssl rand -base64 32
+
+pnpm dev        # backend en http://localhost:3000 (API bajo /api)
+pnpm test       # pruebas unitarias
+pnpm test:e2e   # pruebas de la API; usa TEST_DATABASE_URL (semilleros_test) y la vacía en cada prueba
+```
+
+La base de pruebas se crea y se migra automáticamente. Su nombre **debe** terminar en `_test`; si no, las pruebas se niegan a ejecutarse.
+
 ## Problemas frecuentes
 
 | Síntoma | Solución |
 | --- | --- |
 | `port is already allocated` al ejecutar `db:up` | Otro PostgreSQL usa el puerto 5432. Define `POSTGRES_PORT` en `docker/.env` y ajusta `DATABASE_URL`. |
 | `ERR_PNPM_IGNORED_BUILDS` | Los scripts de Prisma ya están autorizados en `pnpm-workspace.yaml` (`allowBuilds`). Comprueba que usas pnpm 12.18.0. |
-| `Environment variable not found: DATABASE_URL` | Falta `apps/backend/.env`. Repite el paso 3. |
+| `Environment variable not found: DATABASE_URL` o `Falta la variable de entorno AUTH_SECRET` | Falta `apps/backend/.env` o está incompleto. Repite el paso 3. |
+| `Unable to find package manager binary` al usar Turborepo | `pnpm` no está en el PATH: ejecuta `corepack enable`. |
 | Quiero empezar de cero | `docker compose -f docker/compose.yaml down -v` elimina el volumen. ⚠️ **Borra todos los datos locales.** |
 
 Las credenciales de las plantillas son solo para desarrollo local. Nunca uses estos valores en otros entornos ni versiones archivos `.env`.

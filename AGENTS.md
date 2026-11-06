@@ -16,11 +16,11 @@ El alcance, los módulos y el estado se documentan en `README.md`; no los repita
 
 ## 2. Estado actual del proyecto
 
-- **Fase de planificación:** no existe código de aplicación (NestJS, React y React Native sin crear).
+- **Fase inicial de implementación:** el backend NestJS existe con el módulo de autenticación. Web (React) y móvil (React Native) aún no existen.
 - **Definido:** stack, versiones base, estructura del monorepo, workspace (pnpm + Turborepo) y scripts raíz.
-- **Implementado:** esquema de datos en `apps/backend/prisma/schema.prisma`, migración inicial y PostgreSQL local con Docker Compose ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)).
-- **Instalado:** solo Turborepo y Prisma (`pnpm-lock.yaml` versionado).
-- **No implementado:** API, `PrismaService`, autenticación, Docker de despliegue, pruebas ni CI/CD.
+- **Implementado:** esquema de datos y migraciones, PostgreSQL local con Docker Compose ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)), y en el backend `PrismaService`, inicio de sesión con Auth.js (correo + contraseña y Google), `SessionGuard`, `GET /api/me` y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)).
+- **Instalado:** dependencias de Turborepo y del backend (`pnpm-lock.yaml` versionado).
+- **No implementado:** módulos de dominio (proyectos, tableros…), autorización por rol, alta de usuarios, autenticación móvil, Docker de despliegue ni CI/CD.
 
 Por lo tanto:
 
@@ -39,7 +39,7 @@ Por lo tanto:
 | `docs/domain/` | Dominio del negocio: entidades, glosario, reglas, permisos y flujos |
 | `docs/database/` | Modelo de datos, decisiones de diseño y guía de base de datos local |
 | `apps/backend/prisma/schema.prisma` | Fuente de verdad técnica del esquema de datos |
-| `docs/api/` | Contratos de API (pendiente) |
+| `docs/api/` | Contratos de API (por ahora, autenticación) |
 | `docs/decisions/` | Decisiones técnicas (ADR) |
 
 Si dos fuentes se contradicen, **detente y reporta**; no elijas una por tu cuenta.
@@ -62,9 +62,9 @@ Si dos fuentes se contradicen, **detente y reporta**; no elijas una por tu cuent
 | Contenedores | Docker |
 | Arquitectura | MVC + monolito modular |
 
-**Versiones fijadas** ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)): Node.js 24 LTS (`.nvmrc`), pnpm 12.18.0 (`packageManager`, vía Corepack), Prisma 7.10.1 (con `@prisma/adapter-pg`) y PostgreSQL 18.6 (`postgres:18.6-alpine`).
+**Versiones fijadas** ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)): Node.js 24 LTS (`.nvmrc`), pnpm 12.18.0 (`packageManager`, vía Corepack), Prisma 7.10.1 (con `@prisma/adapter-pg`) y PostgreSQL 18.6 (`postgres:18.6-alpine`). Backend y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)): NestJS 12.3.3, TypeScript 6.0.3, `@auth/express` 0.12.3, Argon2id (`@node-rs/argon2`), Jest 30 + ts-jest + Supertest.
 
-**Pendiente de definición:** versión de Turborepo (`latest`, fijada solo por el lockfile), framework de pruebas, CI/CD, infraestructura de despliegue, contratos de API, flujo de sesiones de Auth.js (incluido móvil), permisos por rol y preguntas abiertas del dominio (`docs/domain/business-rules.md`).
+**Pendiente de definición:** versión de Turborepo (`latest`, fijada solo por el lockfile), linting y formato, CI/CD, infraestructura de despliegue, contratos de API de los demás módulos, autenticación móvil, permisos por rol y preguntas abiertas del dominio (`docs/domain/business-rules.md`).
 
 No fijes versiones ni agregues herramientas para cubrir estos pendientes sin aprobación.
 
@@ -148,7 +148,7 @@ Detalle completo: [`docs/architecture/estructura.md`](docs/architecture/estructu
 
 ## 8. Comandos y ejecución
 
-El workspace está configurado. Solo existe el paquete `@gestor-semilleros/backend`, con scripts de base de datos. Guía completa: [`docs/database/local-setup.md`](docs/database/local-setup.md).
+El workspace está configurado. Solo existe el paquete `@gestor-semilleros/backend`. Requiere `pnpm` en el PATH (`corepack enable`) para que Turborepo funcione. Guía completa: [`docs/database/local-setup.md`](docs/database/local-setup.md).
 
 | Comando | Estado |
 | --- | --- |
@@ -156,7 +156,10 @@ El workspace está configurado. Solo existe el paquete `@gestor-semilleros/backe
 | `pnpm db:up` / `db:down` / `db:logs` | ✅ PostgreSQL local con `docker/compose.yaml`. |
 | `pnpm db:migrate` / `db:generate` / `db:studio` | ✅ Delegan en `apps/backend` (Prisma). |
 | `db:validate`, `db:format`, `db:status`, `db:deploy`, `db:reset` | ✅ Scripts de `apps/backend`. `db:reset` borra los datos locales: requiere confirmación. |
-| `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm test`, `pnpm typecheck` | Configurados; delegan en Turborepo. Ningún paquete los implementa todavía. |
+| `pnpm dev`, `pnpm build`, `pnpm typecheck` | ✅ Backend (`nest start --watch`, `nest build`, `tsc --noEmit`). Requieren `apps/backend/.env`. |
+| `pnpm test` | ✅ Pruebas unitarias (Jest), sin base de datos. |
+| `pnpm test:e2e` | ✅ Pruebas de la API contra `TEST_DATABASE_URL` (requiere `pnpm db:up`). |
+| `pnpm lint` | Configurado; ningún paquete lo implementa (herramienta pendiente). |
 | Docker de despliegue | **Pendiente** de configuración. |
 
 Reglas:
@@ -231,7 +234,7 @@ Si la decisión ya está aprobada y registrada, procede sin volver a preguntar.
 | [`docs/database/data-model.md`](docs/database/data-model.md) | Modelo relacional propuesto |
 | [`docs/database/database-decisions.md`](docs/database/database-decisions.md) | Decisiones de datos (`DB-xx`) |
 | [`docs/database/local-setup.md`](docs/database/local-setup.md) | Instalación local de la base de datos |
-| `docs/api/` | Contratos de API (pendientes) |
+| [`docs/api/auth.md`](docs/api/auth.md) | Contrato de la API de autenticación |
 | `docs/decisions/` | ADRs |
 
 Antes de implementar cualquier funcionalidad del dominio (entidades, permisos, flujos o esquema de datos), consulta `docs/domain/` empezando por su `README.md`, y `docs/database/` si afecta a la persistencia. Lo marcado como 🟡 hipótesis o ❓ pendiente **no** se implementa sin confirmación. **No inventes reglas de negocio ni permisos** que sigan pendientes.

@@ -24,6 +24,11 @@ El backend se organiza como un **monolito modularizado**: un único despliegue, 
 │   │   │   ├── schema.prisma       # Esquema de datos
 │   │   │   └── migrations/         # Migraciones de Prisma
 │   │   └── src/
+│   │       ├── main.ts             # Arranque de NestJS
+│   │       ├── app.module.ts
+│   │       ├── app.setup.ts        # Prefijo /api y montaje de Auth.js (compartido con pruebas)
+│   │       ├── generated/prisma/   # Cliente de Prisma generado (no versionado)
+│   │       ├── types/              # Declaraciones de tipos (Auth.js)
 │   │       ├── common/             # Código transversal
 │   │       │   ├── decorators/
 │   │       │   ├── filters/
@@ -33,7 +38,9 @@ El backend se organiza como un **monolito modularizado**: un único despliegue, 
 │   │       │   └── utils/
 │   │       ├── config/             # Configuración y validación de entorno
 │   │       ├── database/           # PrismaService y utilidades de datos
-│   │       └── modules/            # Módulos de dominio
+│   │       ├── modules/            # Módulos de dominio
+│   │       └── **/*.spec.ts        # Pruebas unitarias junto al código
+│   │   └── test/                   # Pruebas de la API (e2e) y su configuración
 │   │           ├── auth/           # Autenticación y autorización (Auth.js)
 │   │           ├── users/          # Integrantes, tutores y decanos
 │   │           ├── faculties/      # Facultades

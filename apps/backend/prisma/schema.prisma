@@ -9,8 +9,9 @@
 //   - Reminder: modelo mínimo (P-19).
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
 }
 
 datasource db {
@@ -109,12 +110,14 @@ enum AudienceType {
 // ─────────────────────────────────────────────────────────────
 
 model User {
-  id        String     @id @default(uuid()) @db.Uuid
-  fullName  String     @map("full_name")
-  email     String     @unique
-  status    UserStatus @default(ACTIVE)
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
+  id           String     @id @default(uuid()) @db.Uuid
+  fullName     String     @map("full_name")
+  email        String     @unique
+  /// Hash Argon2id. Nulo si el usuario solo inicia sesión con Google.
+  passwordHash String?    @map("password_hash")
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
 
   roles               UserRole[]
   managedAreas        AreaManager[]

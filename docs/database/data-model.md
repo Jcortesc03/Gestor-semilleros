@@ -61,7 +61,7 @@
 
 ### Usuarios y roles
 
-**`users`**: `id` PK · `full_name` NN · `email` NN UQ · `status` NN (`UserStatus`, por defecto `ACTIVE`) · `created_at` · `updated_at`.
+**`users`**: `id` PK · `full_name` NN · `email` NN UQ · `password_hash?` (Argon2id; nulo si solo usa Google, ADR 0002) · `status` NN (`UserStatus`, por defecto `ACTIVE`) · `created_at` · `updated_at`.
 
 **`user_roles`**: (`user_id` FK→users, `role` `Role`) PK · `assigned_at` NN. Un usuario puede tener varios roles globales (P-02, DB-01).
 

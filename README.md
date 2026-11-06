@@ -127,7 +127,8 @@ Solo se listan como definidas las decisiones ya tomadas. El resto permanece **po
 | Despliegue | Docker | ✅ Definido |
 | Gestor de paquetes | pnpm | ✅ Definido |
 | Herramientas del monorepo | Turborepo | ✅ Definido |
-| Pruebas y CI/CD | — | ⏳ Por definir |
+| Pruebas | Jest + Supertest | ✅ Definido |
+| CI/CD | — | ⏳ Por definir |
 
 <a id="estructura"></a>
 
@@ -197,7 +198,7 @@ Versiones registradas en [ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorn
 
 ## 🔐 Variables de entorno
 
-Por ahora solo está definida `DATABASE_URL`, con su plantilla en [`apps/backend/.env.example`](apps/backend/.env.example). El resto de variables se añadirá cuando se integren los servicios externos.
+La plantilla está en [`apps/backend/.env.example`](apps/backend/.env.example) e incluye `DATABASE_URL`, `AUTH_SECRET`, Google OAuth opcional y `TEST_DATABASE_URL`. El resto de variables se añadirá cuando se integren los servicios externos.
 
 ```env
 # Pendiente de definición.
@@ -240,7 +241,8 @@ pnpm dev
 | `pnpm dev` | Inicia los entregables en modo desarrollo |
 | `pnpm build` | Compila los entregables |
 | `pnpm lint` | Ejecuta el análisis estático |
-| `pnpm test` | Ejecuta las pruebas |
+| `pnpm test` | Ejecuta las pruebas unitarias |
+| `pnpm test:e2e` | Ejecuta las pruebas de la API (requiere `pnpm db:up`) |
 | `pnpm typecheck` | Verifica los tipos |
 
 <a id="capturas"></a>
@@ -272,7 +274,7 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 | Estructura del proyecto | 🟢 Definida | Carpetas base del monorepo, sin código |
 | Herramientas del monorepo | 🟢 Definidas | pnpm + Turborepo |
 | Aplicación web | 🟡 En planificación | Sin código fuente |
-| Backend | 🟡 En planificación | Esquema Prisma y migración inicial; sin código NestJS |
+| Backend | 🟡 En desarrollo | NestJS con inicio de sesión (Auth.js: correo + contraseña y Google), esquema Prisma y pruebas |
 | Aplicación móvil | 🟡 En planificación | Sin código fuente |
 | Documentación | 🟡 En elaboración | Alcance, dominio y modelo de datos definidos |
 
