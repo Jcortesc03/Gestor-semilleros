@@ -53,10 +53,11 @@
   border-color: var(--line); box-shadow: var(--u-shadow);
 }
 .hero__art .ui-win__body { min-height: 0; }
-.hero__art .ui-win__main { padding-right: var(--ly-cut-room); }
-.hero__art .ui-win__rows > li:nth-child(n+11) { display: none; }
-.hero__art > .ly-piece--note { left: calc(var(--s-8) + 24px); bottom: var(--s-6); width: 300px; z-index: 2; }
+.hero__art .ui-win__main { padding-right: var(--ly-cut-room); padding-bottom: 190px; }
+.hero__art .ui-win__rows > li:nth-child(n+6) { display: none; }
+.hero__art > .ly-piece--main { z-index: 1; }
 .hero__note {
+  position: absolute; z-index: 2; left: 24px; bottom: 24px; width: 300px;
   background: var(--p-bg); color: var(--p-ink); border: 1px solid var(--line); border-radius: var(--r-md);
   padding: 13px 16px 14px; font: 400 13px/1.4 var(--font-text); text-align: left;
 }
@@ -142,8 +143,8 @@
 @media (min-width: 640px) and (max-width: 1023px) {
   .app__pane--list .ui-win__cols, .app__pane--list .ui-win__row { grid-template-columns: 24px 150px minmax(0, 1fr) 92px 32px; }
 }
-@media (min-width: 1024px) { .app__pane--list .ui-win__rows > li:nth-child(n+10) { display: none; } }
-@media (min-width: 1024px) and (max-width: 1279px) { .app.ui { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); } }
+@media (min-width: 1280px) { .app__pane--list .ui-win__rows > li:nth-child(n+10) { display: none; } }
+@media (min-width: 1024px) and (max-width: 1279px) { .app.ui { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); min-height: 480px; } .app__pane--list .ui-win__rows > li:nth-child(n+7) { display: none; } }
 @media (max-width: 1023px) {
   .app.ui { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
   .app > .app__pane--list { max-height: 252px; }
@@ -174,7 +175,6 @@
     var(--ground-bg);
   border-color: transparent;
 }
-.feature-frame > .stage { --fade-h: 72px; }
 .split-copy { display: flex; flex-direction: column; gap: 24px; }
 .split-copy h2 { max-width: 15ch; }
 .split-copy p { max-width: 42ch; }
@@ -191,6 +191,11 @@
   .facts li { padding: 8px 0; font-size: 15px; }
 }
 
+/* drawn mocks: lift the soft greys to AA on white */
+.ui-win__age { color: color-mix(in oklab, var(--p-ink) 60%, var(--p-bg)); }
+.ui-win__st.is-done { color: color-mix(in oklab, var(--p-ink) 55%, var(--p-bg)); box-shadow: inset 0 0 0 1px var(--u-line-2); }
+.app__eyebrow { color: color-mix(in oklab, var(--p-ink) 55%, var(--p-bg)); }
+.app__block-head > span { color: color-mix(in oklab, var(--p-ink) 55%, var(--p-bg)); }
 /* the nav panel's checklist preview */
 .menu-card .ui-checks { width: 100%; }
 .menu-card .ui-checks__head { padding: 0 12px; }
@@ -198,25 +203,34 @@
 
 .close__word { line-height: 1.05; padding-top: .04em; }
 .nav__link[aria-current="page"]::after { content: ""; position: absolute; left: var(--s-3); right: var(--s-3); bottom: -2px; height: 2px; border-radius: 2px; background: currentColor; }
+.btn-row .btn--secondary { padding-left: 0; }
+.footer.closing.footer--dark { padding-top: var(--padb); }
+.feature-files { --ax: 56px; --ay: 56px; --w: 680px; }
+.feature-frame > .stage { --fade-h: 48px; }
+@media (max-width: 1023px) { .feature-frame .at-corner { --ax: 32px; --ay: 32px; --w: 100%; } .feature-frame > .stage { --fade-h: 36px; } }
 
 @media (min-width: 1024px) and (max-width: 1279px) {
   .hero__art > .ly-piece--main { left: var(--s-6); top: var(--s-6); width: calc(100% - var(--s-6) + var(--ly-cut)); }
-  .hero__art .ui-win__rows > li:nth-child(n+9) { display: none; }
-  .hero__art > .ly-piece--note { left: calc(var(--s-6) + 24px); bottom: var(--s-5); width: 250px; }
+  .hero__art .ui-win__rows > li:nth-child(n+5) { display: none; }
+  .hero__note { width: 280px; }
   .hero__note-row { font-size: 12px; }
 }
 @media (max-width: 1023px) {
   .hero__art > .ly-piece--main { left: var(--s-6); top: var(--s-6); width: calc(100% - var(--s-6) + var(--ly-cut)); }
   .hero__art .ui-win__rows > li:nth-child(n+6) { display: none; }
-  .hero__art > .ly-piece--note { left: calc(var(--s-6) + 24px); bottom: var(--s-5); width: 270px; }
+  .hero__note { width: 270px; left: 16px; bottom: 16px; }
+  .app__block:last-child { display: none; }
+  .hero__art .ui-win__main { padding-bottom: 0; }
+  .hero__note { display: none; }
   .closing__links .grid > .span-6 { grid-column: 1 / -1; }
   .closing__links .footer__col { grid-column: auto / span 4; }
 }
 @media (max-width: 639px) {
   .hero__art > .ly-piece--main { left: var(--s-4); top: var(--s-4); width: calc(100% - var(--s-4) + var(--ly-cut)); }
-  .hero__art .ui-win__rows > li:nth-child(n+5) { display: none; }
-  .hero__art > .ly-piece--note { display: none; }
-  .hero__art { min-height: 260px; }
+  .hero__art .ui-win__rows > li:nth-child(n+4) { display: none; }
+  .hero__note { display: none; }
+  .hero__art { min-height: 240px; }
+  main > .hero--collage { padding-bottom: 48px; }
   .close__word { font-size: 14.5vw; }
   .closing__links .footer__col { grid-column: auto / span 6; }
   .closing__links .footer__col:last-child { grid-column: 1 / -1; }
@@ -226,10 +240,10 @@
 <body>
 <!-- type: software
      deal: hero collage, nav mega, close word, footer dark, rhythm surface-pairs, buttons arrow, mark ring
-     grounds: sand for the hero art and the documents frame; one grey surface band at #producto
+     grounds: sand for the hero art and the documents frame; #producto on the page ground
      effect: none. moments: none. scene: none. one loop: the hero note card.
      plan:
-       1 hero      Semilleros de investigación, con su historia completa. / list + note
+       1 hero      Semilleros de investigación, con historia. / window + note
        2 #producto app frame, list of semilleros beside the open semillero
        3 #funciones split text left, documents on a lit frame
        4 #contacto close word, dark footer
@@ -245,11 +259,11 @@
           <div class="wrap grid">
             <div class="menu-col span-3">
               <p class="t-label">Producto</p>
-              <a href="#producto">El panel<span>Semilleros, reuniones y avances</span></a>
+              <a href="#producto">El panel <span>Semilleros, reuniones y avances</span></a>
             </div>
             <div class="menu-col span-3">
               <p class="t-label">Documentos</p>
-              <a href="#funciones">Actas y avances<span>Versiones, permisos y productos</span></a>
+              <a href="#funciones">Actas y avances <span>Versiones, permisos y productos</span></a>
             </div>
             <div class="menu-col span-3">
               <p class="t-label">Proyecto</p>
@@ -300,7 +314,7 @@
         <p class="hero__lead">Reuniones, actas y avances de cada semillero en un solo lugar. Para coordinadores, tutores y estudiantes.</p>
         <div class="btn-row">
           <a class="btn btn--primary" href="mailto:hola@semillero.example?subject=Pedir%20una%20demo">Pedir una demo<svg class="m-arrow" viewBox="0 0 12 12" aria-hidden="true"><path class="m-arrow__stem" d="M1 6h8"/><path class="m-arrow__head" d="M4.5 2.5 8 6l-3.5 3.5"/></svg></a>
-          <a class="btn btn--secondary" href="#producto">Conocer el producto</a>
+          <a class="btn btn--secondary" href="#producto">Ver el panel</a>
         </div>
         <p class="t-small muted">Web, móvil y backend.</p>
       </div>
@@ -327,42 +341,42 @@
               <div class="ui-win__main">
                 <div class="ui-win__cols" aria-hidden="true"><span>Semillero</span><span>Línea</span><span>Estado</span><span>Sem.</span></div>
                 <ul class="ui-win__rows">
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="1">BT</span><span class="ui-win__who">Biotecnología y territorio</span><span class="ui-win__sub">Fac. Ciencias · 8 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">12</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="3">CA</span><span class="ui-win__who">Cognición y aprendizaje</span><span class="ui-win__sub">Fac. Psicología · 6 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">9</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="4">TP</span><span class="ui-win__who">Territorio y patrimonio</span><span class="ui-win__sub">Fac. Artes · 5 integrantes</span><span class="ui-win__st" data-st>Nuevo</span><span class="ui-win__age">3</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="2">MS</span><span class="ui-win__who">Materiales sostenibles</span><span class="ui-win__sub">Fac. Ingeniería · 7 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">14</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="5">SR</span><span class="ui-win__who">Salud pública rural</span><span class="ui-win__sub">Fac. Medicina · 9 integrantes</span><span class="ui-win__st" data-st>En pausa</span><span class="ui-win__age">21</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="1">EC</span><span class="ui-win__who">Educación y ciudadanía</span><span class="ui-win__sub">Fac. Educación · 6 integrantes</span><span class="ui-win__st is-done" data-st>Al día</span><span class="ui-win__age">18</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="3">DS</span><span class="ui-win__who">Datos y sociedad</span><span class="ui-win__sub">Fac. Sociales · 4 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">7</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="4">EN</span><span class="ui-win__who">Energía y comunidad</span><span class="ui-win__sub">Fac. Ingeniería · 5 integrantes</span><span class="ui-win__st" data-st>Nuevo</span><span class="ui-win__age">2</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="2">MA</span><span class="ui-win__who">Memoria y archivo</span><span class="ui-win__sub">Fac. Historia · 3 integrantes</span><span class="ui-win__st is-done" data-st>Al día</span><span class="ui-win__age">26</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="5">AA</span><span class="ui-win__who">Agroecología andina</span><span class="ui-win__sub">Fac. Agrarias · 8 integrantes</span><span class="ui-win__st" data-st>En pausa</span><span class="ui-win__age">16</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="1">LA</span><span class="ui-win__who">Lingüística aplicada</span><span class="ui-win__sub">Fac. Humanidades · 4 integrantes</span><span class="ui-win__st is-done" data-st>Al día</span><span class="ui-win__age">11</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="3">CS</span><span class="ui-win__who">Comunicación y salud</span><span class="ui-win__sub">Fac. Comunicación · 5 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">6</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="4">DT</span><span class="ui-win__who">Derecho y tecnología</span><span class="ui-win__sub">Fac. Derecho · 4 integrantes</span><span class="ui-win__st" data-st>Nuevo</span><span class="ui-win__age">1</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="2">BV</span><span class="ui-win__who">Bioquímica vegetal</span><span class="ui-win__sub">Fac. Ciencias · 6 integrantes</span><span class="ui-win__st is-done" data-st>Al día</span><span class="ui-win__age">19</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="1">BT</span><span class="ui-win__who">Biotecnología y territorio</span><span class="ui-win__sub">Ciencias · 8 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">12</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="3">CA</span><span class="ui-win__who">Cognición y aprendizaje</span><span class="ui-win__sub">Psicología · 6 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">9</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="4">TP</span><span class="ui-win__who">Territorio y patrimonio</span><span class="ui-win__sub">Artes · 5 integrantes</span><span class="ui-win__st" data-st>Nuevo</span><span class="ui-win__age">3</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="2">MS</span><span class="ui-win__who">Materiales sostenibles</span><span class="ui-win__sub">Ingeniería · 7 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">14</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="5">SR</span><span class="ui-win__who">Salud pública rural</span><span class="ui-win__sub">Medicina · 9 integrantes</span><span class="ui-win__st" data-st>En pausa</span><span class="ui-win__age">21</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="1">EC</span><span class="ui-win__who">Educación y ciudadanía</span><span class="ui-win__sub">Educación · 6 integrantes</span><span class="ui-win__st is-done" data-st>Al día</span><span class="ui-win__age">18</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="3">DS</span><span class="ui-win__who">Datos y sociedad</span><span class="ui-win__sub">Sociales · 4 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">7</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="4">EN</span><span class="ui-win__who">Energía y comunidad</span><span class="ui-win__sub">Ingeniería · 5 integrantes</span><span class="ui-win__st" data-st>Nuevo</span><span class="ui-win__age">2</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="2">MA</span><span class="ui-win__who">Memoria y archivo</span><span class="ui-win__sub">Historia · 3 integrantes</span><span class="ui-win__st is-done" data-st>Al día</span><span class="ui-win__age">26</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="5">AA</span><span class="ui-win__who">Agroecología andina</span><span class="ui-win__sub">Agrarias · 8 integrantes</span><span class="ui-win__st" data-st>En pausa</span><span class="ui-win__age">16</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="1">LA</span><span class="ui-win__who">Lingüística aplicada</span><span class="ui-win__sub">Humanidades · 4 integrantes</span><span class="ui-win__st is-done" data-st>Al día</span><span class="ui-win__age">11</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="3">CS</span><span class="ui-win__who">Comunicación y salud</span><span class="ui-win__sub">Comunicación · 5 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">6</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="4">DT</span><span class="ui-win__who">Derecho y tecnología</span><span class="ui-win__sub">Derecho · 4 integrantes</span><span class="ui-win__st" data-st>Nuevo</span><span class="ui-win__age">1</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="2">BV</span><span class="ui-win__who">Bioquímica vegetal</span><span class="ui-win__sub">Ciencias · 6 integrantes</span><span class="ui-win__st is-done" data-st>Al día</span><span class="ui-win__age">19</span></li>
                 </ul>
               </div>
             </div>
-          </div>
-        </div>
-        <div class="ly-piece ly-piece--note hero__note" data-ly-steps="900" data-ui-pause-host>
-          <div class="hero__note-head">
-            <h3>Biotecnología y territorio</h3>
-            <span class="hero__note-chip" data-step data-step-at="3">Al día</span>
-          </div>
-          <div class="hero__note-row" data-step><i>✓</i><span><b>Acta 29 oct</b> · firmada por 4</span></div>
-          <div class="hero__note-row" data-step><i class="warn">!</i><span><b>2 avances</b> sin revisar</span></div>
-          <div class="hero__note-row" data-step><i>→</i><span>Próxima reunión · <b>jue 12, 14:00</b></span></div>
+            <div class="hero__note" data-ly-steps="900" data-ui-pause-host>
+              <div class="hero__note-head">
+                <h3>Biotecnología y territorio</h3>
+                <span class="hero__note-chip" data-step data-step-at="3">Al día</span>
+              </div>
+              <div class="hero__note-row" data-step><i>✓</i><span><b>Acta 29 oct</b> · firmada por 4</span></div>
+              <div class="hero__note-row" data-step><i class="warn">!</i><span><b>2 avances</b> sin revisar</span></div>
+              <div class="hero__note-row" data-step><i>→</i><span>Próxima reunión · <b>jue 12, 14:00</b></span></div>
+            </div>
         </div>
       </div>
     </div></div>
+    </div>
   </section>
 
   <section class="section" id="producto" aria-labelledby="producto-h">
     <div class="wrap">
       <div class="grid">
-        <div class="span-5"><h2 id="producto-h">El panel, de un vistazo.</h2></div>
+        <div class="span-5"><h2 id="producto-h">El panel de cada semillero.</h2></div>
         <div class="span-7 start-6 stack-4">
           <p class="t-lead">Cada semillero tiene su línea, sus integrantes, su próxima reunión y su plan de trabajo. El panel reúne lo que hoy vive en correos, carpetas y hojas de cálculo.</p>
           <p><a class="link" href="#funciones">Ver las actas</a></p>
@@ -391,17 +405,17 @@
               <div class="ui-win__main">
                 <div class="ui-win__cols" aria-hidden="true"><span>Semillero</span><span>Línea</span><span>Estado</span><span>Sem.</span></div>
                 <ul class="ui-win__rows">
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="1">BT</span><span class="ui-win__who">Biotecnología y territorio</span><span class="ui-win__sub">Fac. Ciencias · 8 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">12</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="3">CA</span><span class="ui-win__who">Cognición y aprendizaje</span><span class="ui-win__sub">Fac. Psicología · 6 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">9</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="4">TP</span><span class="ui-win__who">Territorio y patrimonio</span><span class="ui-win__sub">Fac. Artes · 5 integrantes</span><span class="ui-win__st" data-st>Nuevo</span><span class="ui-win__age">3</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="2">MS</span><span class="ui-win__who">Materiales sostenibles</span><span class="ui-win__sub">Fac. Ingeniería · 7 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">14</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="5">SR</span><span class="ui-win__who">Salud pública rural</span><span class="ui-win__sub">Fac. Medicina · 9 integrantes</span><span class="ui-win__st" data-st>En pausa</span><span class="ui-win__age">21</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="1">EC</span><span class="ui-win__who">Educación y ciudadanía</span><span class="ui-win__sub">Fac. Educación · 6 integrantes</span><span class="ui-win__st is-done" data-st>Al día</span><span class="ui-win__age">18</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="3">DS</span><span class="ui-win__who">Datos y sociedad</span><span class="ui-win__sub">Fac. Sociales · 4 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">7</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="4">EN</span><span class="ui-win__who">Energía y comunidad</span><span class="ui-win__sub">Fac. Ingeniería · 5 integrantes</span><span class="ui-win__st" data-st>Nuevo</span><span class="ui-win__age">2</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="2">MA</span><span class="ui-win__who">Memoria y archivo</span><span class="ui-win__sub">Fac. Historia · 3 integrantes</span><span class="ui-win__st is-done" data-st>Al día</span><span class="ui-win__age">26</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="5">AA</span><span class="ui-win__who">Agroecología andina</span><span class="ui-win__sub">Fac. Agrarias · 8 integrantes</span><span class="ui-win__st" data-st>En pausa</span><span class="ui-win__age">16</span></li>
-                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="1">LA</span><span class="ui-win__who">Lingüística aplicada</span><span class="ui-win__sub">Fac. Humanidades · 4 integrantes</span><span class="ui-win__st is-done" data-st>Al día</span><span class="ui-win__age">11</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="1">BT</span><span class="ui-win__who">Biotecnología y territorio</span><span class="ui-win__sub">Ciencias · 8 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">12</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="3">CA</span><span class="ui-win__who">Cognición y aprendizaje</span><span class="ui-win__sub">Psicología · 6 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">9</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="4">TP</span><span class="ui-win__who">Territorio y patrimonio</span><span class="ui-win__sub">Artes · 5 integrantes</span><span class="ui-win__st" data-st>Nuevo</span><span class="ui-win__age">3</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="2">MS</span><span class="ui-win__who">Materiales sostenibles</span><span class="ui-win__sub">Ingeniería · 7 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">14</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="5">SR</span><span class="ui-win__who">Salud pública rural</span><span class="ui-win__sub">Medicina · 9 integrantes</span><span class="ui-win__st" data-st>En pausa</span><span class="ui-win__age">21</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="1">EC</span><span class="ui-win__who">Educación y ciudadanía</span><span class="ui-win__sub">Educación · 6 integrantes</span><span class="ui-win__st is-done" data-st>Al día</span><span class="ui-win__age">18</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="3">DS</span><span class="ui-win__who">Datos y sociedad</span><span class="ui-win__sub">Sociales · 4 integrantes</span><span class="ui-win__st is-you" data-st>En curso</span><span class="ui-win__age">7</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="4">EN</span><span class="ui-win__who">Energía y comunidad</span><span class="ui-win__sub">Ingeniería · 5 integrantes</span><span class="ui-win__st" data-st>Nuevo</span><span class="ui-win__age">2</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="2">MA</span><span class="ui-win__who">Memoria y archivo</span><span class="ui-win__sub">Historia · 3 integrantes</span><span class="ui-win__st is-done" data-st>Al día</span><span class="ui-win__age">26</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="5">AA</span><span class="ui-win__who">Agroecología andina</span><span class="ui-win__sub">Agrarias · 8 integrantes</span><span class="ui-win__st" data-st>En pausa</span><span class="ui-win__age">16</span></li>
+                  <li class="ui-win__row" data-row><span class="ui-avatar" data-tone="1">LA</span><span class="ui-win__who">Lingüística aplicada</span><span class="ui-win__sub">Humanidades · 4 integrantes</span><span class="ui-win__st is-done" data-st>Al día</span><span class="ui-win__age">11</span></li>
                 </ul>
               </div>
             </div>
@@ -439,12 +453,11 @@
                 </section>
               </div>
               <section class="app__block">
-                <div class="app__block-head"><p class="app__label">Tareas abiertas</p><span>4</span></div>
+                <div class="app__block-head"><p class="app__label">Tareas abiertas</p><span>3</span></div>
                 <ul class="app__tasks">
                   <li><span class="app__check"></span><div><b>Revisar el acta del 29 de octubre</b><span>María C. · vence hoy</span></div><span class="app__tag">Hoy</span></li>
                   <li><span class="app__check"></span><div><b>Cargar el avance de la tesis</b><span>Andrés G. · 14 nov</span></div></li>
                   <li><span class="app__check"></span><div><b>Confirmar la ponencia del encuentro</b><span>Laura P. · 18 nov</span></div></li>
-                  <li><span class="app__check"></span><div><b>Actualizar el plan de trabajo</b><span>Sin asignar</span></div></li>
                 </ul>
               </section>
               <section class="app__block">
@@ -453,7 +466,6 @@
                   <li><span>Acta 29 oct</span><span>María C.</span><span>hace 2 h</span></li>
                   <li><span>Avance de tesis</span><span>Andrés G.</span><span>ayer</span></li>
                   <li><span>Artículo · versión 3</span><span>Laura P.</span><span>30 oct</span></li>
-                  <li><span>Reunión 22 oct</span><span>Semillero</span><span>22 oct</span></li>
                 </ul>
               </section>
             </div>
@@ -467,20 +479,21 @@
     <div class="wrap">
       <div class="grid fill">
         <div class="split-copy span-5">
-          <h2 id="funciones-h">Actas, avances y productos.</h2>
+          <h2 id="funciones-h">Actas, avances y productos del semillero.</h2>
           <p class="t-lead">Cada semillero guarda sus actas, avances y productos en una carpeta compartida. Cada versión queda registrada y cada integrante ve lo que le corresponde.</p>
           <ul class="facts">
             <li><span>01</span>Actas y compromisos de cada reunión</li>
             <li><span>02</span>Avances y productos por línea de investigación</li>
             <li><span>03</span>Permisos por rol: coordinador, tutor y estudiante</li>
           </ul>
-          <p><a class="link" href="#producto">Ver el panel</a></p>
+          <p class="t-small muted">El panel avisa cuando algo espera revisión: un acta por firmar, un avance sin leer, una reunión que dejó de juntarse.</p>
+          <p><a class="btn btn--secondary" href="#producto">Ver el panel</a></p>
         </div>
         <div class="frame frame--split frame--fill feature-frame span-7 start-6" role="img" aria-label="Carpeta del Semillero de Biotecnología y territorio con actas, avances, artículos y la convocatoria">
           <div class="stage stage--fade-br" aria-hidden="true">
-            <div class="at-corner to-edge wide" style="--ax:56px;--ay:56px;--w:680px" data-ui-still>
+            <div class="at-corner to-edge wide feature-files data-ui-still="">
               <div class="ui ui-files" data-ui="files" data-reading="Revisando {n} de {total}">
-                <div class="ui-files__status"><span class="ui-dot"></span><span data-files-status>10 archivos revisados</span></div>
+                <div class="ui-files__status"><span class="ui-dot"></span><span data-files-status>6 archivos revisados</span></div>
                 <ul class="ui-files__grid">
                   <li class="ui-file is-done">
                     <span class="ui-file__icon"><svg class="ui-file__glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.25 2.75h8L18.75 7.25v14H6.25z"/><path d="M14 2.75v4.75h4.75M9 12.5h6.5M9 15.5h6.5M9 18.5h4"/></svg></span>
@@ -491,21 +504,21 @@
                   </li>
                   <li class="ui-file is-done">
                     <span class="ui-file__icon"><img src="assets/ui/icons/google-docs.svg" alt=""></span>
-                    <span class="ui-file__name">Avance de tesis.docx</span>
+                    <span class="ui-file__name">Avance tesis.docx</span>
                     <span class="ui-file__kind">Google Docs</span>
                     <span class="ui-file__bar"><i></i></span>
                     <span class="ui-file__check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 8.2 2.3 2.3 4.7-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
                   </li>
                   <li class="ui-file is-done">
                     <span class="ui-file__icon"><svg class="ui-file__glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.25 2.75h8L18.75 7.25v14H6.25z"/><path d="M14 2.75v4.75h4.75M9 12.5h6.5M9 15.5h6.5M9 18.5h4"/></svg></span>
-                    <span class="ui-file__name">Artículo · versión 3.pdf</span>
+                    <span class="ui-file__name">Artículo v3.pdf</span>
                     <span class="ui-file__kind">PDF</span>
                     <span class="ui-file__bar"><i></i></span>
                     <span class="ui-file__check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 8.2 2.3 2.3 4.7-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
                   </li>
                   <li class="ui-file is-done">
                     <span class="ui-file__icon"><svg class="ui-file__glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.25 2.75h8L18.75 7.25v14H6.25z"/><path d="M14 2.75v4.75h4.75M9 12.5h6.5M9 15.5h6.5M9 18.5h4"/></svg></span>
-                    <span class="ui-file__name">Convocatoria 2027.pdf</span>
+                    <span class="ui-file__name">Convocatoria.pdf</span>
                     <span class="ui-file__kind">PDF</span>
                     <span class="ui-file__bar"><i></i></span>
                     <span class="ui-file__check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 8.2 2.3 2.3 4.7-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
@@ -524,34 +537,6 @@
                     <span class="ui-file__bar"><i></i></span>
                     <span class="ui-file__check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 8.2 2.3 2.3 4.7-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
                   </li>
-                  <li class="ui-file is-done">
-                    <span class="ui-file__icon"><img src="assets/ui/icons/google-drive.svg" alt=""></span>
-                    <span class="ui-file__name">Carpeta del semillero</span>
-                    <span class="ui-file__kind">Google Drive</span>
-                    <span class="ui-file__bar"><i></i></span>
-                    <span class="ui-file__check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 8.2 2.3 2.3 4.7-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-                  </li>
-                  <li class="ui-file is-done">
-                    <span class="ui-file__icon"><svg class="ui-file__glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.25 2.75h8L18.75 7.25v14H6.25z"/><path d="M14 2.75v4.75h4.75M9 12.5h6.5M9 15.5h6.5M9 18.5h4"/></svg></span>
-                    <span class="ui-file__name">Ponencia · encuentro.pdf</span>
-                    <span class="ui-file__kind">PDF</span>
-                    <span class="ui-file__bar"><i></i></span>
-                    <span class="ui-file__check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 8.2 2.3 2.3 4.7-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-                  </li>
-                  <li class="ui-file is-done">
-                    <span class="ui-file__icon"><img src="assets/ui/icons/google-docs.svg" alt=""></span>
-                    <span class="ui-file__name">Ficha del semillero.docx</span>
-                    <span class="ui-file__kind">Google Docs</span>
-                    <span class="ui-file__bar"><i></i></span>
-                    <span class="ui-file__check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 8.2 2.3 2.3 4.7-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-                  </li>
-                  <li class="ui-file is-done">
-                    <span class="ui-file__icon"><svg class="ui-file__glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.25 2.75h8L18.75 7.25v14H6.25z"/><path d="M14 2.75v4.75h4.75M9 12.5h6.5M9 15.5h6.5M9 18.5h4"/></svg></span>
-                    <span class="ui-file__name">Evaluación de tutores.pdf</span>
-                    <span class="ui-file__kind">PDF</span>
-                    <span class="ui-file__bar"><i></i></span>
-                    <span class="ui-file__check"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 8.2 2.3 2.3 4.7-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-                  </li>
                 </ul>
               </div>
             </div>
@@ -567,7 +552,7 @@
     <div class="closing__cta close--word">
       <div class="section-head--split">
         <div>
-          <h2 id="close-h">Pedir una demo.</h2>
+          <h2 id="close-h">Hablemos del semillero.</h2>
           <p class="t-lead">Una demo del panel y de su alcance.</p>
         </div>
         <a class="btn btn--primary" href="mailto:hola@semillero.example?subject=Pedir%20una%20demo">Pedir una demo<svg class="m-arrow" viewBox="0 0 12 12" aria-hidden="true"><path class="m-arrow__stem" d="M1 6h8"/><path class="m-arrow__head" d="M4.5 2.5 8 6l-3.5 3.5"/></svg></a>
@@ -580,9 +565,9 @@
           <a class="nav__logo" href="#top"><span class="mark" data-mark="ring" aria-hidden="true"></span>Semillero</a>
           <p class="footer__lede">Gestión académica y administrativa de semilleros de investigación.</p>
         </div>
-        <div class="span-2 footer__col"><h4>Producto</h4><ul><li><a href="#producto">Panel</a></li><li><a href="#funciones">Documentos</a></li></ul></div>
-        <div class="span-2 footer__col"><h4>Proyecto</h4><ul><li><a href="#producto">Alcance</a></li><li><a href="#contacto">Estado</a></li></ul></div>
-        <div class="span-2 footer__col"><h4>Contacto</h4><ul><li><a href="mailto:hola@semillero.example?subject=Solicitar%20una%20demo">Solicitar una demo</a></li></ul></div>
+        <div class="span-2 footer__col"><h4>Producto</h4><ul><li><a href="#producto">Panel</a></li><li><a href="#funciones">Actas</a></li></ul></div>
+        <div class="span-2 footer__col"><h4>Proyecto</h4><ul><li><a href="#producto">El panel</a></li></ul></div>
+        <div class="span-2 footer__col"><h4>Contacto</h4><ul><li><a href="mailto:hola@semillero.example?subject=Pedir%20una%20demo">Pedir una demo</a></li></ul></div>
       </div>
       <div class="footer__legal">
         <span>© 2026 Semillero · En planificación</span>
@@ -595,5 +580,25 @@
 <script type="module" src="assets/system.js"></script>
 <script type="module" src="assets/motion/motion.js"></script>
 <script type="module" src="assets/layout/layout.js"></script>
+<script>
+// marca el enlace del nav cuya sección está en pantalla (aria-current="page")
+const sections = ['producto', 'funciones'].map(id => document.getElementById(id)).filter(Boolean);
+const links = new Map([...document.querySelectorAll('.nav__link[href^="#"]')].map(a => [a.getAttribute('href').slice(1), a]));
+const mark = () => {
+  let current = null;
+  for (const s of sections) {
+    const r = s.getBoundingClientRect();
+    if (r.top <= window.innerHeight * 0.35 && r.bottom > window.innerHeight * 0.35) { current = s.id; break; }
+  }
+  for (const [id, a] of links) {
+    if (id === current) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  }
+};
+let tick = false;
+const onScroll = () => { if (tick) return; tick = true; requestAnimationFrame(() => { tick = false; mark(); }); };
+window.addEventListener('scroll', onScroll, { passive: true });
+window.addEventListener('resize', onScroll);
+mark();
+</script>
 </body>
 </html>
