@@ -18,7 +18,7 @@ Se compone de tres entregables:
 | Backend | `apps/backend` | Lógica de negocio, API, integraciones |
 | Aplicación móvil | `apps/mobile` | Acceso desde dispositivos móviles |
 
-Stack definido: **React** (web), **React Native** (móvil), **NestJS** (backend), **PostgreSQL** como base de datos, **Prisma** como ORM, **AWS S3** para documentos e imágenes, **Auth.js** para autenticación y autorización, **Docker** para despliegue y **MVC** como patrón de arquitectura.
+Stack definido: **React** (web), **React Native** (móvil), **NestJS** (backend), **PostgreSQL** como base de datos, **Prisma** como ORM, **AWS S3** para documentos e imágenes, **Auth.js** para autenticación y autorización, **Docker** para despliegue, **pnpm + Turborepo** para el monorepo y **MVC** como patrón de arquitectura.
 
 Idioma del proyecto: **español** para documentación, interfaz y nombres de dominio; **inglés** para identificadores de código (variables, funciones, tipos) salvo términos del dominio que se acuerden conservar.
 
@@ -27,9 +27,9 @@ Idioma del proyecto: **español** para documentación, interfaz y nombres de dom
 ## 2. Estado actual — leer antes de actuar
 
 - El proyecto está en **fase de planificación**.
-- **El stack tecnológico y la estructura base están definidos**, pero **no existe código fuente, dependencias ni scripts.**
-- El repositorio contiene documentación y una estructura inicial de carpetas, preservadas con `.gitkeep`.
-- Las carpetas ya existen; los archivos de código aún no.
+- **El stack, la estructura base y el workspace están definidos**, pero **no existe código de aplicación ni dependencias instaladas.**
+- El repositorio contiene documentación, la estructura de carpetas y la configuración del monorepo (`package.json`, `pnpm-workspace.yaml`, `turbo.json`).
+- Los scripts raíz ya existen, pero delegan en paquetes que todavía no se han creado.
 
 En consecuencia:
 
@@ -73,6 +73,8 @@ Si el README y el código llegaran a contradecirse, **detente y reporta la incon
 | --- | --- |
 | Lenguaje | TypeScript |
 | Organización | Monorepo |
+| Gestor de paquetes | pnpm |
+| Orquestador del monorepo | Turborepo |
 | Aplicación web | React |
 | Aplicación móvil | React Native |
 | Backend | NestJS |
@@ -85,7 +87,7 @@ Si el README y el código llegaran a contradecirse, **detente y reporta la incon
 
 ### Pendiente de definición
 
-Gestor de paquetes · herramienta de monorepo · versiones de Node.js, PostgreSQL y Prisma · pruebas y CI/CD · infraestructura de despliegue · flujo de sesiones y roles con Auth.js (incluido el cliente móvil) · contratos de API.
+Versiones de Node.js, pnpm, Turborepo, PostgreSQL y Prisma · pruebas y CI/CD · infraestructura de despliegue · flujo de sesiones y roles con Auth.js (incluido el cliente móvil) · contratos de API.
 
 ### Reglas de arquitectura
 
@@ -128,6 +130,9 @@ La estructura inicial ya existe; consulta el árbol completo en [`docs/architect
 ├── docker/
 ├── docs/{architecture,api,decisions}/
 ├── scripts/
+├── package.json
+├── pnpm-workspace.yaml
+├── turbo.json
 ├── README.md
 └── AGENTS.md
 ```
@@ -143,14 +148,25 @@ La estructura inicial ya existe; consulta el árbol completo en [`docs/architect
 
 ## 7. Comandos
 
-**Todavía no hay comandos de instalación, desarrollo, prueba ni despliegue.**
+El workspace está configurado con **pnpm + Turborepo**. Las dependencias aún no se han instalado y no hay aplicaciones.
 
-Cuando existan:
+Desde la raíz:
 
-- Documéntalos en `README.md` (§ Instalación, § Ejecución) y en esta sección.
-- Usa un único gestor de paquetes y respétalo.
-- Los comandos deben corresponder a las herramientas realmente instaladas (React, React Native, NestJS, Docker) y a la configuración del monorepo.
-- No inventes *scripts*: si no está en `package.json` (o el manifiesto que se adopte), no existe.
+| Comando | Uso |
+| --- | --- |
+| `pnpm install` | Instala las dependencias del workspace |
+| `pnpm dev` | Ejecuta `dev` en los paquetes (proceso persistente) |
+| `pnpm build` | Compila respetando el orden de dependencias |
+| `pnpm lint` | Ejecuta el análisis estático |
+| `pnpm test` | Ejecuta las pruebas |
+| `pnpm typecheck` | Verifica los tipos |
+| `pnpm turbo run <tarea> --filter=<paquete>` | Ejecuta una tarea en un paquete concreto |
+
+Reglas:
+
+- Usa **pnpm** exclusivamente; no npm ni yarn.
+- No ejecutes `pnpm install` ni agregues dependencias sin autorización.
+- Los comandos deben existir en `package.json`; no inventes *scripts*.
 - No ejecutes comandos destructivos (`rm -rf`, resets, limpiezas de historial) sin confirmación.
 
 ---
@@ -164,6 +180,15 @@ Cuando existan:
 - Sin lógica de negocio en componentes de UI ni en controladores de transporte.
 - Commits en **Conventional Commits** (`feat:`, `fix:`, `docs:`, `chore:`…), en español o inglés, pero consistente.
 - Formateo y linting: herramienta **por definir**; no imponer una sin aprobación.
+
+### Monorepo (pnpm + Turborepo)
+
+- Usa **pnpm** para instalar y ejecutar; no npm ni yarn.
+- Cada `app` y `package` declara su propio `package.json` y sus scripts.
+- Los scripts de la raíz solo delegan en `turbo run`; no dupliques lógica en ellos.
+- Las dependencias internas se referencian con `workspace:*`.
+- Ejecuta tareas desde la raíz con `pnpm <tarea>` o `pnpm turbo run <tarea> --filter=<paquete>`.
+- No agregues dependencias globales si pueden vivir en el paquete que las usa.
 
 ### Backend (NestJS)
 
@@ -268,9 +293,9 @@ Una tarea está terminada cuando:
 
 ## 14. Cuándo preguntar (y no avanzar)
 
-- Versiones de PostgreSQL y Prisma, gestor de paquetes o herramienta de monorepo.
+- Versiones de Node.js, pnpm, Turborepo, PostgreSQL y Prisma.
 - Detalles del flujo de autenticación y del modelo de permisos con Auth.js.
-- Creación de la estructura inicial, instalación de dependencias o scaffolding de React, React Native o NestJS.
+- Cambios en la estructura acordada, instalación de dependencias o scaffolding de React, React Native o NestJS.
 - Creación o modificación del esquema/migraciones de Prisma, Dockerfiles, configuración de S3 o infraestructura de despliegue.
 - Reglas de permisos por rol.
 - Modelo de datos y contratos de API.
@@ -283,7 +308,7 @@ Una tarea está terminada cuando:
 
 Actualiza `AGENTS.md` cuando:
 
-- Se apruebe una tecnología o se cree la estructura del proyecto.
+- Se apruebe una tecnología, se fije una versión o cambie la estructura del workspace.
 - Existan comandos reales de instalación, ejecución o prueba.
 - Cambien las convenciones de código o el flujo de trabajo.
 - Se definan reglas de negocio o permisos nuevos.

@@ -11,7 +11,7 @@
 ![Arquitectura](https://img.shields.io/badge/arquitectura-MVC%20%C2%B7%20monorepo-blue)
 
 > [!IMPORTANT]
-> El proyecto se encuentra en **fase de planificación**. El stack tecnológico y la estructura inicial de carpetas ya están definidos, pero aún **no existe código fuente**: las dependencias y los comandos siguen pendientes de definición.
+> El proyecto se encuentra en **fase de planificación**. El stack, la estructura y el workspace (pnpm + Turborepo) ya están configurados, pero aún **no existe código fuente ni dependencias de aplicación instaladas**.
 
 <a id="contenido"></a>
 
@@ -125,8 +125,8 @@ Solo se listan como definidas las decisiones ya tomadas. El resto permanece **po
 | Autenticación y autorización | Auth.js | ✅ Definido |
 | Arquitectura | MVC | ✅ Definido |
 | Despliegue | Docker | ✅ Definido |
-| Gestor de paquetes | — | ⏳ Por definir |
-| Herramientas del monorepo | — | ⏳ Por definir |
+| Gestor de paquetes | pnpm | ✅ Definido |
+| Herramientas del monorepo | Turborepo | ✅ Definido |
 | Pruebas y CI/CD | — | ⏳ Por definir |
 
 <a id="estructura"></a>
@@ -144,7 +144,10 @@ La estructura inicial de carpetas ya está creada (todavía sin código). El bac
 ├── packages/       # types · validation · utils
 ├── docker/         # configuración de contenedores
 ├── docs/           # arquitectura · API · ADRs
-└── scripts/        # utilidades del monorepo
+├── scripts/        # utilidades del monorepo
+├── package.json    # workspace y scripts raíz
+├── pnpm-workspace.yaml
+└── turbo.json
 ```
 
 <a id="requisitos"></a>
@@ -156,18 +159,18 @@ La estructura inicial de carpetas ya está creada (todavía sin código). El bac
 | Git | Recomendado |
 | Node.js | Requerido (versión por definir) |
 | PostgreSQL | Requerido (versión por definir) |
-| Gestor de paquetes | ⏳ Por definir |
+| pnpm | Requerido (versión por definir) |
 | Docker | Requerido para el despliegue |
 | Editor con soporte para TypeScript | Recomendado |
 | Acceso a AWS S3 | Requerido para la gestión documental |
 
-Las versiones mínimas de Node.js, PostgreSQL y las herramientas del monorepo se documentarán al iniciar la implementación.
+Las versiones mínimas de Node.js, pnpm, PostgreSQL y Prisma se documentarán al iniciar la implementación.
 
 <a id="instalacion"></a>
 
 ## 🚀 Instalación y configuración
 
-> Los pasos siguientes quedan **preparados para completarse** cuando exista el código. Los comandos aún no pueden ejecutarse.
+> El workspace ya está configurado con **pnpm + Turborepo**, pero las aplicaciones aún no existen. Los pasos marcados como pendientes se completarán al implementarlas.
 
 1. **Clonar el repositorio** (URL pendiente de publicación).
 
@@ -179,9 +182,10 @@ Las versiones mínimas de Node.js, PostgreSQL y las herramientas del monorepo se
 2. **Instalar dependencias.**
 
    ```bash
-   # Pendiente de definición: dependerá del gestor de paquetes
-   # y de la herramienta de monorepo seleccionados.
+   pnpm install
    ```
+
+   Instala las dependencias del workspace y Turborepo. Todavía no hay dependencias de aplicación declaradas.
 
 3. **Configurar las variables de entorno** a partir de la plantilla que se publicará con el proyecto. Ver [Variables de entorno](#variables-entorno).
 
@@ -213,18 +217,28 @@ Aún no se han definido las variables requeridas. La plantilla se incorporará c
 
 ## ▶️ Ejecución del proyecto
 
-Los comandos de ejecución se definirán junto con la estructura del monorepo y las herramientas seleccionadas. El stack objetivo es React (web), React Native (móvil) y NestJS (backend).
+El workspace usa **pnpm + Turborepo**. Todavía no hay aplicaciones ni scripts de arranque; cuando existan, `pnpm dev` ejecutará el entorno de desarrollo de cada entregable.
 
 ```bash
-# Pendiente de definición.
+# Arranque previsto del workspace (aún sin aplicaciones):
+pnpm dev
 #
-# Se documentará cómo iniciar cada entregable:
+# Cada entregable definirá su propio script "dev":
 #   - aplicación web (React)
 #   - backend (NestJS)
 #   - aplicación móvil (React Native)
 #
-# También se indicará cómo construir y ejecutar los contenedores Docker.
+# Docker se añadirá al configurar el despliegue.
 ```
+
+| Comando | Descripción |
+| --- | --- |
+| `pnpm install` | Instala las dependencias del workspace |
+| `pnpm dev` | Inicia los entregables en modo desarrollo |
+| `pnpm build` | Compila los entregables |
+| `pnpm lint` | Ejecuta el análisis estático |
+| `pnpm test` | Ejecuta las pruebas |
+| `pnpm typecheck` | Verifica los tipos |
 
 <a id="capturas"></a>
 
@@ -253,12 +267,13 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 | --- | --- | --- |
 | Stack tecnológico | 🟢 Definido | React, React Native, NestJS, PostgreSQL, Prisma, AWS S3, Auth.js y Docker |
 | Estructura del proyecto | 🟢 Definida | Carpetas base del monorepo, sin código |
+| Herramientas del monorepo | 🟢 Definidas | pnpm + Turborepo |
 | Aplicación web | 🟡 En planificación | Sin código fuente |
 | Backend | 🟡 En planificación | Sin código fuente |
 | Aplicación móvil | 🟡 En planificación | Sin código fuente |
 | Documentación | 🟡 En elaboración | Alcance funcional y stack definidos |
 
-> El gestor de paquetes y la herramienta de monorepo aún no están definidos.
+> Las versiones de Node.js, pnpm, PostgreSQL y Prisma aún no están fijadas.
 
 <a id="roadmap"></a>
 
@@ -268,9 +283,9 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 - [x] Selección del stack tecnológico
 - [x] Selección de la base de datos y del ORM (PostgreSQL + Prisma)
 - [x] Estructura base del monorepo y de los módulos del backend
+- [x] Configuración del monorepo (pnpm + Turborepo)
 - [ ] Definición del modelo de datos y migraciones iniciales
 - [ ] Definición de los contratos de la API y del flujo de autenticación
-- [ ] Configuración del monorepo
 - [ ] Configuración de Docker para desarrollo y despliegue
 - [ ] MVP del backend
 - [ ] MVP de la aplicación web

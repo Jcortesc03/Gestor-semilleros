@@ -81,6 +81,10 @@ El backend se organiza como un **monolito modularizado**: un único despliegue, 
 │   ├── api/                        # Documentación de la API
 │   └── decisions/                  # ADRs
 ├── scripts/                        # Automatizaciones del monorepo
+├── package.json                    # Scripts raíz (delegan en Turborepo)
+├── pnpm-workspace.yaml             # Workspace de pnpm
+├── turbo.json                      # Tareas de Turborepo
+├── .gitignore
 ├── README.md
 └── AGENTS.md
 ```
@@ -118,9 +122,29 @@ apps/mobile ┘             └──> AWS S3
 - Un módulo del backend no debe importar archivos internos de otro módulo.
 - Las vistas (React y React Native) no importan código del backend; solo consumen su API.
 
+## Workspace
+
+El monorepo se gestiona con **pnpm** y **Turborepo**:
+
+- `pnpm-workspace.yaml` define los paquetes en `apps/*` y `packages/*`.
+- `turbo.json` declara las tareas `build`, `dev`, `lint`, `test`, `typecheck` y `clean`.
+- Los scripts de la raíz (`package.json`) delegan en `turbo run`.
+- Cada aplicación o paquete tendrá su propio `package.json` con sus scripts.
+- Las dependencias internas se referencian con `workspace:*`.
+
+Comandos previstos desde la raíz:
+
+```bash
+pnpm install
+pnpm dev
+pnpm build
+pnpm lint
+pnpm test
+pnpm typecheck
+```
+
 ## Pendiente de definición
 
-- Gestor de paquetes y herramienta del monorepo.
-- Versiones de Node.js, PostgreSQL y Prisma.
+- Versiones de Node.js, pnpm, Turborepo, PostgreSQL y Prisma.
 - Contenido de los Dockerfiles y archivos Compose.
 - Framework de pruebas y pipeline de CI/CD.
