@@ -1,0 +1,8 @@
+# Skills installed locally by the skills CLI (large, machine-specific)
+.agents/
+
+# Dependencies and build output
+node_modules/
+dist/
+.env
+.DS_Store

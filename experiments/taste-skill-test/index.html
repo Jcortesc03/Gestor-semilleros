@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="es" data-type="software" data-radius="soft" data-buttons="solid" data-motion>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="page-type" content="software">
+  <meta name="site-kind" content="software">
+  <title>Semillero — Software de gestión para viveros de planta</title>
+  <meta name="description" content="Semillero ordena siembras, germinación, riego y despachos en un historial por lote. Software de gestión para viveros de planta.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Saltar al contenido</a>
+
+  <header class="nav" id="top">
+    <div class="wrap nav__inner">
+      <a class="brand" href="#top" aria-label="Semillero, inicio">
+        <span class="mark" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i class="is-on"></i><i></i><i></i><i></i><i></i>
+        </span>
+        <span class="brand__name">Semillero</span>
+      </a>
+
+      <nav class="nav__links" aria-label="Principal">
+        <a href="#producto">Producto</a>
+        <a href="#funciones">Funciones</a>
+        <a href="#como-funciona">Cómo funciona</a>
+        <a href="#preguntas">Preguntas</a>
+      </nav>
+
+      <div class="nav__actions">
+        <a class="btn btn--primary nav__cta" href="mailto:hola@semillero.example?subject=Solicitar%20una%20demo">Solicitar una demo</a>
+        <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu-sheet" aria-label="Abrir menú">
+          <span></span><span></span>
+        </button>
+      </div>
+    </div>
+
+    <div class="menu-sheet" id="menu-sheet" hidden>
+      <div class="wrap menu-sheet__inner">
+        <nav class="menu-sheet__links" aria-label="Menú">
+          <a href="#producto">Producto</a>
+          <a href="#funciones">Funciones</a>
+          <a href="#como-funciona">Cómo funciona</a>
+          <a href="#preguntas">Preguntas</a>
+        </nav>
+        <a class="btn btn--primary" href="mailto:hola@semillero.example?subject=Solicitar%20una%20demo">Solicitar una demo</a>
+        <p class="menu-sheet__note">Demo de 30 minutos con tus propios datos.</p>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <!--
+      Kind: software
+      Deal: split hero with the field view of the product; palette bone / ink / rust;
+      Fraunces + Instrument Sans + IBM Plex Mono; solid buttons; one dark band at the dispatch
+      section; footer-columns.
+      Screens: 1 hero · 2 product app-frame · 3 traceability split · 4 operations bento ·
+      5 dispatch dark band · 6 questions · 7 close + footer.
+    -->
+
+    <section class="hero" id="inicio" aria-labelledby="hero-title">
+      <div class="wrap hero__grid">
+        <div class="hero__copy">
+          <p class="eyebrow"><span class="mark mark--xs" aria-hidden="true"><i></i><i></i><i></i><i></i><i class="is-on"></i><i></i><i></i><i></i><i></i></span> Software de gestión para viveros</p>
+          <h1 id="hero-title">Software de gestión para viveros de planta.</h1>
+          <p class="hero__lead">Planifica siembras, sigue la germinación y despacha cada lote con su historial completo. En el invernadero y en la oficina.</p>
+          <div class="btn-row">
+            <a class="btn btn--primary" href="mailto:hola@semillero.example?subject=Solicitar%20una%20demo">
+              Solicitar una demo
+              <svg class="arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 3.5 13 8l-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a class="btn btn--secondary" href="#producto">Ver el producto</a>
+          </div>
+          <p class="hero__fact"><span class="dot" aria-hidden="true"></span> Demo de 30 minutos con tus propios datos.</p>
+          <p class="hero__meta">Sin instalación · Importación desde Excel · Soporte en español</p>
+        </div>
+
+        <div class="hero__art">
+          <div class="field-app" role="img" aria-label="Vista de campo de Semillero: lote A-142 de tomate RAF, 93,8% de germinación, 80 bandejas y las tareas del día.">
+            <div class="field-app__bar">
+              <span class="field-app__brand"><span class="mark mark--xs mark--light" aria-hidden="true"><i></i><i></i><i></i><i></i><i class="is-on"></i><i></i><i></i><i></i><i></i></span> Semillero</span>
+              <span class="field-app__status"><span class="live-dot" aria-hidden="true"></span> Sin conexión</span>
+            </div>
+
+            <div class="field-app__body">
+              <div class="field-app__head">
+                <div>
+                  <p class="t-label">Cama 04 · Temporada 2026</p>
+                  <h2 class="field-app__title">Tomate RAF</h2>
+                </div>
+                <span class="chip chip--dark">Germinando</span>
+              </div>
+
+              <div class="field-app__metric">
+                <span class="metric">93,8<span>%</span></span>
+                <span class="metric__label">Germinación<br>Lote A-142</span>
+              </div>
+
+              <div class="field-app__split">
+                <div class="field-app__tray">
+                  <div class="tray" aria-hidden="true">
+                    <div class="tray__row"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                    <div class="tray__row"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                    <div class="tray__row"><i></i><i></i><i></i><i></i><i></i><i></i><i class="is-empty"></i><i></i><i></i><i></i></div>
+                    <div class="tray__row"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                    <div class="tray__row"><i></i><i></i><i></i><i class="is-empty"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                    <div class="tray__row"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                    <div class="tray__row"><i class="is-empty"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="is-alert"></i></div>
+                    <div class="tray__row"><i></i><i></i><i></i><i></i><i></i><i class="is-empty"></i><i></i><i></i><i class="is-empty"></i><i></i></div>
+                  </div>
+
+                  <div class="tray__legend">
+                    <span><i class="key key--on"></i> Germinada</span>
+                    <span><i class="key key--empty"></i> Vacía</span>
+                    <span><i class="key key--alert"></i> Revisar</span>
+                  </div>
+                  <p class="tray__count">80 bandejas · 75 germinadas</p>
+                </div>
+
+                <div class="field-readings">
+                  <div><span class="t-label">Humedad</span><strong class="num">61%</strong></div>
+                  <div><span class="t-label">Sustrato</span><strong class="num">24,1 °C</strong></div>
+                  <div><span class="t-label">Última lectura</span><strong class="num">08:12</strong></div>
+                </div>
+              </div>
+
+              <div class="field-tasks">
+                <div class="field-task">
+                  <span class="field-task__time">08:00</span>
+                  <span>Revisar humedad · Cama 07</span>
+                  <span class="field-task__mark" aria-hidden="true"></span>
+                </div>
+                <div class="field-task">
+                  <span class="field-task__time">10:30</span>
+                  <span>Trasplantar · Lote A-138</span>
+                  <span class="field-task__mark" aria-hidden="true"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="field-app__foot">
+              <span class="mono">v2.4</span>
+            </div>
+          </div>
+
+          <div class="float-card" aria-hidden="true">
+            <span class="float-card__icon">
+              <svg viewBox="0 0 20 20"><path d="M5 2.5h6.5L15.5 6v11.5h-10z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M11.5 2.5V6h4M7.5 10h5M7.5 13h5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            </span>
+            <span><strong>Ficha A-142</strong><br><span class="t-label">PDF exportado</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--product" id="producto" aria-labelledby="producto-title">
+      <div class="wrap section__wrap">
+        <div class="section__head">
+          <div>
+            <p class="t-label">Panorama</p>
+            <h2 id="producto-title">Todo el vivero, en una sola vista.</h2>
+          </div>
+          <p class="section__intro">Lotes, bandejas, tareas y riegos comparten el mismo historial. Sin hojas de cálculo paralelas.</p>
+        </div>
+
+        <div class="app-window" role="img" aria-label="Panel de Semillero: lista de lotes activos con variedad, bandejas, fecha de siembra, germinación y estado; a la derecha, la ficha del lote A-142.">
+          <div class="app-window__bar">
+            <div class="app-window__brand">
+              <span class="mark mark--xs" aria-hidden="true"><i></i><i></i><i></i><i></i><i class="is-on"></i><i></i><i></i><i></i><i></i></span>
+              <span>Semillero</span>
+            </div>
+            <div class="app-window__tabs">
+              <span class="is-active">Lotes</span>
+              <span>Tareas</span>
+              <span>Riegos</span>
+              <span>Despachos</span>
+            </div>
+            <div class="app-window__user">
+              <span class="avatar">MO</span>
+              <span>Marta O.</span>
+            </div>
+          </div>
+
+          <div class="app-window__body">
+            <aside class="app-side">
+              <div class="app-side__farm">
+                <p class="t-label">Vivero</p>
+                <strong>La Dehesa</strong>
+              </div>
+              <div class="app-side__nav">
+                <span class="is-active">Lotes <b>24</b></span>
+                <span>Tareas <b>8</b></span>
+                <span>Riegos <b>4</b></span>
+                <span>Despachos <b>3</b></span>
+                <span>Clientes</span>
+              </div>
+              <div class="app-side__foot">
+                <span class="t-label">Temporada</span>
+                <span>2026 · Otoño</span>
+              </div>
+            </aside>
+
+            <div class="app-main">
+              <div class="app-head">
+                <div>
+                  <p class="t-label">Temporada 2026</p>
+                  <h3>Lotes activos</h3>
+                </div>
+                <span class="ui-btn">Nuevo lote</span>
+              </div>
+
+              <div class="app-filters">
+                <span class="is-active">Todos · 24</span>
+                <span>Germinando · 11</span>
+                <span>Listos · 6</span>
+                <span>Revisar · 2</span>
+              </div>
+
+              <table class="app-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Lote</th>
+                    <th scope="col">Variedad</th>
+                    <th scope="col">Bandejas</th>
+                    <th scope="col">Siembra</th>
+                    <th scope="col">Germinación</th>
+                    <th scope="col">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="is-selected">
+                    <td class="mono">A-142</td>
+                    <td>Tomate RAF</td>
+                    <td class="num">80</td>
+                    <td class="num">12 oct</td>
+                    <td class="num">93,8%</td>
+                    <td><span class="chip">Germinando</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">A-145</td>
+                    <td>Lechuga Batavia</td>
+                    <td class="num">64</td>
+                    <td class="num">14 oct</td>
+                    <td class="num">97,1%</td>
+                    <td><span class="chip">Germinando</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">A-138</td>
+                    <td>Pimiento Padrón</td>
+                    <td class="num">48</td>
+                    <td class="num">02 oct</td>
+                    <td class="num">88,4%</td>
+                    <td><span class="chip">Listo</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">A-151</td>
+                    <td>Albahaca Genovesa</td>
+                    <td class="num">36</td>
+                    <td class="num">18 oct</td>
+                    <td class="num">91,2%</td>
+                    <td><span class="chip">Germinando</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">A-129</td>
+                    <td>Tomate Cherry</td>
+                    <td class="num">96</td>
+                    <td class="num">21 sep</td>
+                    <td class="num">95,6%</td>
+                    <td><span class="chip">Despachado</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">A-154</td>
+                    <td>Berenjena Black Beauty</td>
+                    <td class="num">40</td>
+                    <td class="num">20 oct</td>
+                    <td class="num">84,9%</td>
+                    <td><span class="chip chip--accent">Revisar</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">A-157</td>
+                    <td>Calabacín Verde</td>
+                    <td class="num">52</td>
+                    <td class="num">21 oct</td>
+                    <td class="num">96,3%</td>
+                    <td><span class="chip">Germinando</span></td>
+                  </tr>
+                  <tr>
+                    <td class="mono">A-160</td>
+                    <td>Lechuga Hoja de Roble</td>
+                    <td class="num">72</td>
+                    <td class="num">23 oct</td>
+                    <td class="num">92,7%</td>
+                    <td><span class="chip">Listo</span></td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="app-table__foot">
+                <span>Mostrando 8 de 24 lotes</span>
+                <span>Actualizado hace 2 min</span>
+              </div>
+            </div>
+
+            <aside class="app-detail">
+              <div class="app-detail__top">
+                <p class="t-label">Lote A-142</p>
+                <span class="chip">Germinando</span>
+              </div>
+              <h3>Tomate RAF</h3>
+              <p class="app-detail__meta">Cama 04 · 80 bandejas</p>
+
+              <div class="app-detail__progress">
+                <div class="app-detail__progress-head"><span>Germinación</span><strong class="num">93,8%</strong></div>
+                <div class="bar"><span style="--v: 93.8%"></span></div>
+              </div>
+
+              <dl class="app-detail__facts">
+                <div><dt>Siembra</dt><dd class="num">12 oct 2026</dd></div>
+                <div><dt>Sustrato</dt><dd>Fibra de coco</dd></div>
+                <div><dt>Bandejas</dt><dd class="num">80</dd></div>
+                <div><dt>Origen</dt><dd>Semilla propia</dd></div>
+              </dl>
+
+              <div class="app-detail__timeline">
+                <p class="t-label">Historial</p>
+                <ol class="timeline timeline--compact">
+                  <li class="is-done"><span>12 oct</span> Siembra</li>
+                  <li class="is-done"><span>19 oct</span> Germinación</li>
+                  <li class="is-next"><span>02 nov</span> Trasplante</li>
+                  <li><span>—</span> Despacho</li>
+                </ol>
+              </div>
+
+              <div class="app-detail__note">
+                <span class="t-label">Actualizado</span>
+                <span class="mono">hace 2 min</span>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--trace" id="funciones" aria-labelledby="funciones-title">
+      <div class="wrap section__wrap">
+        <div class="section__head section__head--narrow">
+          <div>
+            <p class="t-label">Trazabilidad</p>
+            <h2 id="funciones-title">La ficha que pide una inspección.</h2>
+          </div>
+          <p class="section__intro">Cada lote guarda variedad, sustrato, tratamientos, germinación y salida. Se exporta en un clic.</p>
+        </div>
+
+        <div class="trace__grid">
+          <div class="trace__rows">
+            <div class="row"><span>Variedad</span><strong>Tomate RAF</strong></div>
+            <div class="row"><span>Sustrato</span><strong>Fibra de coco</strong></div>
+            <div class="row"><span>Siembra</span><strong class="num">12 oct 2026</strong></div>
+            <div class="row"><span>Germinación</span><strong class="num">93,8%</strong></div>
+            <div class="row row--last"><span>Destino</span><strong>Pedido D-208</strong></div>
+            <p class="trace__note">Exportable a CSV y PDF, con el mismo formato en todos los lotes.</p>
+          </div>
+
+          <div class="doc" role="img" aria-label="Ficha de lote A-142 con variedad, sustrato, siembra, germinación, tratamientos e historial.">
+            <div class="doc__bar">
+              <span class="mono">Ficha de lote · A-142</span>
+              <span class="chip chip--accent">Trazable</span>
+            </div>
+            <div class="doc__title">
+              <div>
+                <h3>Tomate RAF</h3>
+                <p>Cama 04 · Temporada 2026</p>
+              </div>
+              <span class="doc__stamp">A-142</span>
+            </div>
+
+            <div class="doc__grid">
+              <div><span class="t-label">Siembra</span><strong class="num">12 oct 2026</strong></div>
+              <div><span class="t-label">Bandejas</span><strong class="num">80</strong></div>
+              <div><span class="t-label">Sustrato</span><strong>Fibra de coco</strong></div>
+              <div><span class="t-label">Germinación</span><strong class="num">93,8%</strong></div>
+              <div><span class="t-label">Tratamiento</span><strong>Control biológico</strong></div>
+              <div><span class="t-label">Responsable</span><strong>Marta O.</strong></div>
+            </div>
+
+            <div class="doc__history">
+              <div class="doc__history-head">
+                <span class="t-label">Historial</span>
+                <span class="t-label">4 registros</span>
+              </div>
+              <ol class="timeline">
+                <li class="is-done"><span class="num">12 oct</span><div><strong>Siembra</strong><small>80 bandejas · Cama 04</small></div></li>
+                <li class="is-done"><span class="num">19 oct</span><div><strong>Germinación</strong><small>75 bandejas · 93,8%</small></div></li>
+                <li class="is-done"><span class="num">28 oct</span><div><strong>Selección</strong><small>76 bandejas · 4 descartes</small></div></li>
+                <li class="is-next"><span class="num">02 nov</span><div><strong>Trasplante</strong><small>Pedido D-208 · Vivero del Sur</small></div></li>
+              </ol>
+            </div>
+            <div class="doc__foot">
+              <span>Exportar PDF</span>
+              <span>Exportar CSV</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--ops" id="como-funciona" aria-labelledby="ops-title">
+      <div class="wrap section__wrap">
+        <div class="section__head">
+          <div>
+            <p class="t-label">El día a día</p>
+            <h2 id="ops-title">Riego, tareas y clima en una pantalla.</h2>
+          </div>
+          <p class="section__intro">El plan del día se ajusta a la humedad de cada cama y a la previsión de la semana.</p>
+        </div>
+
+        <div class="ops__grid">
+          <article class="card ops__main">
+            <div class="card__head">
+              <div>
+                <p class="t-label">Hoy · 05 nov</p>
+                <h3>Riego de hoy</h3>
+              </div>
+              <span class="mono">6 zonas · 74 min</span>
+            </div>
+            <div class="water">
+              <div class="water__head">
+                <span>Humedad media</span>
+                <strong class="num">61%</strong>
+              </div>
+              <div class="water__bars" aria-hidden="true">
+                <i style="--v: 64%"></i><i style="--v: 58%"></i><i style="--v: 71%"></i><i style="--v: 49%"></i><i style="--v: 66%"></i><i style="--v: 54%"></i><i style="--v: 62%"></i><i style="--v: 57%"></i><i style="--v: 68%"></i><i style="--v: 52%"></i><i style="--v: 60%"></i><i style="--v: 59%"></i>
+              </div>
+              <div class="water__rows">
+                <div class="water__row"><span class="mono">Cama 01</span><span>06:40</span><span class="num">18 min</span><span class="water__state">Programado</span></div>
+                <div class="water__row"><span class="mono">Cama 03</span><span>07:10</span><span class="num">12 min</span><span class="water__state">Programado</span></div>
+                <div class="water__row"><span class="mono">Cama 04</span><span>07:35</span><span class="num">20 min</span><span class="water__state">Programado</span></div>
+                <div class="water__row is-low"><span class="mono">Cama 07</span><span>08:00</span><span class="num">8 min</span><span class="water__state">Humedad baja</span></div>
+                <div class="water__row"><span class="mono">Cama 09</span><span>08:20</span><span class="num">10 min</span><span class="water__state">Programado</span></div>
+                <div class="water__row"><span class="mono">Cama 11</span><span>08:40</span><span class="num">6 min</span><span class="water__state">Programado</span></div>
+              </div>
+            </div>
+
+            <p class="water__note"><span class="dot" aria-hidden="true"></span> Cama 07: revisar drenaje antes del próximo riego.</p>
+
+            <div class="water__summary">
+              <div><span class="t-label">Duración</span><strong class="num">74 min</strong></div>
+              <div><span class="t-label">Zonas</span><strong class="num">6</strong></div>
+              <div><span class="t-label">Consumo</span><strong class="num">1.840 L</strong></div>
+            </div>
+          </article>
+
+          <div class="ops__side">
+            <article class="card ops__tasks">
+              <div class="card__head">
+                <div>
+                  <p class="t-label">Equipo</p>
+                  <h3>Tareas de hoy</h3>
+                </div>
+                <span class="mono">3 de 8</span>
+              </div>
+              <ul class="tasks">
+                <li class="is-done"><span class="check" aria-hidden="true"></span><span>Revisar humedad · Cama 07</span><span class="mono">08:00</span></li>
+                <li><span class="check" aria-hidden="true"></span><span>Trasplantar · Lote A-138</span><span class="mono">10:30</span></li>
+                <li><span class="check" aria-hidden="true"></span><span>Etiquetar · Lote A-145</span><span class="mono">12:00</span></li>
+                <li><span class="check" aria-hidden="true"></span><span>Preparar · Pedido D-208</span><span class="mono">15:00</span></li>
+              </ul>
+            </article>
+
+            <article class="card ops__weather">
+              <div class="card__head">
+                <div>
+                  <p class="t-label">La Dehesa</p>
+                  <h3>Clima</h3>
+                </div>
+                <span class="mono">05 nov</span>
+              </div>
+              <div class="weather">
+                <div class="weather__today">
+                  <span class="weather__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                  </span>
+                  <div><strong class="num">21° / 12°</strong><span>Despejado</span></div>
+                </div>
+                <div class="weather__days">
+                  <div><span>Mañana</span><strong class="num">19° / 11°</strong></div>
+                  <div><span>Jueves</span><strong class="num">23° / 13°</strong></div>
+                </div>
+                <p class="weather__note">Riego reducido un 20% en las camas 01 y 03.</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--dispatch" id="despacho" aria-labelledby="dispatch-title">
+      <div class="wrap section__wrap">
+        <div class="section__head section__head--dark">
+          <div>
+            <p class="t-label">Del pedido a la bandeja</p>
+            <h2 id="dispatch-title">Cada despacho conserva su historial.</h2>
+          </div>
+          <p class="section__intro">Del pedido a la bandeja: qué variedad salió, de qué cama y en qué fecha.</p>
+        </div>
+
+        <div class="dispatch__grid">
+          <div class="dispatch__copy">
+            <p class="dispatch__lead">El cliente recibe la planta y tú conservas el registro. Sin reconstruir la temporada a mano.</p>
+            <div class="dispatch__facts">
+              <div><span class="t-label">Pedido</span><strong class="num">D-208</strong></div>
+              <div><span class="t-label">Cliente</span><strong>Vivero del Sur</strong></div>
+              <div><span class="t-label">Entrega</span><strong class="num">02 nov 2026</strong></div>
+            </div>
+          </div>
+
+          <div class="dispatch-card" role="img" aria-label="Pedido D-208 preparado: 12 bandejas de tomate RAF, con el historial de siembra, germinación, selección y despacho.">
+            <div class="dispatch-card__head">
+              <div>
+                <p class="t-label">Pedido D-208</p>
+                <h3>Vivero del Sur</h3>
+              </div>
+              <span class="chip chip--accent">Preparado</span>
+            </div>
+            <div class="dispatch-card__summary">
+              <div><span class="t-label">Variedad</span><strong>Tomate RAF</strong></div>
+              <div><span class="t-label">Bandejas</span><strong class="num">12</strong></div>
+              <div><span class="t-label">Entrega</span><strong class="num">02 nov</strong></div>
+            </div>
+            <ol class="timeline timeline--horizontal">
+              <li class="is-done"><span class="num">12 oct</span><strong>Siembra</strong><small>Cama 04</small></li>
+              <li class="is-done"><span class="num">19 oct</span><strong>Germinación</strong><small>93,8%</small></li>
+              <li class="is-done"><span class="num">28 oct</span><strong>Selección</strong><small>12 bandejas</small></li>
+              <li class="is-next"><span class="num">02 nov</span><strong>Despacho</strong><small>Vivero del Sur</small></li>
+            </ol>
+
+            <div class="dispatch-card__prep">
+              <span class="t-label">Preparación</span>
+              <div><span>Etiquetado</span><span>Hecho</span></div>
+              <div><span>Control fitosanitario</span><span>Hecho</span></div>
+              <div><span>Carga</span><span class="num">08:30</span></div>
+            </div>
+
+            <div class="dispatch-card__foot">
+              <span>Lote A-142 · Trazabilidad completa</span>
+              <span class="mono">PDF · CSV</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--faq" id="preguntas" aria-labelledby="faq-title">
+      <div class="wrap section__wrap">
+        <div class="faq__grid">
+          <div class="faq__intro">
+            <p class="t-label">Antes de empezar</p>
+            <h2 id="faq-title">Preguntas antes de empezar.</h2>
+            <p class="section__intro">Lo que suelen preguntar los responsables de vivero.</p>
+            <a class="link" href="mailto:hola@semillero.example?subject=Consulta%20sobre%20Semillero">Escríbenos si falta la tuya</a>
+          </div>
+
+          <div class="faq__list">
+            <article class="faq__item">
+              <h3>¿Funciona sin conexión?</h3>
+              <p>Sí. Las tareas y los registros se guardan en el dispositivo y se sincronizan al recuperar la red.</p>
+            </article>
+            <article class="faq__item">
+              <h3>¿Puedo importar mis lotes actuales?</h3>
+              <p>Sí. La puesta en marcha incluye la importación desde Excel y la revisión de variedades y camas.</p>
+            </article>
+            <article class="faq__item">
+              <h3>¿Cuánto tarda la puesta en marcha?</h3>
+              <p>Una semana para un vivero de hasta 20 camas; dos para varios centros.</p>
+            </article>
+            <article class="faq__item">
+              <h3>¿Dónde se guardan los datos?</h3>
+              <p>En servidores europeos, con copia diaria y acceso por roles.</p>
+            </article>
+            <article class="faq__item">
+              <h3>¿Se integra con mi ERP?</h3>
+              <p>Exportamos pedidos y existencias en CSV. La conexión directa se define en la demo.</p>
+            </article>
+            <article class="faq__item">
+              <h3>¿Cuánto cuesta?</h3>
+              <p>La demo incluye una propuesta con el coste según camas y usuarios.</p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="closing" id="contacto">
+    <div class="wrap closing__wrap">
+      <div class="closing__top">
+        <div class="closing__copy">
+          <p class="t-label">Demo</p>
+          <h2>Pon orden en la próxima siembra.</h2>
+          <p>Demo de 30 minutos con tus propios datos.</p>
+        </div>
+        <a class="btn btn--primary btn--xl" href="mailto:hola@semillero.example?subject=Solicitar%20una%20demo">
+          Solicitar una demo
+          <svg class="arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 3.5 13 8l-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </div>
+
+      <div class="closing__dir">
+        <div class="closing__brand">
+          <a class="brand" href="#top" aria-label="Semillero, inicio">
+            <span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i class="is-on"></i><i></i><i></i><i></i><i></i></span>
+            <span class="brand__name">Semillero</span>
+          </a>
+          <p>Software de gestión para viveros de planta.</p>
+        </div>
+        <nav class="closing__col" aria-label="Producto">
+          <span class="t-label">Producto</span>
+          <a href="#producto">Panorama</a>
+          <a href="#funciones">Funciones</a>
+          <a href="#como-funciona">Cómo funciona</a>
+          <a href="#preguntas">Preguntas</a>
+        </nav>
+        <div class="closing__col">
+          <span class="t-label">Contacto</span>
+          <a href="mailto:hola@semillero.example?subject=Solicitar%20una%20demo">Solicitar una demo</a>
+          <a href="mailto:hola@semillero.example?subject=Consulta%20sobre%20Semillero">Escríbenos</a>
+        </div>
+      </div>
+
+      <div class="closing__legal">
+        <span>© 2026 Semillero</span>
+        <span>Hecho para viveros de planta.</span>
+      </div>
+
+      <div class="closing__word" aria-hidden="true">Semillero</div>
+    </div>
+  </footer>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
