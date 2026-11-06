@@ -19,6 +19,7 @@
     "db:logs": "docker compose -f docker/compose.yaml logs -f postgres",
     "db:generate": "pnpm --filter @gestor-semilleros/backend db:generate",
     "db:migrate": "pnpm --filter @gestor-semilleros/backend db:migrate",
+    "db:seed": "pnpm --filter @gestor-semilleros/backend db:seed",
     "db:studio": "pnpm --filter @gestor-semilleros/backend db:studio"
   },
   "devDependencies": {

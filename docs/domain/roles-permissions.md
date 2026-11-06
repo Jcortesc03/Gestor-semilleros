@@ -1,6 +1,6 @@
 # Roles y permisos
 
-> **Estado:** definición funcional. Es una **matriz conceptual**: no constituye un sistema de autorización ni se ha implementado. Los roles globales y de proyecto sí existen en el modelo de datos (`user_roles`, `project_members`).
+> **Estado:** definición funcional. Es una **matriz conceptual**. Los roles globales y de proyecto existen en el modelo de datos (`user_roles`, `project_members`). **Implementado hoy** en el backend: `SessionGuard` (autenticación), `RolesGuard` + `@Roles` (rol global) y un único permiso, **crear usuarios (solo `ADMIN`)**. Los demás permisos y toda autorización por proyecto, facultad o área **no están implementados**.
 > **No inventes permisos.** Lo que no aparece como ✅ requiere confirmación antes de implementarse.
 > Marcas: ✅ confirmado · 🟡 hipótesis · ❓ pendiente · `—` no definido. Los códigos `P-xx` remiten a las [preguntas pendientes](business-rules.md#preguntas-pendientes).
 
@@ -95,8 +95,8 @@ Una celda sin marca de estado está ✅ confirmada. Las celdas `—` no tienen p
 
 | Recurso | Administrador | Encargado de área | Decano | Tutor | Estudiante líder | Estudiante |
 | --- | --- | --- | --- | --- | --- | --- |
-| Usuarios | C | — | — | — | — | — |
-| Roles globales | U | — | — | — | — | — |
+| Usuarios | C (implementado) | — | — | — | — | — |
+| Roles globales | U (solo se asignan al crear el usuario; modificarlos no está implementado) | — | — | — | — | — |
 | Rol de estudiante en proyecto (incluye líder, máx. uno) | U ❓ | — | — | U (limitado, P-21) | — | — |
 | Áreas | — ❓ | R U (C D ❓) | — | — | — | — |
 | Facultades | — ❓ | — | R (sus facultades) | — | — | — |

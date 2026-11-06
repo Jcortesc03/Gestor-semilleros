@@ -16,9 +16,9 @@ El alcance, los módulos y el estado se documentan en `README.md`; no los repita
 
 ## 2. Estado actual del proyecto
 
-- **Fase inicial de implementación:** el backend NestJS existe con el módulo de autenticación. Web (React) y móvil (React Native) aún no existen.
+- **Fase inicial de implementación:** el backend NestJS está en desarrollo (autenticación y alta de usuarios). Web (React) y móvil (React Native) aún no existen (solo carpetas vacías).
 - **Definido:** stack, versiones base, estructura del monorepo, workspace (pnpm + Turborepo) y scripts raíz.
-- **Implementado:** esquema de datos y migraciones, PostgreSQL local con Docker Compose ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)), y en el backend `PrismaService`, inicio de sesión con Auth.js (correo + contraseña y Google), `SessionGuard`, `GET /api/me` y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)); alta de usuarios `POST /api/users` con `RolesGuard` ([ADR 0003](docs/decisions/0003-alta-de-usuarios.md)).
+- **Implementado:** esquema de datos y migraciones, PostgreSQL local con Docker Compose ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)), y en el backend `PrismaService`, inicio de sesión con Auth.js (correo + contraseña y Google), `SessionGuard`, `GET /api/me` y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)); alta de usuarios `POST /api/users` con `RolesGuard` ([ADR 0003](docs/decisions/0003-alta-de-usuarios.md)); el script `admin:create` y la seed de desarrollo (`db:seed`).
 - **Instalado:** dependencias de Turborepo y del backend (`pnpm-lock.yaml` versionado).
 - **No implementado:** módulos de dominio (proyectos, tableros…), permisos por proyecto, resto de la gestión de usuarios, autenticación móvil, Docker de despliegue ni CI/CD.
 
@@ -71,7 +71,7 @@ No fijes versiones ni agregues herramientas para cubrir estos pendientes sin apr
 ## 5. Reglas de oro
 
 1. **No inventar:** ni versiones, ni dependencias, ni scripts, ni rutas, ni contratos, ni datos.
-2. **No adelantar implementación:** la fase actual es de planificación.
+2. **No adelantar implementación:** solo existe lo descrito en §2; el resto está en planificación.
 3. **Cambios mínimos:** no refactorices fuera del alcance solicitado.
 4. **Sin secretos:** nunca credenciales, tokens, `.env` reales ni datos personales.
 5. **Preguntar antes de asumir:** ante ambigüedad técnica o funcional, detente.
@@ -159,6 +159,7 @@ El workspace está configurado. Solo existe el paquete `@gestor-semilleros/backe
 | `pnpm dev`, `pnpm build`, `pnpm typecheck` | ✅ Backend (`nest start --watch`, `nest build`, `tsc --noEmit`). Requieren `apps/backend/.env`. |
 | `pnpm test` | ✅ Pruebas unitarias (Jest), sin base de datos. |
 | `pnpm --filter @gestor-semilleros/backend admin:create` | ✅ Crea un administrador (`ADMIN_EMAIL`, `ADMIN_FULL_NAME`, `ADMIN_PASSWORD`). |
+| `pnpm db:seed` | ✅ Siembra datos de **desarrollo** (`src/cli/seed.ts`): un usuario por tipo (`admin@example.test`, `encargado.area@`, `decano@`, `tutor@`, `lider@`, `estudiante@`), área, facultad y un proyecto demo. Requiere `SEED_PASSWORD` (8–256 caracteres), es idempotente y se niega a correr con `NODE_ENV=production`. Ej.: `SEED_PASSWORD='…' pnpm db:seed` (fish: anteponer `env`). |
 | `pnpm test:e2e` | ✅ Pruebas de la API contra `TEST_DATABASE_URL` (requiere `pnpm db:up`). |
 | `pnpm lint` | Configurado; ningún paquete lo implementa (herramienta pendiente). |
 | Docker de despliegue | **Pendiente** de configuración. |

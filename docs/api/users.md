@@ -36,7 +36,7 @@ Cualquier otro campo, por ejemplo `status` o `passwordHash`, se rechaza con `400
 
 ## Primer administrador
 
-El endpoint exige un administrador, así que el primero se crea desde la terminal. Los datos se leen de variables de entorno para que la contraseña no quede en el historial:
+El endpoint exige un administrador, así que el primero se crea desde la terminal (para desarrollo, `pnpm db:seed` crea además un usuario por tipo; ver [`local-setup.md`](../database/local-setup.md#datos-de-desarrollo-seed)). Los datos se leen de variables de entorno para que la contraseña no quede en el historial:
 
 ```bash
 ADMIN_EMAIL=admin@example.test ADMIN_FULL_NAME="Administrador" ADMIN_PASSWORD='…' \

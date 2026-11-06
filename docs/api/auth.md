@@ -48,4 +48,4 @@ Todas las rutas protegidas usan `SessionGuard`, que:
 - **Límite de intentos** (fuerza bruta) en `/api/auth/callback/credentials`.
 - Alta de usuarios: implementada en [`users.md`](users.md).
 - **Restricción de dominio** de los correos de Google (p. ej. solo institucionales): no está definida.
-- **Permisos por rol:** `SessionGuard` solo autentica. Los roles globales se comprueban con `RolesGuard` (ver ADR 0003).
+- **Permisos por rol:** `SessionGuard` solo autentica. Los roles globales se comprueban con `RolesGuard` (ver ADR 0003); hoy solo `POST /api/users` lo usa. La autorización por proyecto, facultad o área no está implementada.
