@@ -17,9 +17,18 @@ El backend se organiza como un **monolito modularizado**: un único despliegue, 
 .
 ├── apps/
 │   ├── backend/                    # NestJS + Prisma
+│   │   ├── .env.example            # Plantilla de DATABASE_URL
+│   │   ├── package.json            # Scripts db:* (Prisma)
+│   │   ├── prisma.config.ts        # Configuración de Prisma CLI
 │   │   ├── prisma/
+│   │   │   ├── schema.prisma       # Esquema de datos
 │   │   │   └── migrations/         # Migraciones de Prisma
 │   │   └── src/
+│   │       ├── main.ts             # Arranque de NestJS
+│   │       ├── app.module.ts
+│   │       ├── app.setup.ts        # Prefijo /api y montaje de Auth.js (compartido con pruebas)
+│   │       ├── generated/prisma/   # Cliente de Prisma generado (no versionado)
+│   │       ├── types/              # Declaraciones de tipos (Auth.js)
 │   │       ├── common/             # Código transversal
 │   │       │   ├── decorators/
 │   │       │   ├── filters/
@@ -29,7 +38,9 @@ El backend se organiza como un **monolito modularizado**: un único despliegue, 
 │   │       │   └── utils/
 │   │       ├── config/             # Configuración y validación de entorno
 │   │       ├── database/           # PrismaService y utilidades de datos
-│   │       └── modules/            # Módulos de dominio
+│   │       ├── modules/            # Módulos de dominio
+│   │       └── **/*.spec.ts        # Pruebas unitarias junto al código
+│   │   └── test/                   # Pruebas de la API (e2e) y su configuración
 │   │           ├── auth/           # Autenticación y autorización (Auth.js)
 │   │           ├── users/          # Integrantes, tutores y decanos
 │   │           ├── faculties/      # Facultades
@@ -76,8 +87,21 @@ El backend se organiza como un **monolito modularizado**: un único despliegue, 
 │   ├── validation/                 # Esquemas de validación
 │   └── utils/                      # Utilidades compartidas
 ├── docker/                         # Configuración de contenedores
+│   ├── compose.yaml                # PostgreSQL local
+│   └── .env.example
 ├── docs/
 │   ├── architecture/               # Arquitectura y esta guía
+│   ├── domain/                     # Dominio del negocio (independiente de la tecnología)
+│   │   ├── README.md
+│   │   ├── glossary.md
+│   │   ├── entities.md
+│   │   ├── business-rules.md
+│   │   ├── roles-permissions.md
+│   │   └── workflows.md
+│   ├── database/                   # Modelo de datos y base de datos local
+│   │   ├── data-model.md
+│   │   ├── database-decisions.md
+│   │   └── local-setup.md
 │   ├── api/                        # Documentación de la API
 │   └── decisions/                  # ADRs
 ├── scripts/                        # Automatizaciones del monorepo
@@ -145,6 +169,6 @@ pnpm typecheck
 
 ## Pendiente de definición
 
-- Versiones de Node.js, pnpm, Turborepo, PostgreSQL y Prisma.
-- Contenido de los Dockerfiles y archivos Compose.
+- Versión de Turborepo (el resto está en el ADR 0001).
+- Dockerfiles y Compose de despliegue (el Compose local ya existe).
 - Framework de pruebas y pipeline de CI/CD.
