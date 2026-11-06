@@ -274,7 +274,7 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 | Estructura del proyecto | 🟢 Definida | Carpetas base del monorepo, sin código |
 | Herramientas del monorepo | 🟢 Definidas | pnpm + Turborepo |
 | Aplicación web | 🟡 En planificación | Sin código fuente |
-| Backend | 🟡 En desarrollo | NestJS con inicio de sesión (Auth.js: correo + contraseña y Google), esquema Prisma y pruebas |
+| Backend | 🟡 En desarrollo | NestJS con inicio de sesión (Auth.js: correo + contraseña y Google), alta de usuarios por el administrador, esquema Prisma y pruebas |
 | Aplicación móvil | 🟡 En planificación | Sin código fuente |
 | Documentación | 🟡 En elaboración | Alcance, dominio y modelo de datos definidos |
 

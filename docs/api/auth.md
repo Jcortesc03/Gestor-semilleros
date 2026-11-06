@@ -46,6 +46,6 @@ Todas las rutas protegidas usan `SessionGuard`, que:
 
 - **Móvil:** el flujo con cookie sirve para la web. La autenticación de React Native sigue pendiente (`AGENTS.md` §4).
 - **Límite de intentos** (fuerza bruta) en `/api/auth/callback/credentials`.
-- **Alta de usuarios** y definición de contraseñas por el Administrador: todavía no hay endpoint.
+- Alta de usuarios: implementada en [`users.md`](users.md).
 - **Restricción de dominio** de los correos de Google (p. ej. solo institucionales): no está definida.
-- **Permisos por rol** (autorización): `SessionGuard` solo autentica.
+- **Permisos por rol:** `SessionGuard` solo autentica. Los roles globales se comprueban con `RolesGuard` (ver ADR 0003).

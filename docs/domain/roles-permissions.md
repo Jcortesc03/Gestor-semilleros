@@ -51,7 +51,7 @@ flowchart TB
 ### Administrador
 - **Alcance:** todo el sistema.
 - ✅ Modificar roles.
-- ✅ Crear usuarios con roles preestablecidos.
+- ✅ Crear usuarios con roles preestablecidos. Implementado en `POST /api/users` ([ADR 0003](../decisions/0003-alta-de-usuarios.md)).
 - ✅ Consultar métricas generales mediante dashboards.
 - ❓ No está definido si tiene acceso operativo sobre proyectos, tableros o novedades (P-22).
 

@@ -18,9 +18,9 @@ El alcance, los módulos y el estado se documentan en `README.md`; no los repita
 
 - **Fase inicial de implementación:** el backend NestJS existe con el módulo de autenticación. Web (React) y móvil (React Native) aún no existen.
 - **Definido:** stack, versiones base, estructura del monorepo, workspace (pnpm + Turborepo) y scripts raíz.
-- **Implementado:** esquema de datos y migraciones, PostgreSQL local con Docker Compose ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)), y en el backend `PrismaService`, inicio de sesión con Auth.js (correo + contraseña y Google), `SessionGuard`, `GET /api/me` y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)).
+- **Implementado:** esquema de datos y migraciones, PostgreSQL local con Docker Compose ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)), y en el backend `PrismaService`, inicio de sesión con Auth.js (correo + contraseña y Google), `SessionGuard`, `GET /api/me` y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)); alta de usuarios `POST /api/users` con `RolesGuard` ([ADR 0003](docs/decisions/0003-alta-de-usuarios.md)).
 - **Instalado:** dependencias de Turborepo y del backend (`pnpm-lock.yaml` versionado).
-- **No implementado:** módulos de dominio (proyectos, tableros…), autorización por rol, alta de usuarios, autenticación móvil, Docker de despliegue ni CI/CD.
+- **No implementado:** módulos de dominio (proyectos, tableros…), permisos por proyecto, resto de la gestión de usuarios, autenticación móvil, Docker de despliegue ni CI/CD.
 
 Por lo tanto:
 
@@ -158,6 +158,7 @@ El workspace está configurado. Solo existe el paquete `@gestor-semilleros/backe
 | `db:validate`, `db:format`, `db:status`, `db:deploy`, `db:reset` | ✅ Scripts de `apps/backend`. `db:reset` borra los datos locales: requiere confirmación. |
 | `pnpm dev`, `pnpm build`, `pnpm typecheck` | ✅ Backend (`nest start --watch`, `nest build`, `tsc --noEmit`). Requieren `apps/backend/.env`. |
 | `pnpm test` | ✅ Pruebas unitarias (Jest), sin base de datos. |
+| `pnpm --filter @gestor-semilleros/backend admin:create` | ✅ Crea un administrador (`ADMIN_EMAIL`, `ADMIN_FULL_NAME`, `ADMIN_PASSWORD`). |
 | `pnpm test:e2e` | ✅ Pruebas de la API contra `TEST_DATABASE_URL` (requiere `pnpm db:up`). |
 | `pnpm lint` | Configurado; ningún paquete lo implementa (herramienta pendiente). |
 | Docker de despliegue | **Pendiente** de configuración. |
@@ -235,6 +236,7 @@ Si la decisión ya está aprobada y registrada, procede sin volver a preguntar.
 | [`docs/database/database-decisions.md`](docs/database/database-decisions.md) | Decisiones de datos (`DB-xx`) |
 | [`docs/database/local-setup.md`](docs/database/local-setup.md) | Instalación local de la base de datos |
 | [`docs/api/auth.md`](docs/api/auth.md) | Contrato de la API de autenticación |
+| [`docs/api/users.md`](docs/api/users.md) | Contrato de la API de usuarios |
 | `docs/decisions/` | ADRs |
 
 Antes de implementar cualquier funcionalidad del dominio (entidades, permisos, flujos o esquema de datos), consulta `docs/domain/` empezando por su `README.md`, y `docs/database/` si afecta a la persistencia. Lo marcado como 🟡 hipótesis o ❓ pendiente **no** se implementa sin confirmación. **No inventes reglas de negocio ni permisos** que sigan pendientes.

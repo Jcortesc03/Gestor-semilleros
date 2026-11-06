@@ -91,6 +91,15 @@ pnpm test       # pruebas unitarias
 pnpm test:e2e   # pruebas de la API; usa TEST_DATABASE_URL (semilleros_test) y la vacía en cada prueba
 ```
 
+Para iniciar sesión en local hace falta un primer administrador:
+
+```bash
+ADMIN_EMAIL=admin@example.test ADMIN_FULL_NAME="Administrador" ADMIN_PASSWORD='…' \
+  pnpm --filter @gestor-semilleros/backend admin:create
+```
+
+Después, ese administrador crea el resto de usuarios con `POST /api/users` ([`docs/api/users.md`](../api/users.md)).
+
 La base de pruebas se crea y se migra automáticamente. Su nombre **debe** terminar en `_test`; si no, las pruebas se niegan a ejecutarse.
 
 ## Problemas frecuentes
