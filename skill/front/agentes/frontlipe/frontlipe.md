@@ -101,3 +101,47 @@ Si el pedido es ambiguo, haz una pregunta breve y concreta. Si no lo es, decide 
 ## Criterio de éxito
 
 El resultado debe verse como una pieza editorial o un producto real, no como una landing generada por IA. Si otra persona puede reemplazar el H1 por "Soluciones innovadoras para tu empresa" sin que se note, no has terminado.
+
+---
+
+## Guía de estilos del proyecto (obligatoria para diseño)
+
+Esta guía rige todo el frontend del **Gestor de Semilleros Universitarios**. Cada vez que diseñes, maquetes o revises una vista (web o móvil), aplícala estrictamente. Prevalece sobre criterios genéricos de la skill `design-taste-frontend` cuando haya conflicto específico de componente.
+
+### 1. Paleta de colores (valores exactos)
+
+| Nombre | Hex | Uso |
+|--------|-----|-----|
+| **Primario (Azul Oscuro)** | `#151B40` | Encabezados (headers), pie de página (footers), títulos principales, fondos primarios oscuros. |
+| **Secundario (Gris Azulado Oscuro)** | `#2A2C41` | Fondo de tarjetas (cards) informativas o secciones de herramientas sobre fondos oscuros. |
+| **Acento (Amarillo Dorado)** | `#F3B92F` | Botones de llamada a la acción (CTAs), íconos, insignias (badges), palabras clave resaltadas. |
+| **Alerta/Énfasis (Rojo)** | `#C1272D` | Mensajes de advertencia, errores o textos de extrema importancia exclusivamente. |
+| **Fondo Claro (Beige Claro)** | `#F5F2EB` | Fondo de secciones secundarias, contraste suave sin blanco puro. |
+| **Base (Blanco)** | `#FFFFFF` | Fondos principales, tarjetas sobre fondos claros, texto general sobre fondos oscuros. |
+
+### 2. Tipografía
+
+**Familia:** usa exclusivamente una fuente Sans-serif moderna, geométrica y limpia (ej. `Montserrat`, `Poppins` o `Roboto`). **No mezcles familias tipográficas.**
+
+**Jerarquía y pesos:**
+
+| Elemento | Peso | Color | Notas |
+|----------|------|-------|-------|
+| Títulos (H1, H2, H3) | Bold / Extra Bold | `#151B40` (fondos claros) | Ocasionalmente MAYÚSCULAS para bloques de gran importancia. |
+| Cuerpo de texto (Body) | Regular (400) | Oscuro (fondos claros) / Blanco (fondos oscuros) | Buena legibilidad. |
+| Botones e insignias | Semi-bold (600) | Según contexto | — |
+
+**Textos resaltados:** cuando apliques el color de acento (`#F3B92F`) o alerta (`#C1272D`) a palabras dentro de un párrafo, mantén la misma fuente y aplícale **negrita (bold)** para maximizar el contraste.
+
+### 3. Estructura y componentes UI
+
+- **Diseño basado en tarjetas (Card-Based UI):** agrupa la información y los enlaces dentro de contenedores o tarjetas independientes. El contenido nunca debe estar flotando suelto en el fondo.
+- **Bordes redondeados:** aplica bordes redondeados consistentes a todos los contenedores (botones, tarjetas, modales, mapas). Evita esquinas completamente rectas; usa valores entre `8px` y `12px`.
+- **Iconografía:** usa iconos minimalistas de estilo línea (line-art). Combínalos con el color de acento amarillo o colócalos dentro de contenedores circulares para guiar la vista hacia la acción.
+- **Espaciado y "White Space":** usa espaciado generoso. Aplica márgenes amplios entre secciones y *padding* interno holgado dentro de las tarjetas para evitar saturación visual.
+- **Profundidad sin sombras pesadas:** genera separación visual mediante contraste de colores de fondo (ej. tarjeta gris azulada sobre fondo azul marino). Si usas sombras (`box-shadow`), deben ser extremadamente sutiles y difuminadas.
+- **Fondos dinámicos:** para secciones grandes, evita colores sólidos planos. Implementa texturas muy sutiles, como patrones de puntos tenues en las esquinas o marcas de agua translúcidas de gran tamaño (logos o iconos desenfocados con opacidad muy baja).
+
+### 4. Copia de referencia
+
+La versión completa de esta guía vive en `skill/front/habilidades/design-taste-frontend/guia-estilos-proyecto.md`. Consúltala antes de entregar cualquier diseño.
