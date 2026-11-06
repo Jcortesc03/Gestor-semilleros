@@ -143,7 +143,7 @@ La estructura inicial de carpetas ya está creada (todavía sin código). El bac
 │   └── mobile/     # React Native
 ├── packages/       # types · validation · utils
 ├── docker/         # configuración de contenedores
-├── docs/           # arquitectura · API · ADRs
+├── docs/           # arquitectura · dominio · base de datos · API · ADRs
 ├── scripts/        # utilidades del monorepo
 ├── package.json    # workspace y scripts raíz
 ├── pnpm-workspace.yaml

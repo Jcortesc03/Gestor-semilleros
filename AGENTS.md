@@ -36,7 +36,8 @@ Por lo tanto:
 | `README.md` | Alcance funcional, estado y visión para personas |
 | `AGENTS.md` | Reglas operativas para agentes |
 | `docs/architecture/` | Arquitectura y estructura del monorepo |
-| `docs/domain/` | Glosario, reglas de negocio y permisos |
+| `docs/domain/` | Dominio del negocio: entidades, glosario, reglas, permisos y flujos |
+| `docs/database/` | Propuesta de modelo de datos y decisiones de diseño (pendiente de aprobación) |
 | `docs/api/` | Contratos de API (pendiente) |
 | `docs/decisions/` | Decisiones técnicas (ADR) |
 
@@ -218,13 +219,18 @@ Si la decisión ya está aprobada y registrada, procede sin volver a preguntar.
 | --- | --- |
 | [`README.md`](README.md) | Alcance, módulos, estado y uso |
 | [`docs/architecture/estructura.md`](docs/architecture/estructura.md) | Árbol y convenciones del monorepo |
+| [`docs/domain/README.md`](docs/domain/README.md) | Punto de entrada del dominio e índice |
 | [`docs/domain/glossary.md`](docs/domain/glossary.md) | Glosario del dominio |
-| [`docs/domain/business-rules.md`](docs/domain/business-rules.md) | Reglas de negocio |
-| [`docs/domain/roles-permissions.md`](docs/domain/roles-permissions.md) | Roles y permisos (pendientes) |
+| [`docs/domain/entities.md`](docs/domain/entities.md) | Entidades, relaciones y cardinalidades |
+| [`docs/domain/business-rules.md`](docs/domain/business-rules.md) | Reglas de negocio y preguntas pendientes (`P-xx`) |
+| [`docs/domain/roles-permissions.md`](docs/domain/roles-permissions.md) | Roles y matriz conceptual de permisos |
+| [`docs/domain/workflows.md`](docs/domain/workflows.md) | Flujos principales |
+| [`docs/database/data-model.md`](docs/database/data-model.md) | Modelo relacional propuesto |
+| [`docs/database/database-decisions.md`](docs/database/database-decisions.md) | Decisiones de datos (`DB-xx`), en propuesta |
 | `docs/api/` | Contratos de API (pendientes) |
 | `docs/decisions/` | ADRs |
 
-Antes de modificar lógica de dominio, consulta `docs/domain/`. **No inventes reglas de negocio ni permisos** que sigan pendientes.
+Antes de implementar cualquier funcionalidad del dominio (entidades, permisos, flujos o esquema de datos), consulta `docs/domain/` empezando por su `README.md`, y `docs/database/` si afecta a la persistencia. Lo marcado como 🟡 hipótesis o ❓ pendiente **no** se implementa sin confirmación. **No inventes reglas de negocio ni permisos** que sigan pendientes.
 
 ## 14. Mantenimiento de este archivo
 

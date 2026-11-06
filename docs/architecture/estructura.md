@@ -78,10 +78,16 @@ El backend se organiza como un **monolito modularizado**: un único despliegue, 
 ├── docker/                         # Configuración de contenedores
 ├── docs/
 │   ├── architecture/               # Arquitectura y esta guía
-│   ├── domain/                     # Glosario, reglas y permisos
+│   ├── domain/                     # Dominio del negocio (independiente de la tecnología)
+│   │   ├── README.md
 │   │   ├── glossary.md
+│   │   ├── entities.md
 │   │   ├── business-rules.md
-│   │   └── roles-permissions.md
+│   │   ├── roles-permissions.md
+│   │   └── workflows.md
+│   ├── database/                   # Propuesta de modelo de datos
+│   │   ├── data-model.md
+│   │   └── database-decisions.md
 │   ├── api/                        # Documentación de la API
 │   └── decisions/                  # ADRs
 ├── scripts/                        # Automatizaciones del monorepo
