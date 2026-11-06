@@ -5,7 +5,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 mkdir -p "$ROOT/.opencode/agents"
-ln -sfn "$ROOT/skill/frontlipe/frontlipe.md" "$ROOT/.opencode/agents/frontlipe.md"
+ln -sfn "$ROOT/front/agentes/frontlipe/frontlipe.md" "$ROOT/.opencode/agents/frontlipe.md"
 
-echo "Enlace creado: .opencode/agents/frontlipe.md -> skill/frontlipe/frontlipe.md"
+echo "Enlace creado: .opencode/agents/frontlipe.md -> front/agentes/frontlipe/frontlipe.md"
 echo "Reinicia OpenCode (o pulsa Tab) para usar el agente frontlipe."

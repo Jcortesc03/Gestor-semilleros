@@ -1,24 +1,42 @@
-# skill/ — Agente y skills de frontend
+# skill/ — Agentes y skills de diseño y desarrollo
 
-Carpeta de trabajo personal del agente de frontend (`frontlipe`) y de las skills de diseño. **No forma parte del producto** ni del stack definido en `AGENTS.md`.
+Carpeta de trabajo de los agentes y skills utilizadas para construir el **Gestor de Semilleros Universitarios**.
+**No forma parte del producto final** ni del stack definido en `AGENTS.md`; aquí viven las herramientas de diseño, los agentes especializados y los prototipos visuales de referencia.
 
-> Todo lo aquí contenido es material de prueba y de herramienta local. No representa el *Gestor de Semilleros Universitarios* ni su avance.
+> Todo lo aquí contenido es material de herramienta y prototipado. No representa el avance del producto ni se despliega como parte de la aplicación.
 
 ## Estructura
 
 ```text
 skill/
 ├── README.md                    # este archivo
-├── install.sh                   # enciende el enlace local del agente
-├── skills-lock.json             # versiones reproducibles de las skills
-├── frontlipe/
-│   └── frontlipe.md             # agente principal de frontend/UI-UX
-└── experiments/                 # prototipos visuales aislados
-    ├── taste-skill-test/        # prueba de design-taste-frontend (contenido ficticio: SaaS de viveros)
-    └── landing-semilleros/      # prueba visual adicional
+├── install.sh                   # activa el enlace local del agente frontlipe en OpenCode
+├── skills-lock.json             # versiones reproducibles de las skills instaladas
+├── front/                       ← todo lo de diseño y frontend (UI/UX)
+│   ├── agentes/
+│   │   └── frontlipe/           # agente Frontlipe (arquitecto frontend / UI-UX)
+│   │       └── frontlipe.md
+│   ├── habilidades/             # copias de referencia de skills de diseño instaladas
+│   │   ├── design-taste-frontend/   # tasteskill 2.5.0 (sistema de diseño editorial)
+│   │   │   └── SKILL.md
+│   │   └── find-skills/             # descubridor e instalador de skills
+│   │       └── SKILL.md
+│   └── experimentos/            # prototipos visuales aislados (no son el producto)
+│       ├── taste-skill-test/        # prueba de design-taste-frontend (contenido ficticio)
+│       └── landing-semilleros/      # prueba visual adicional de landing
+├── backend/                     # futuro: skills de backend (NestJS, etc.)
+├── mobile/                      # futuro: skills de móvil (React Native)
+└── utilidades/                  # scripts y herramientas transversales
 ```
 
-## Activación local
+## Reglas
+
+- No implementar la aplicación sin una decisión explícita de stack, arquitectura y alcance. Mantener `README.md` y `AGENTS.md` como descripción del proyecto real.
+- Las pruebas de skills, prototipos y experimentos viven en `skill/front/experimentos/` y no forman parte del producto.
+- Las skills instaladas en `.agents/skills/` son locales de OpenCode y no se versionan. Las copias en `skill/front/habilidades/` son solo referencia local.
+- No mezclar contenido ficticio de experimentos con la documentación del proyecto.
+
+## Activación del agente frontlipe
 
 Desde la raíz del repositorio:
 
@@ -26,21 +44,12 @@ Desde la raíz del repositorio:
 bash skill/install.sh
 ```
 
-El script crea el enlace local `.opencode/agents/frontlipe.md -> ../../skill/frontlipe/frontlipe.md` para que OpenCode lo cargue (se alterna con `Tab`). Las carpetas `.opencode/`, `.agents/` y `.taste-skill/` son **locales y no se versionan**.
+El script crea el enlace local `.opencode/agents/frontlipe.md -> front/agentes/frontlipe/frontlipe.md` para que OpenCode cargue al agente Frontlipe.
 
-Las skills instaladas (`design-taste-frontend`, `find-skills`) se reproducen desde `skill/skills-lock.json`.
-
-## Reglas (traídas del antiguo `AGENTS.md` de esta rama)
-
-- No implementar la aplicación sin una decisión explícita de stack, arquitectura y alcance. Mantener `README.md` como descripción del proyecto real.
-- Las pruebas de skills, prototipos y experimentos viven en `skill/experiments/` y no forman parte del producto.
-- No versionar `.agents/` (skills instaladas localmente). `skill/skills-lock.json` sí se conserva para poder reproducirlas.
-- No mezclar contenido ficticio de experimentos con la documentación del proyecto.
-
-## Ver una prueba
+## Ver un prototipo
 
 ```bash
-python3 -m http.server 8000 -d skill/experiments/taste-skill-test
+python3 -m http.server 8000 -d skill/front/experimentos/taste-skill-test
 ```
 
 Abrir <http://localhost:8000>.
