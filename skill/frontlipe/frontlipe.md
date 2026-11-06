@@ -25,9 +25,9 @@ Si no has leído esos archivos en esta sesión, no has empezado. No inventes sus
 ## Dominio del proyecto
 
 - "Semillero" aquí es un semillero de investigación universitario, no un vivero de plantas.
-- El proyecto está en fase de planificación. No inventes stack, arquitectura ni funcionalidades.
-- `experiments/taste-skill-test/` es una prueba visual aislada; no es el producto.
-- Si el stack no está definido, para prototipos usa HTML, CSS y JavaScript sin dependencias. No introduzcas un framework, build o librería sin aprobación.
+- El proyecto está en fase de planificación. El stack ya está definido en `AGENTS.md` (§5); no inventes versiones, dependencias ni funcionalidades.
+- `skill/experiments/` es prueba visual aislada; no es el producto ni forma parte del stack.
+- Para prototipos de prueba usa HTML, CSS y JavaScript sin dependencias. No introduzcas un framework, build o librería sin aprobación.
 
 ## Doctrina de diseño
 

@@ -4,10 +4,14 @@
 
 ![Estado](https://img.shields.io/badge/estado-planificaci%C3%B3n-yellow)
 ![Lenguaje](https://img.shields.io/badge/lenguaje-TypeScript-3178C6?logo=typescript&logoColor=white)
-![Arquitectura](https://img.shields.io/badge/arquitectura-monorepo-blue)
+![Web](https://img.shields.io/badge/web-React-61DAFB?logo=react&logoColor=black)
+![Móvil](https://img.shields.io/badge/m%C3%B3vil-React%20Native-61DAFB?logo=react&logoColor=black)
+![Backend](https://img.shields.io/badge/backend-NestJS-E0234E?logo=nestjs&logoColor=white)
+![Despliegue](https://img.shields.io/badge/despliegue-Docker-2496ED?logo=docker&logoColor=white)
+![Arquitectura](https://img.shields.io/badge/arquitectura-MVC%20%C2%B7%20monorepo-blue)
 
 > [!IMPORTANT]
-> El proyecto se encuentra en **fase de planificación**. Aún no existe código fuente implementado: las tecnologías, la estructura y los comandos descritos como *pendientes* se definirán en las siguientes etapas.
+> El proyecto se encuentra en **fase de planificación**. El stack, la estructura y el workspace (pnpm + Turborepo) ya están configurados, pero aún **no existe código fuente ni dependencias de aplicación instaladas**.
 
 <a id="contenido"></a>
 
@@ -35,41 +39,50 @@
 
 El **Gestor de Semilleros Universitarios** busca centralizar en una sola plataforma las actividades de los semilleros de investigación de una universidad. Hoy la información suele dispersarse entre hojas de cálculo, documentos aislados y canales de mensajería; este proyecto propone un espacio unificado para planificar reuniones, organizar documentación, asignar tareas y hacer seguimiento al progreso de cada semillero, integrante, tutor, facultad y decano.
 
-La solución se plantea como un **monorepo en TypeScript** compuesto por tres entregables que comparten lenguaje y criterios de desarrollo.
+La solución se plantea como un **monorepo en TypeScript** con **React** en la web, **React Native** en móvil y **NestJS** en el backend, usando **PostgreSQL** con **Prisma** como ORM y una arquitectura **MVC**. Los tres entregables comparten lenguaje, tipos y criterios de desarrollo.
 
 <a id="entregables"></a>
 
 ## 🧩 Entregables
 
-| Entregable | Responsabilidad principal |
-| --- | --- |
-| 🌐 **Aplicación web** | Administración, gestión y consulta de la información. Paneles de control, tableros Kanban, seguimiento y reportes. |
-| ⚙️ **Backend** | Lógica de negocio, APIs, procesamiento de información y comunicación con servicios externos. |
-| 📱 **Aplicación móvil** | Acceso a las funcionalidades de la plataforma desde dispositivos móviles, con notificaciones y consultas rápidas. |
+| Entregable | Tecnología | Responsabilidad principal |
+| --- | --- | --- |
+| 🌐 **Aplicación web** | React | Administración, gestión y consulta de la información. Paneles de control, tableros Kanban, seguimiento y reportes. |
+| ⚙️ **Backend** | NestJS · Prisma · PostgreSQL · AWS S3 | Lógica de negocio, APIs, persistencia, almacenamiento de documentos e integración con servicios externos. |
+| 📱 **Aplicación móvil** | React Native | Acceso a las funcionalidades de la plataforma desde dispositivos móviles, con notificaciones y consultas rápidas. |
 
 <a id="arquitectura"></a>
 
 ## 🏗️ Arquitectura general
 
-Vista conceptual de la relación entre los entregables y los servicios externos previstos. Los detalles de infraestructura y protocolos están **pendientes de definición**.
+Vista conceptual de los entregables y los servicios que los rodean. El stack está definido; los detalles de infraestructura y del flujo de autenticación se concretarán durante el diseño.
 
 ```mermaid
 flowchart LR
-    W["🌐 Aplicación web"]
-    M["📱 Aplicación móvil"]
-    B["⚙️ Backend<br/>lógica de negocio y API"]
-    DB[("🗄️ Base de datos<br/>por definir")]
+    W["🌐 Web<br/>React"]
+    M["📱 Móvil<br/>React Native"]
+    A["🔐 Auth.js<br/>autenticación y autorización"]
+    B["⚙️ Backend<br/>NestJS · Prisma · MVC"]
+    DB[("🐘 PostgreSQL")]
+    S3[("📂 AWS S3<br/>documentos e imágenes")]
     EXT["🔌 Servicios externos<br/>WhatsApp · Correo · Microsoft Teams · IA"]
 
     W --> B
     M --> B
+    W -.-> A
+    M -.-> A
+    A -.-> B
     B --> DB
+    B --> S3
     B --> EXT
 ```
 
-- Las aplicaciones **web** y **móvil** consumen la API expuesta por el backend.
-- El **backend** concentra la lógica de negocio, la persistencia y la integración con servicios externos.
-- La **base de datos** y los mecanismos de autenticación se definirán junto con el stack tecnológico.
+- La **web (React)** y la **móvil (React Native)** consumen la API del backend; no acceden directamente a la base de datos ni a S3.
+- **Auth.js** centraliza la autenticación y autorización. El detalle de sesiones, roles y del flujo en la aplicación móvil está pendiente de definición.
+- El **backend (NestJS)** aplica **MVC**: modelos y reglas de negocio en el dominio, controladores para la API y vistas en los clientes.
+- **Prisma** es el ORM del backend y el único punto de acceso a **PostgreSQL**.
+- **PostgreSQL** almacena los datos estructurados; **AWS S3** guarda documentos e imágenes.
+- El despliegue se realizará con **Docker**. Los Dockerfiles y la configuración de contenedores aún no existen.
 
 <a id="caracteristicas"></a>
 
@@ -103,28 +116,38 @@ Solo se listan como definidas las decisiones ya tomadas. El resto permanece **po
 | --- | --- | --- |
 | Lenguaje | TypeScript | ✅ Definido |
 | Organización del código | Monorepo | ✅ Definido |
-| Framework de la aplicación web | — | ⏳ Por definir |
-| Framework de la aplicación móvil | — | ⏳ Por definir |
-| Framework del backend | — | ⏳ Por definir |
-| Base de datos | — | ⏳ Por definir |
-| Autenticación y autorización | — | ⏳ Por definir |
-| Herramientas del monorepo | — | ⏳ Por definir |
+| Framework de la aplicación web | React | ✅ Definido |
+| Framework de la aplicación móvil | React Native | ✅ Definido |
+| Framework del backend | NestJS | ✅ Definido |
+| Base de datos | PostgreSQL | ✅ Definido |
+| ORM | Prisma | ✅ Definido |
+| Documentos e imágenes | AWS S3 | ✅ Definido |
+| Autenticación y autorización | Auth.js | ✅ Definido |
+| Arquitectura | MVC | ✅ Definido |
+| Despliegue | Docker | ✅ Definido |
+| Gestor de paquetes | pnpm | ✅ Definido |
+| Herramientas del monorepo | Turborepo | ✅ Definido |
 | Pruebas y CI/CD | — | ⏳ Por definir |
 
 <a id="estructura"></a>
 
 ## 📁 Estructura del proyecto
 
-La siguiente es una **estructura propuesta**, no una estructura existente. Se ajustará cuando se seleccionen las herramientas del monorepo.
+La estructura inicial de carpetas ya está creada (todavía sin código). El backend se organiza como un **monolito modularizado** por dominios. El árbol completo y las convenciones están en [`docs/architecture/estructura.md`](docs/architecture/estructura.md).
 
 ```text
 .
 ├── apps/
-│   ├── web/        # Aplicación web
-│   ├── mobile/     # Aplicación móvil
-│   └── backend/    # API y lógica de negocio
-├── packages/       # Código compartido (tipos, validaciones, utilidades)
-└── docs/           # Documentación del proyecto
+│   ├── backend/    # NestJS + Prisma (monolito modular)
+│   ├── web/        # React
+│   └── mobile/     # React Native
+├── packages/       # types · validation · utils
+├── docker/         # configuración de contenedores
+├── docs/           # arquitectura · API · ADRs
+├── scripts/        # utilidades del monorepo
+├── package.json    # workspace y scripts raíz
+├── pnpm-workspace.yaml
+└── turbo.json
 ```
 
 <a id="requisitos"></a>
@@ -134,17 +157,20 @@ La siguiente es una **estructura propuesta**, no una estructura existente. Se aj
 | Requisito | Estado |
 | --- | --- |
 | Git | Recomendado |
-| Runtime de JavaScript/TypeScript | ⏳ Por definir |
-| Gestor de paquetes | ⏳ Por definir |
+| Node.js | Requerido (versión por definir) |
+| PostgreSQL | Requerido (versión por definir) |
+| pnpm | Requerido (versión por definir) |
+| Docker | Requerido para el despliegue |
 | Editor con soporte para TypeScript | Recomendado |
+| Acceso a AWS S3 | Requerido para la gestión documental |
 
-Las versiones mínimas se documentarán una vez definido el stack tecnológico.
+Las versiones mínimas de Node.js, pnpm, PostgreSQL y Prisma se documentarán al iniciar la implementación.
 
 <a id="instalacion"></a>
 
 ## 🚀 Instalación y configuración
 
-> Los pasos siguientes quedan **preparados para completarse** cuando exista el código. Los comandos aún no pueden ejecutarse.
+> El workspace ya está configurado con **pnpm + Turborepo**, pero las aplicaciones aún no existen. Los pasos marcados como pendientes se completarán al implementarlas.
 
 1. **Clonar el repositorio** (URL pendiente de publicación).
 
@@ -156,13 +182,16 @@ Las versiones mínimas se documentarán una vez definido el stack tecnológico.
 2. **Instalar dependencias.**
 
    ```bash
-   # Pendiente de definición: dependerá del gestor de paquetes
-   # y de la herramienta de monorepo seleccionados.
+   pnpm install
    ```
+
+   Instala las dependencias del workspace y Turborepo. Todavía no hay dependencias de aplicación declaradas.
 
 3. **Configurar las variables de entorno** a partir de la plantilla que se publicará con el proyecto. Ver [Variables de entorno](#variables-entorno).
 
-4. **Iniciar los entregables** según se describe en [Ejecución del proyecto](#ejecucion).
+4. **Preparar el entorno de contenedores** (pendiente: los Dockerfiles y la configuración de Docker aún no existen).
+
+5. **Iniciar los entregables** según se describe en [Ejecución del proyecto](#ejecucion).
 
 <a id="variables-entorno"></a>
 
@@ -174,8 +203,9 @@ Aún no se han definido las variables requeridas. La plantilla se incorporará c
 # Pendiente de definición.
 #
 # Aquí se documentarán las variables necesarias para, entre otras:
-#   - conexión con la base de datos
-#   - autenticación y autorización
+#   - conexión con PostgreSQL (gestionada mediante Prisma)
+#   - credenciales y configuración de AWS S3 (documentos e imágenes)
+#   - secretos de Auth.js para sesiones y autenticación
 #   - envío de notificaciones por WhatsApp y correo electrónico
 #   - integración con Microsoft Teams
 #   - servicios de inteligencia artificial
@@ -187,16 +217,28 @@ Aún no se han definido las variables requeridas. La plantilla se incorporará c
 
 ## ▶️ Ejecución del proyecto
 
-Los comandos de ejecución se definirán junto con la estructura del monorepo y los frameworks elegidos.
+El workspace usa **pnpm + Turborepo**. Todavía no hay aplicaciones ni scripts de arranque; cuando existan, `pnpm dev` ejecutará el entorno de desarrollo de cada entregable.
 
 ```bash
-# Pendiente de definición.
+# Arranque previsto del workspace (aún sin aplicaciones):
+pnpm dev
 #
-# Se documentará cómo iniciar cada entregable:
-#   - aplicación web
-#   - backend
-#   - aplicación móvil
+# Cada entregable definirá su propio script "dev":
+#   - aplicación web (React)
+#   - backend (NestJS)
+#   - aplicación móvil (React Native)
+#
+# Docker se añadirá al configurar el despliegue.
 ```
+
+| Comando | Descripción |
+| --- | --- |
+| `pnpm install` | Instala las dependencias del workspace |
+| `pnpm dev` | Inicia los entregables en modo desarrollo |
+| `pnpm build` | Compila los entregables |
+| `pnpm lint` | Ejecuta el análisis estático |
+| `pnpm test` | Ejecuta las pruebas |
+| `pnpm typecheck` | Verifica los tipos |
 
 <a id="capturas"></a>
 
@@ -223,19 +265,28 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 
 | Entregable | Estado | Notas |
 | --- | --- | --- |
+| Stack tecnológico | 🟢 Definido | React, React Native, NestJS, PostgreSQL, Prisma, AWS S3, Auth.js y Docker |
+| Estructura del proyecto | 🟢 Definida | Carpetas base del monorepo, sin código |
+| Herramientas del monorepo | 🟢 Definidas | pnpm + Turborepo |
 | Aplicación web | 🟡 En planificación | Sin código fuente |
 | Backend | 🟡 En planificación | Sin código fuente |
 | Aplicación móvil | 🟡 En planificación | Sin código fuente |
-| Documentación | 🟡 En elaboración | Alcance funcional definido |
+| Documentación | 🟡 En elaboración | Alcance funcional y stack definidos |
+
+> Las versiones de Node.js, pnpm, PostgreSQL y Prisma aún no están fijadas.
 
 <a id="roadmap"></a>
 
 ## 🗺️ Roadmap
 
 - [x] Definición del alcance y de los módulos funcionales
-- [ ] Selección del stack tecnológico
-- [ ] Definición de la arquitectura de datos y de la API
-- [ ] Configuración del monorepo
+- [x] Selección del stack tecnológico
+- [x] Selección de la base de datos y del ORM (PostgreSQL + Prisma)
+- [x] Estructura base del monorepo y de los módulos del backend
+- [x] Configuración del monorepo (pnpm + Turborepo)
+- [ ] Definición del modelo de datos y migraciones iniciales
+- [ ] Definición de los contratos de la API y del flujo de autenticación
+- [ ] Configuración de Docker para desarrollo y despliegue
 - [ ] MVP del backend
 - [ ] MVP de la aplicación web
 - [ ] MVP de la aplicación móvil

@@ -1,8 +1,20 @@
-# Skills installed locally by the skills CLI (large, machine-specific)
-.agents/
-
-# Dependencies and build output
+# Dependencias
 node_modules/
+.pnpm-store/
+
+# Builds y caché
 dist/
+build/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# Entorno
 .env
+.env.*
+!.env.example
+
+# Logs y sistema
+*.log
+pnpm-debug.log*
 .DS_Store
