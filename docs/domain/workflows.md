@@ -28,14 +28,14 @@ sequenceDiagram
 ## 2. Creación y administración de proyectos
 
 1. ✅ El **Decano** crea un proyecto y registra su información.
-2. 🟡 Selecciona el **área** (tipo) y una de **sus facultades** (RN-22, RN-23, P-04).
-3. ✅ Asigna uno o varios **tutores responsables** (RN-31, P-05).
+2. ✅ Selecciona el **área** (tipo) y **una o varias facultades**; 🟡 al menos una de ellas debe estar a su cargo (RN-22, RN-23, P-04).
+3. ✅ Asigna uno o varios **tutores responsables** y marca a uno como **principal** (RN-31, P-05).
 4. 🟡 Se incorporan los estudiantes. Falta definir si lo hace el tutor o el decano (P-09).
-5. ✅ El Decano puede modificar o eliminar el proyecto. 🟡 La eliminación sería lógica (P-20).
+5. ✅ El Decano puede modificar o eliminar el proyecto. ✅ La eliminación es lógica (P-20).
 
 ```mermaid
 flowchart TD
-    A([Decano]) --> B["Crear proyecto<br/>información · área 🟡 · facultad ❓"]
+    A([Decano]) --> B["Crear proyecto<br/>información · área · facultad(es)"]
     B --> C{"¿Facultad a su cargo? 🟡"}
     C -- No --> X["Rechazar"]
     C -- Sí --> D["Proyecto creado"]
@@ -85,7 +85,7 @@ sequenceDiagram
     TU->>A: Crear actividad (autor) ❓ quién más
     LI->>A: Asignar encargado ✅
     ES->>A: Actualizar estado / adjuntar ✅ (solo si es encargado)
-    TU->>A: Aprobar o no aprobar ✅ (valores P-12)
+    TU->>A: Aprobar o rechazar ✅ (P-12)
 ```
 
 ### 4.2 Estados de la actividad (propuesta)
@@ -107,14 +107,14 @@ stateDiagram-v2
         sin_resultado --> exito
         sin_resultado --> fracaso
     }
-    state "Aprobación del tutor ❓ valores" as AP {
+    state "Aprobación del tutor (P-12)" as AP {
         [*] --> pendiente_aprobacion
         pendiente_aprobacion --> aprobada
         pendiente_aprobacion --> rechazada
     }
 ```
 
-> Las transiciones mostradas son ilustrativas. **No están confirmadas** (P-11, P-12, RN-49a).
+> Los valores están confirmados (P-11, P-12) y se aplican también al tablero. Las **transiciones** son ilustrativas y no están confirmadas (RN-49a).
 
 ## 5. Publicación de novedades
 
@@ -122,7 +122,7 @@ stateDiagram-v2
 2. ✅ Elige una o varias audiencias permitidas por su rol (RN-51, RN-52).
 3. 🟡 El sistema valida que el autor pueda publicar en cada audiencia.
 4. 🟡 Los usuarios ven la novedad si pertenecen a alguna de sus audiencias (RN-53, RN-54).
-5. ❓ El envío por canales externos (WhatsApp o correo) y la confirmación de lectura están por definir (P-16).
+5. ✅ No se registra la lectura y la notificación es un tipo de novedad (P-16). ❓ El envío por canales externos (WhatsApp o correo) está por definir.
 
 ```mermaid
 flowchart LR
@@ -150,8 +150,8 @@ flowchart LR
 
 1. 🟡 Un usuario autorizado (❓ quién, P-15) solicita subir un archivo.
 2. ✅ El backend valida el formato (PDF, Word, Excel o imagen) y lo guarda en el almacenamiento externo.
-3. ✅ El sistema registra los **metadatos** y la referencia de acceso.
-4. 🟡 El documento queda asociado a un proyecto y, opcionalmente, a una actividad como adjunto.
+3. ✅ El sistema registra los **metadatos** y la clave del objeto en S3 (DB-08).
+4. ✅ El documento pertenece a un proyecto y puede adjuntarse a una o varias actividades (P-14, P-15).
 5. ✅ Para descargarlo, el backend entrega el enlace de descarga. Los clientes nunca acceden al almacenamiento directamente.
 
 ```mermaid

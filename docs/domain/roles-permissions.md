@@ -1,10 +1,11 @@
 # Roles y permisos
 
-> **Estado:** definición funcional inicial. Es una **matriz conceptual**: no constituye un sistema de autorización ni se ha implementado.
+> **Estado:** definición funcional. Es una **matriz conceptual**: no constituye un sistema de autorización ni se ha implementado. Los roles globales y de proyecto sí existen en el modelo de datos (`user_roles`, `project_members`).
 > **No inventes permisos.** Lo que no aparece como ✅ requiere confirmación antes de implementarse.
 > Marcas: ✅ confirmado · 🟡 hipótesis · ❓ pendiente · `—` no definido. Los códigos `P-xx` remiten a las [preguntas pendientes](business-rules.md#preguntas-pendientes).
 
 - **Auth.js** es el mecanismo de autenticación y autorización.
+- **Un usuario puede tener varios roles globales** y sus permisos se **suman** (P-02, DB-01). Ejemplo: un docente que es Tutor y Decano tiene los permisos de ambos, cada uno con su propio alcance.
 - Cualquier permiso nuevo debe registrarse en este documento.
 - Si la definición afecta la arquitectura, registra además un ADR en `docs/decisions/`.
 
@@ -20,7 +21,7 @@ Los permisos se definen en tres niveles. Distinguirlos evita conflictos:
 
 ```mermaid
 flowchart TB
-    subgraph Global["Roles globales 🟡"]
+    subgraph Global["Roles globales (uno o varios por usuario)"]
         AD["Administrador"]
         EA["Encargado de área"]
         DE["Decano"]
@@ -31,7 +32,7 @@ flowchart TB
         AR["Área(s) asignada(s) ❓"]
         FA["Facultad(es) a cargo ✅"]
     end
-    subgraph EnProyecto["Rol de proyecto 🟡"]
+    subgraph EnProyecto["Rol de proyecto"]
         PT["Tutor del proyecto"]
         PL["Estudiante líder"]
         PE["Estudiante"]
@@ -40,10 +41,10 @@ flowchart TB
     DE --> FA
     TU --> PT
     ES --> PE
-    ES -. "promovido por el tutor ❓" .-> PL
+    ES -. "cambio de rol por el tutor (límites ❓)" .-> PL
 ```
 
-> 🟡 **Propuesta:** el *estudiante líder* sería un **rol de proyecto** y no un rol global. Así lo sugiere que el tutor pueda "cambiar el rol de los estudiantes" dentro de su proyecto (P-03, P-21).
+> ✅ **P-03:** el *estudiante líder* es un **rol de proyecto**, no un rol global (`project_role = STUDENT_LEADER`). Hay como máximo **un líder activo por proyecto**. Los roles globales son Administrador, Encargado de área, Decano, Tutor y Estudiante. Los límites del tutor al cambiar el rol de un estudiante siguen pendientes (P-21).
 
 ## 2. Definición de roles
 
@@ -77,7 +78,7 @@ flowchart TB
 - ✅ Consultar información y métricas de sus proyectos.
 
 ### Estudiante líder de grupo
-- **Alcance:** su proyecto (🟡) y las actividades que tiene asignadas.
+- **Alcance:** su proyecto (rol de proyecto, máximo uno por proyecto) y las actividades que tiene asignadas.
 - ✅ Interactuar con las actividades que tiene asignadas (P-13).
 - ✅ Crear, modificar y eliminar **encargados** de otras actividades, según los permisos establecidos (P-10).
 - ✅ Consultar la información de su proyecto mediante un dashboard.
@@ -96,7 +97,7 @@ Una celda sin marca de estado está ✅ confirmada. Las celdas `—` no tienen p
 | --- | --- | --- | --- | --- | --- | --- |
 | Usuarios | C | — | — | — | — | — |
 | Roles globales | U | — | — | — | — | — |
-| Rol de estudiante en proyecto | U ❓ | — | — | U (limitado, P-21) | — | — |
+| Rol de estudiante en proyecto (incluye líder, máx. uno) | U ❓ | — | — | U (limitado, P-21) | — | — |
 | Áreas | — ❓ | R U (C D ❓) | — | — | — | — |
 | Facultades | — ❓ | — | R (sus facultades) | — | — | — |
 | Proyectos | — ❓ | — ❓ | C R U D (sus facultades 🟡) | R (sus proyectos) | R (su proyecto) | R (su proyecto) |
@@ -126,14 +127,14 @@ Una celda sin marca de estado está ✅ confirmada. Las celdas `—` no tienen p
 | # | Conflicto o ambigüedad | Impacto |
 | --- | --- | --- |
 | 1 | **Administrador y Tutor modifican roles.** Hay que delimitar si el tutor cambia solo roles de proyecto (Estudiante ↔ Líder) y el administrador solo roles globales. | Alto: riesgo de escalada de privilegios. |
-| 2 | **Encargado de área y Decano** pueden administrar proyectos que coinciden (un proyecto pertenece a un área y a una facultad). Falta definir quién tiene precedencia. | Alto |
+| 2 | **Encargado de área y Decano** pueden administrar proyectos que coinciden (un proyecto pertenece a un área y a una o varias facultades; en proyectos interfacultad actúan varios decanos). Falta definir quién tiene precedencia. | Alto |
 | 3 | **Estudiante líder: "encargados de otras actividades".** No está claro si son actividades distintas a las suyas, cualquier actividad del proyecto o solo las de su tablero. | Medio |
-| 4 | **Tablero con "estudiante encargado"** frente al **estudiante líder**: no está claro si son la misma figura. | Medio |
+| 4 | **Tablero con "estudiante encargado"** frente al **estudiante líder**: no está claro si son la misma figura (P-24 parcial: el tablero tiene un solo estudiante encargado; el líder es un rol de proyecto único). | Medio |
 | 5 | **Quién crea tableros y actividades.** Actividad tiene "autor", así que podría crearla cualquier participante. El texto solo dice "Tutor: crear tareas". | Alto para el diseño de permisos |
 | 6 | **Qué tutor aprueba:** el tutor responsable del tablero o cualquier tutor del proyecto. | Medio |
 | 7 | **Decano enviando notificaciones** frente a **novedades**: puede ser el mismo concepto. | Medio |
 | 8 | **Permisos sobre documentos:** no hay ninguno definido. | Alto: bloquea el módulo de documentos |
-| 9 | **Usuario con varios roles**, por ejemplo un docente que es tutor y decano. Falta definir cómo se combinan los permisos. | Alto |
-| 10 | **Eliminación de proyectos** por el decano: falta definir el efecto sobre tableros, actividades, documentos y reuniones. | Alto |
+| 9 | **Usuario con varios roles.** ✅ Parcialmente resuelto (P-02): se permiten varios roles globales y los permisos se suman. Falta definir qué ocurre cuando los alcances se cruzan (p. ej. un decano que además es tutor de un proyecto de su facultad) y si hay incompatibilidades entre roles. | Medio |
+| 10 | **Eliminación de proyectos** por el decano: la eliminación es lógica (P-20). Falta definir quién puede restaurar y la visibilidad de los dependientes. | Medio |
 
 El detalle de cada pregunta está en [`business-rules.md`](business-rules.md#preguntas-pendientes).

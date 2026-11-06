@@ -1,0 +1,497 @@
+// Esquema de datos del Gestor de Semilleros Universitarios.
+//
+// Fuente: docs/domain/ y docs/database/ (decisiones DB-xx, preguntas P-xx).
+// Las restricciones que Prisma no puede expresar (CHECK e índices únicos
+// parciales) se añaden con SQL en la migración inicial. Ver docs/database/data-model.md §6.
+//
+// Puntos provisionales (no confirmados todavía):
+//   - AreaManager: alcance del encargado de área (P-08).
+//   - Reminder: modelo mínimo (P-19).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────
+// Enumeraciones
+// ─────────────────────────────────────────────────────────────
+
+/// Roles globales del sistema (P-02: un usuario puede tener varios).
+enum Role {
+  ADMIN
+  AREA_MANAGER
+  DEAN
+  TUTOR
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+/// P-26
+enum ProjectStatus {
+  ACTIVE
+  FINISHED
+  CANCELLED
+}
+
+/// Rol dentro de un proyecto (P-03: el líder es un rol de proyecto, máximo uno).
+enum ProjectRole {
+  TUTOR
+  STUDENT
+  STUDENT_LEADER
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INACTIVE
+}
+
+/// Progreso de tableros y actividades (RN-03, P-11).
+enum ProgressStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+/// Resultado, independiente del progreso (RN-04, P-11).
+enum WorkResult {
+  SUCCESS
+  FAILURE
+}
+
+/// Aprobación del tutor, solo el estado actual (P-12).
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AttachmentKind {
+  LINK
+  DOCUMENT
+}
+
+/// Formatos admitidos (RN-60).
+enum DocumentFormat {
+  PDF
+  WORD
+  EXCEL
+  IMAGE
+}
+
+/// Una notificación es un tipo de novedad (P-16).
+enum AnnouncementKind {
+  NEWS
+  COMMUNICATION
+  CHANGE
+  NOTIFICATION
+}
+
+enum AudienceType {
+  ALL
+  ROLE
+  FACULTY
+  AREA
+  PROJECT
+}
+
+// ─────────────────────────────────────────────────────────────
+// Usuarios y roles
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id        String     @id @default(uuid()) @db.Uuid
+  fullName  String     @map("full_name")
+  email     String     @unique
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  roles               UserRole[]
+  managedAreas        AreaManager[]
+  deanships           FacultyDean[]
+  memberships         ProjectMember[]
+  createdProjects     Project[]            @relation("ProjectCreator")
+  tutoredBoards       Board[]              @relation("BoardResponsibleTutor")
+  assignedBoards      Board[]              @relation("BoardResponsibleStudent")
+  authoredActivities  Activity[]           @relation("ActivityAuthor")
+  approvedActivities  Activity[]           @relation("ActivityApprover")
+  activityAssignments ActivityAssignee[]   @relation("ActivityAssignee")
+  assignmentsGiven    ActivityAssignee[]   @relation("ActivityAssigner")
+  attachments         ActivityAttachment[]
+  documents           Document[]
+  announcements       Announcement[]
+  organizedMeetings   Meeting[]
+  meetings            MeetingParticipant[]
+  reminders           Reminder[]
+
+  @@map("users")
+}
+
+/// DB-01
+model UserRole {
+  userId     String   @map("user_id") @db.Uuid
+  role       Role
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, role])
+  @@map("user_roles")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Estructura institucional
+// ─────────────────────────────────────────────────────────────
+
+model Area {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  managers  AreaManager[]
+  projects  Project[]
+  audiences AnnouncementAudience[]
+
+  @@map("areas")
+}
+
+/// Provisional (P-08).
+model AreaManager {
+  areaId     String   @map("area_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  area Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([areaId, userId])
+  @@index([userId])
+  @@map("area_managers")
+}
+
+model Faculty {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  deans     FacultyDean[]
+  projects  ProjectFaculty[]
+  audiences AnnouncementAudience[]
+
+  @@map("faculties")
+}
+
+/// DB-03 (P-06). Un decano vigente por facultad: índice parcial en SQL.
+model FacultyDean {
+  id        String    @id @default(uuid()) @db.Uuid
+  facultyId String    @map("faculty_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  startsAt  DateTime  @default(now()) @map("starts_at")
+  endsAt    DateTime? @map("ends_at")
+
+  faculty Faculty @relation(fields: [facultyId], references: [id], onDelete: Restrict)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([facultyId])
+  @@index([userId])
+  @@map("faculty_deans")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Proyectos
+// ─────────────────────────────────────────────────────────────
+
+model Project {
+  id          String        @id @default(uuid()) @db.Uuid
+  title       String
+  description String?
+  areaId      String        @map("area_id") @db.Uuid
+  status      ProjectStatus @default(ACTIVE)
+  startsOn    DateTime?     @map("starts_on") @db.Date
+  endsOn      DateTime?     @map("ends_on") @db.Date
+  createdById String        @map("created_by_id") @db.Uuid
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  deletedAt   DateTime?     @map("deleted_at")
+
+  area      Area                   @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  createdBy User                   @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  faculties ProjectFaculty[]
+  members   ProjectMember[]
+  boards    Board[]
+  documents Document[]
+  meetings  Meeting[]
+  reminders Reminder[]
+  audiences AnnouncementAudience[]
+
+  @@index([areaId])
+  @@index([deletedAt])
+  @@map("projects")
+}
+
+/// P-04: un proyecto pertenece a una o varias facultades (mínimo una, se valida en el servicio).
+model ProjectFaculty {
+  projectId String @map("project_id") @db.Uuid
+  facultyId String @map("faculty_id") @db.Uuid
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  faculty Faculty @relation(fields: [facultyId], references: [id], onDelete: Restrict)
+
+  @@id([projectId, facultyId])
+  @@index([facultyId])
+  @@map("project_faculties")
+}
+
+/// DB-02. Con historial (P-25). Índices parciales en SQL:
+///   - un registro activo por (proyecto, usuario);
+///   - un único proyecto activo por estudiante (P-25);
+///   - un único líder activo por proyecto (P-03);
+///   - un único tutor principal activo por proyecto (P-05).
+model ProjectMember {
+  id          String           @id @default(uuid()) @db.Uuid
+  projectId   String           @map("project_id") @db.Uuid
+  userId      String           @map("user_id") @db.Uuid
+  projectRole ProjectRole      @map("project_role")
+  isPrimary   Boolean          @default(false) @map("is_primary")
+  status      MembershipStatus @default(ACTIVE)
+  joinedAt    DateTime         @default(now()) @map("joined_at")
+  leftAt      DateTime?        @map("left_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([projectId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Tableros y actividades
+// ─────────────────────────────────────────────────────────────
+
+/// Los responsables deben ser participantes activos del proyecto (DB-05, validación en servicio).
+model Board {
+  id                   String         @id @default(uuid()) @db.Uuid
+  projectId            String         @map("project_id") @db.Uuid
+  title                String
+  dueDate              DateTime       @map("due_date") @db.Date
+  progressStatus       ProgressStatus @default(PENDING) @map("progress_status")
+  result               WorkResult?
+  responsibleTutorId   String         @map("responsible_tutor_id") @db.Uuid
+  responsibleStudentId String         @map("responsible_student_id") @db.Uuid
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
+  deletedAt            DateTime?      @map("deleted_at")
+
+  project            Project    @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  responsibleTutor   User       @relation("BoardResponsibleTutor", fields: [responsibleTutorId], references: [id], onDelete: Restrict)
+  responsibleStudent User       @relation("BoardResponsibleStudent", fields: [responsibleStudentId], references: [id], onDelete: Restrict)
+  activities         Activity[]
+
+  @@index([projectId])
+  @@index([deletedAt])
+  @@map("boards")
+}
+
+model Activity {
+  id             String         @id @default(uuid()) @db.Uuid
+  boardId        String         @map("board_id") @db.Uuid
+  authorId       String         @map("author_id") @db.Uuid
+  title          String
+  description    String?
+  progressStatus ProgressStatus @default(PENDING) @map("progress_status")
+  result         WorkResult?
+  approvalStatus ApprovalStatus @default(PENDING) @map("approval_status")
+  approvedById   String?        @map("approved_by_id") @db.Uuid
+  approvedAt     DateTime?      @map("approved_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  deletedAt      DateTime?      @map("deleted_at")
+
+  board       Board                @relation(fields: [boardId], references: [id], onDelete: Restrict)
+  author      User                 @relation("ActivityAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  approvedBy  User?                @relation("ActivityApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  assignees   ActivityAssignee[]
+  attachments ActivityAttachment[]
+
+  @@index([boardId])
+  @@index([deletedAt])
+  @@map("activities")
+}
+
+/// P-10: varios encargados por actividad.
+model ActivityAssignee {
+  activityId   String   @map("activity_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  assignedById String   @map("assigned_by_id") @db.Uuid
+  assignedAt   DateTime @default(now()) @map("assigned_at")
+
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user       User     @relation("ActivityAssignee", fields: [userId], references: [id], onDelete: Restrict)
+  assignedBy User     @relation("ActivityAssigner", fields: [assignedById], references: [id], onDelete: Restrict)
+
+  @@id([activityId, userId])
+  @@index([userId])
+  @@map("activity_assignees")
+}
+
+/// P-14: varios adjuntos; cada uno es un enlace o un documento (CHECK en SQL).
+model ActivityAttachment {
+  id          String         @id @default(uuid()) @db.Uuid
+  activityId  String         @map("activity_id") @db.Uuid
+  kind        AttachmentKind
+  url         String?
+  documentId  String?        @map("document_id") @db.Uuid
+  createdById String         @map("created_by_id") @db.Uuid
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  activity  Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  document  Document? @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  createdBy User      @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([activityId])
+  @@index([documentId])
+  @@map("activity_attachments")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Documentos
+// ─────────────────────────────────────────────────────────────
+
+/// DB-08 (P-15): pertenece a un proyecto; se guarda la clave del objeto en S3.
+model Document {
+  id           String         @id @default(uuid()) @db.Uuid
+  projectId    String         @map("project_id") @db.Uuid
+  uploadedById String         @map("uploaded_by_id") @db.Uuid
+  fileName     String         @map("file_name")
+  format       DocumentFormat
+  mimeType     String         @map("mime_type")
+  sizeBytes    BigInt         @map("size_bytes")
+  storageKey   String         @unique @map("storage_key")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  deletedAt    DateTime?      @map("deleted_at")
+
+  project     Project              @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  uploadedBy  User                 @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  attachments ActivityAttachment[]
+
+  @@index([projectId])
+  @@index([deletedAt])
+  @@map("documents")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Novedades
+// ─────────────────────────────────────────────────────────────
+
+/// P-16: sin registro de lectura; la audiencia se calcula al consultar (DB-06).
+model Announcement {
+  id          String           @id @default(uuid()) @db.Uuid
+  authorId    String           @map("author_id") @db.Uuid
+  kind        AnnouncementKind @default(NEWS)
+  title       String
+  content     String
+  publishedAt DateTime         @default(now()) @map("published_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  deletedAt   DateTime?        @map("deleted_at")
+
+  author    User                   @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  audiences AnnouncementAudience[]
+
+  @@index([publishedAt])
+  @@map("announcements")
+}
+
+/// DB-06: el destino depende de audienceType (CHECK en SQL).
+model AnnouncementAudience {
+  id             String       @id @default(uuid()) @db.Uuid
+  announcementId String       @map("announcement_id") @db.Uuid
+  audienceType   AudienceType @map("audience_type")
+  role           Role?
+  facultyId      String?      @map("faculty_id") @db.Uuid
+  areaId         String?      @map("area_id") @db.Uuid
+  projectId      String?      @map("project_id") @db.Uuid
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  faculty      Faculty?     @relation(fields: [facultyId], references: [id], onDelete: Restrict)
+  area         Area?        @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  project      Project?     @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@index([announcementId])
+  @@index([facultyId])
+  @@index([areaId])
+  @@index([projectId])
+  @@map("announcement_audiences")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Reuniones y recordatorios
+// ─────────────────────────────────────────────────────────────
+
+/// P-18: el proyecto es opcional. DB-12: duración sin hora de fin.
+model Meeting {
+  id              String    @id @default(uuid()) @db.Uuid
+  projectId       String?   @map("project_id") @db.Uuid
+  organizerId     String    @map("organizer_id") @db.Uuid
+  externalId      String?   @unique @map("external_id")
+  reason          String
+  startsAt        DateTime  @map("starts_at")
+  durationMinutes Int       @map("duration_minutes")
+  joinUrl         String?   @map("join_url")
+  recordingUrl    String?   @map("recording_url")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  project      Project?             @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  organizer    User                 @relation(fields: [organizerId], references: [id], onDelete: Restrict)
+  participants MeetingParticipant[]
+
+  @@index([projectId])
+  @@index([startsAt])
+  @@map("meetings")
+}
+
+model MeetingParticipant {
+  meetingId String @map("meeting_id") @db.Uuid
+  userId    String @map("user_id") @db.Uuid
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([meetingId, userId])
+  @@index([userId])
+  @@map("meeting_participants")
+}
+
+/// Provisional (P-19): modelo mínimo.
+model Reminder {
+  id          String   @id @default(uuid()) @db.Uuid
+  createdById String   @map("created_by_id") @db.Uuid
+  projectId   String?  @map("project_id") @db.Uuid
+  title       String
+  remindAt    DateTime @map("remind_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  createdBy User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@index([createdById])
+  @@index([remindAt])
+  @@map("reminders")
+}

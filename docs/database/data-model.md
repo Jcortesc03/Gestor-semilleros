@@ -1,100 +1,126 @@
-# Modelo de datos (propuesta conceptual)
+# Modelo de datos
 
-> **Estado:** propuesta **pendiente de aprobación**. No existe `schema.prisma` ni migraciones. Este documento **no** las sustituye ni autoriza a crearlas (ver [`AGENTS.md`](../../AGENTS.md) §12).
-> Se basa en [`docs/domain/entities.md`](../domain/entities.md). Si hay discrepancias, manda el dominio.
-> Las decisiones `DB-xx` están en [`database-decisions.md`](database-decisions.md) y las preguntas `P-xx`, en [`business-rules.md`](../domain/business-rules.md#preguntas-pendientes).
+> **Estado:** implementado en [`apps/backend/prisma/schema.prisma`](../../apps/backend/prisma/schema.prisma) con una migración inicial (`apps/backend/prisma/migrations/`). **El esquema es la fuente de verdad técnica**: si este documento y el esquema difieren, manda el esquema y debe corregirse el documento.
+> Se basa en [`docs/domain/entities.md`](../domain/entities.md). Si hay discrepancias con el dominio, manda el dominio.
+> Las decisiones `DB-xx` están en [`database-decisions.md`](database-decisions.md), las preguntas `P-xx`, en [`business-rules.md`](../domain/business-rules.md#preguntas-pendientes), y la decisión de registro, en [`docs/decisions/0001-modelo-de-datos-y-entorno-local.md`](../decisions/0001-modelo-de-datos-y-entorno-local.md).
+> Instalación y base de datos local: [`local-setup.md`](local-setup.md).
+> Siguen provisionales `area_managers` (P-08) y `reminders` (P-19).
 
-## 1. Convenciones propuestas
+## 1. Convenciones
 
 - Los nombres de tablas y columnas van en **inglés** (`AGENTS.md` §7). La correspondencia con los términos en español está en §2.
-- Cada tabla tiene una clave primaria propia `id`, cuyo tipo está pendiente (DB-14). Las tablas asociativas puras usan una clave compuesta.
-- Las tablas de negocio tienen `created_at` y `updated_at`. Las que admiten eliminación lógica tienen además `deleted_at` (DB-10).
-- Los conjuntos cerrados de valores son **enumeraciones**. Sus valores son provisionales mientras no se confirmen (P-11, P-12, P-26).
+- Cada tabla de entidad tiene una clave primaria `id` de tipo **UUID** (`@db.Uuid`, `@default(uuid())`; DB-14). Las tablas asociativas puras usan una clave compuesta.
+- Modelos en PascalCase y tablas/columnas en snake_case mediante `@@map`/`@map` (DB-13).
+- Las tablas de negocio tienen `created_at` y `updated_at` (salvo las excepciones indicadas en §3). Las que admiten eliminación lógica tienen `deleted_at` (DB-10): `projects`, `boards`, `activities`, `documents`, `announcements` y `meetings`.
+- Los conjuntos cerrados de valores son **enumeraciones** de Prisma.
 
 ## 2. Correspondencia dominio → tablas
 
-| Concepto (es) | Tabla propuesta | Tipo |
+| Concepto (es) | Tabla | Tipo |
 | --- | --- | --- |
 | Usuario | `users` | Entidad |
 | Asignación de rol global | `user_roles` | Asociativa (DB-01) |
 | Área | `areas` | Entidad |
-| Encargado de área | `area_managers` | Asociativa |
+| Encargado de área | `area_managers` | Asociativa (provisional, P-08) |
 | Facultad | `faculties` | Entidad |
 | Asignación de decano | `faculty_deans` | Asociativa con vigencia (DB-03) |
 | Proyecto | `projects` | Entidad |
+| Proyecto-Facultad | `project_faculties` | Asociativa (P-04) |
 | Participante de proyecto | `project_members` | Asociativa con atributos (DB-02) |
 | Tablero | `boards` | Entidad |
 | Actividad | `activities` | Entidad |
-| Encargado de actividad | `activity_assignees` | Asociativa |
+| Encargado de actividad | `activity_assignees` | Asociativa (P-10) |
+| Adjunto de actividad | `activity_attachments` | Entidad dependiente (P-14, DB-07) |
 | Documento | `documents` | Entidad |
 | Novedad | `announcements` | Entidad |
 | Audiencia de novedad | `announcement_audiences` | Asociativa con discriminador (DB-06) |
 | Reunión | `meetings` | Entidad |
 | Participante de reunión | `meeting_participants` | Asociativa |
-| Recordatorio | `reminders` | Entidad (❓ P-19) |
+| Recordatorio | `reminders` | Entidad (provisional, P-19) |
 
 ## 3. Tablas
 
-`PK` clave primaria · `FK` clave foránea · `UQ` única · `NN` no nula · `?` opcional.
+`PK` clave primaria · `FK` clave foránea · `UQ` única · `NN` no nula · `?` opcional. Todos los `id` y FK son UUID. La política `onDelete` está en §6.
+
+### Enumeraciones
+
+| Enum | Valores |
+| --- | --- |
+| `Role` | `ADMIN`, `AREA_MANAGER`, `DEAN`, `TUTOR`, `STUDENT` |
+| `UserStatus` | `ACTIVE`, `INACTIVE` |
+| `ProjectStatus` | `ACTIVE`, `FINISHED`, `CANCELLED` |
+| `ProjectRole` | `TUTOR`, `STUDENT`, `STUDENT_LEADER` |
+| `MembershipStatus` | `ACTIVE`, `INACTIVE` |
+| `ProgressStatus` | `PENDING`, `IN_PROGRESS`, `DONE`, `CANCELLED` |
+| `WorkResult` | `SUCCESS`, `FAILURE` |
+| `ApprovalStatus` | `PENDING`, `APPROVED`, `REJECTED` |
+| `AttachmentKind` | `LINK`, `DOCUMENT` |
+| `DocumentFormat` | `PDF`, `WORD`, `EXCEL`, `IMAGE` |
+| `AnnouncementKind` | `NEWS`, `COMMUNICATION`, `CHANGE`, `NOTIFICATION` |
+| `AudienceType` | `ALL`, `ROLE`, `FACULTY`, `AREA`, `PROJECT` |
 
 ### Usuarios y roles
 
-**`users`**: `id` PK · `full_name` NN · `email` NN UQ · `status` NN (`ACTIVE`/`INACTIVE`) · timestamps.
+**`users`**: `id` PK · `full_name` NN · `email` NN UQ · `status` NN (`UserStatus`, por defecto `ACTIVE`) · `created_at` · `updated_at`.
 
-**`user_roles`**: (`user_id` FK→users, `role` enum) PK.
-`role` ∈ `ADMIN`, `AREA_MANAGER`, `DEAN`, `TUTOR`, `STUDENT`. Si se confirma un único rol por usuario (P-02), esta tabla se reduce a una columna `users.role`.
+**`user_roles`**: (`user_id` FK→users, `role` `Role`) PK · `assigned_at` NN. Un usuario puede tener varios roles globales (P-02, DB-01).
 
 ### Estructura institucional
 
-**`areas`**: `id` PK · `name` NN UQ · `description?` · timestamps.
+**`areas`**: `id` PK · `name` NN UQ · `description?` · `created_at` · `updated_at`.
 
-**`area_managers`**: (`area_id` FK, `user_id` FK) PK · `assigned_at` NN. Su existencia depende de P-08.
+**`area_managers`** (provisional, P-08): (`area_id` FK, `user_id` FK) PK · `assigned_at` NN.
 
-**`faculties`**: `id` PK · `name` NN UQ · timestamps. El código institucional queda ❓.
+**`faculties`**: `id` PK · `name` NN UQ · `created_at` · `updated_at`. El código institucional queda ❓.
 
 **`faculty_deans`**: `id` PK · `faculty_id` FK NN · `user_id` FK NN · `starts_at` NN · `ends_at?`.
-Restricción: como máximo **un decano vigente por facultad** (`ends_at IS NULL`), mediante un índice único parcial (ver §6).
+Restricciones: como máximo **un decano vigente por facultad** (`ends_at IS NULL`) y `ends_at > starts_at` (ver §6).
 
 ### Proyectos
 
-**`projects`**: `id` PK · `title` NN · `description?` · `area_id` FK NN · `faculty_id` FK? (P-04) · `status` NN (❓ P-26) · `starts_on?` · `ends_on?` · `created_by_id` FK→users · `deleted_at?` · timestamps.
+**`projects`**: `id` PK · `title` NN · `description?` · `area_id` FK NN · `status` NN (`ProjectStatus`, por defecto `ACTIVE`) · `starts_on?` (fecha) · `ends_on?` (fecha) · `created_by_id` FK→users NN · `created_at` · `updated_at` · `deleted_at?`.
+Restricción: `ends_on >= starts_on` cuando ambas existen. No guarda la facultad ni el decano.
 
-**`project_members`**: `id` PK · `project_id` FK NN · `user_id` FK NN · `project_role` NN (`TUTOR`, `STUDENT`, `STUDENT_LEADER`; P-03) · `status` NN (`ACTIVE`/`INACTIVE`) · `joined_at` NN · `left_at?`.
-Restricción: un único registro **activo** por (`project_id`, `user_id`). Si no hace falta historial (P-25), basta un `UQ(project_id, user_id)`.
-No incluye al decano, cuyo vínculo se deriva de `projects.faculty_id` → `faculty_deans` (DB-04).
+**`project_faculties`**: (`project_id` FK, `faculty_id` FK) PK. Un proyecto pertenece a una o varias facultades (P-04). El mínimo de una se valida en el servicio.
+
+**`project_members`**: `id` PK · `project_id` FK NN · `user_id` FK NN · `project_role` NN (`ProjectRole`) · `is_primary` NN (por defecto `false`) · `status` NN (`MembershipStatus`, por defecto `ACTIVE`) · `joined_at` NN · `left_at?`.
+Restricciones (§6): un registro activo por (proyecto, usuario); un único proyecto activo por estudiante o líder (P-25); un líder activo por proyecto (P-03); un tutor principal activo por proyecto, solo tutores (P-05); `left_at` informado si y solo si el registro está inactivo.
+No incluye al decano, cuyo vínculo se deriva de `project_faculties` → `faculty_deans` (DB-04).
 
 ### Tableros y actividades
 
-**`boards`**: `id` PK · `project_id` FK NN · `title` NN · `due_date` NN · `status` NN (❓ P-11) · `responsible_tutor_id` FK→users NN · `responsible_student_id` FK→users NN · `deleted_at?` · timestamps.
-Validación: los dos responsables deben ser `project_members` activos del mismo proyecto y con el rol correspondiente (DB-05).
+**`boards`**: `id` PK · `project_id` FK NN · `title` NN · `due_date` NN (fecha) · `progress_status` NN (`ProgressStatus`, por defecto `PENDING`) · `result?` (`WorkResult`) · `responsible_tutor_id` FK→users NN · `responsible_student_id` FK→users NN · `created_at` · `updated_at` · `deleted_at?`.
+Validación en el servicio: los dos responsables deben ser `project_members` activos del mismo proyecto y con el rol correspondiente (DB-05).
 
-**`activities`**: `id` PK · `board_id` FK NN · `author_id` FK→users NN · `title` NN · `description?` · `progress_status` NN · `result?` · `approval_status` NN · `approved_by_id?` FK→users · `approved_at?` · `attachment_url?` · `attachment_document_id?` FK→documents · `deleted_at?` · timestamps.
-- `progress_status` ∈ `PENDING`, `IN_PROGRESS`, `DONE`, `CANCELLED` (RN-03). `result` ∈ `SUCCESS`, `FAILURE` (RN-03) (DB-09).
-- `approval_status` ∈ `PENDING`, `APPROVED`, `REJECTED` (❓ P-12).
-- CHECK: `attachment_url` y `attachment_document_id` no pueden tener valor a la vez (DB-07).
+**`activities`**: `id` PK · `board_id` FK NN · `author_id` FK→users NN · `title` NN · `description?` · `progress_status` NN (por defecto `PENDING`) · `result?` · `approval_status` NN (`ApprovalStatus`, por defecto `PENDING`) · `approved_by_id?` FK→users · `approved_at?` · `created_at` · `updated_at` · `deleted_at?`.
+- Progreso y resultado en columnas separadas (RN-04, DB-09). Solo se guarda el estado actual de la aprobación (P-12).
+- CHECK: si la aprobación es `PENDING`, `approved_by_id` y `approved_at` son nulos; en otro caso, ambos tienen valor.
 - No guarda `project_id`; se obtiene a través de `board_id` (3FN).
 
-**`activity_assignees`**: (`activity_id` FK, `user_id` FK) PK · `assigned_by_id` FK→users · `assigned_at` NN. Si se confirma un único encargado (P-10), pasa a ser la columna `activities.assignee_id`.
+**`activity_assignees`**: (`activity_id` FK, `user_id` FK) PK · `assigned_by_id` FK→users NN · `assigned_at` NN. Varios encargados por actividad (P-10).
+
+**`activity_attachments`**: `id` PK · `activity_id` FK NN · `kind` NN (`AttachmentKind`) · `url?` · `document_id?` FK→documents · `created_by_id` FK→users NN · `created_at` NN. CHECK: un adjunto `LINK` tiene `url` y no `document_id`; uno `DOCUMENT` tiene `document_id` y no `url` (DB-07). No tiene `updated_at`.
 
 ### Documentos
 
-**`documents`**: `id` PK · `project_id` FK NN (🟡 P-15) · `uploaded_by_id` FK→users NN · `file_name` NN · `format` NN (`PDF`, `WORD`, `EXCEL`, `IMAGE`) · `mime_type` NN · `size_bytes` NN · `storage_key` NN UQ · `created_at` · `deleted_at?`.
-El enlace de descarga se genera a partir de `storage_key` (DB-08).
+**`documents`**: `id` PK · `project_id` FK NN · `uploaded_by_id` FK→users NN · `file_name` NN · `format` NN (`DocumentFormat`) · `mime_type` NN · `size_bytes` NN (`BigInt`, > 0) · `storage_key` NN UQ · `created_at` · `deleted_at?`. No tiene `updated_at`.
+El enlace de acceso lo genera el backend a partir de `storage_key` (DB-08).
 
 ### Novedades
 
-**`announcements`**: `id` PK · `author_id` FK→users NN · `title` NN · `content` NN · `kind?` (❓) · `published_at` NN · `expires_at?` (❓ P-16) · timestamps.
+**`announcements`**: `id` PK · `author_id` FK→users NN · `kind` NN (`AnnouncementKind`, por defecto `NEWS`) · `title` NN · `content` NN · `published_at` NN · `created_at` · `updated_at` · `deleted_at?`.
+La notificación es un tipo de novedad (P-16). No hay registro de lectura ni columna de expiración.
 
-**`announcement_audiences`**: `id` PK · `announcement_id` FK NN · `audience_type` NN (`ALL`, `ROLE`, `FACULTY`, `AREA`, `PROJECT`) · `role?` · `faculty_id?` FK · `area_id?` FK · `project_id?` FK.
+**`announcement_audiences`**: `id` PK · `announcement_id` FK NN · `audience_type` NN (`AudienceType`) · `role?` (`Role`) · `faculty_id?` FK · `area_id?` FK · `project_id?` FK.
 CHECK: solo la columna de destino que corresponde a `audience_type` tiene valor, y ninguna si es `ALL` (DB-06).
 
 ### Reuniones y recordatorios
 
-**`meetings`**: `id` PK · `project_id?` FK (P-18) · `organizer_id` FK→users NN · `external_id` UQ? (Teams) · `reason` NN · `starts_at` NN · `duration_minutes` NN (> 0) · `join_url?` · `recording_url?` · timestamps.
+**`meetings`**: `id` PK · `project_id?` FK (P-18) · `organizer_id` FK→users NN · `external_id?` UQ (Teams) · `reason` NN · `starts_at` NN · `duration_minutes` NN (> 0; DB-12) · `join_url?` · `recording_url?` · `created_at` · `updated_at` · `deleted_at?`.
 
-**`meeting_participants`**: (`meeting_id` FK, `user_id` FK) PK.
+**`meeting_participants`**: (`meeting_id` FK, `user_id` FK) PK. Participantes: usuarios del sistema.
 
-**`reminders`** (❓ P-19, propuesta mínima): `id` PK · `created_by_id` FK NN · `project_id?` FK · `title` NN · `remind_at` NN · timestamps.
+**`reminders`** (provisional, P-19): `id` PK · `created_by_id` FK NN · `project_id?` FK · `title` NN · `remind_at` NN · `created_at` · `updated_at`.
 
 ## 4. Diagrama relacional
 
@@ -107,7 +133,8 @@ erDiagram
     faculties ||--o{ faculty_deans : has
 
     areas ||--o{ projects : classifies
-    faculties |o--o{ projects : groups
+    projects ||--|{ project_faculties : "belongs to"
+    faculties ||--o{ project_faculties : groups
     users ||--o{ projects : "created by"
     projects ||--o{ project_members : has
     users ||--o{ project_members : "member of"
@@ -120,7 +147,8 @@ erDiagram
     users |o--o{ activities : approves
     activities ||--o{ activity_assignees : "assigned to"
     users ||--o{ activity_assignees : assignee
-    documents |o--o{ activities : "attached to"
+    activities ||--o{ activity_attachments : has
+    documents |o--o{ activity_attachments : "referenced by"
 
     projects ||--o{ documents : stores
     users ||--o{ documents : uploads
@@ -140,47 +168,55 @@ erDiagram
     projects |o--o{ reminders : ""
 
     projects {
-        id id PK
+        uuid id PK
         string title
-        id area_id FK
-        id faculty_id FK "nullable"
+        uuid area_id FK
         enum status
         datetime deleted_at "nullable"
     }
     project_members {
-        id id PK
-        id project_id FK
-        id user_id FK
+        uuid id PK
+        uuid project_id FK
+        uuid user_id FK
         enum project_role
+        boolean is_primary
         enum status
+        datetime left_at "nullable"
     }
     boards {
-        id id PK
-        id project_id FK
+        uuid id PK
+        uuid project_id FK
         string title
         date due_date
-        enum status
-        id responsible_tutor_id FK
-        id responsible_student_id FK
+        enum progress_status
+        enum result "nullable"
+        uuid responsible_tutor_id FK
+        uuid responsible_student_id FK
     }
     activities {
-        id id PK
-        id board_id FK
-        id author_id FK
+        uuid id PK
+        uuid board_id FK
+        uuid author_id FK
         enum progress_status
         enum result "nullable"
         enum approval_status
-        string attachment_url "nullable"
-        id attachment_document_id FK "nullable"
+        uuid approved_by_id FK "nullable"
+    }
+    activity_attachments {
+        uuid id PK
+        uuid activity_id FK
+        enum kind
+        string url "nullable"
+        uuid document_id FK "nullable"
     }
     announcement_audiences {
-        id id PK
-        id announcement_id FK
+        uuid id PK
+        uuid announcement_id FK
         enum audience_type
         enum role "nullable"
-        id faculty_id FK "nullable"
-        id area_id FK "nullable"
-        id project_id FK "nullable"
+        uuid faculty_id FK "nullable"
+        uuid area_id FK "nullable"
+        uuid project_id FK "nullable"
     }
 ```
 
@@ -188,42 +224,67 @@ erDiagram
 
 | Forma | Cómo se cumple |
 | --- | --- |
-| **1FN** | No hay atributos multivaluados. Roles, participantes, encargados, audiencias y asistentes van en tablas propias y no en listas o arreglos. |
-| **2FN** | En las tablas con clave compuesta (`user_roles`, `area_managers`, `activity_assignees`, `meeting_participants`), los atributos dependen de la clave completa (p. ej. `assigned_at` describe la asignación, no solo al usuario). |
-| **3FN** | No hay dependencias transitivas. El decano de un proyecto **no** se guarda en `projects` (se deriva de la facultad), la facultad no se repite en `boards` ni en `activities`, y las métricas no se persisten. |
+| **1FN** | No hay atributos multivaluados. Roles, facultades de un proyecto, participantes, encargados, adjuntos, audiencias y asistentes van en tablas propias y no en listas o arreglos. |
+| **2FN** | En las tablas con clave compuesta (`user_roles`, `area_managers`, `project_faculties`, `activity_assignees`, `meeting_participants`), los atributos dependen de la clave completa (p. ej. `assigned_at` describe la asignación, no solo al usuario). |
+| **3FN** | No hay dependencias transitivas. El decano de un proyecto **no** se guarda en `projects` (se deriva de `project_faculties` → `faculty_deans`), la facultad no se repite en `boards` ni en `activities`, y las métricas no se persisten. |
 
 **Decisiones de no normalizar más** (para no forzar entidades innecesarias):
 
 - Los roles y estados son **enumeraciones**, no tablas catálogo, porque son conjuntos pequeños y estables. Si la institución necesita administrarlos, se reevalúa.
-- El **adjunto** de actividad son dos columnas opcionales, no una tabla, porque la cardinalidad confirmada es 0..1 (DB-07).
 - La reunión guarda `duration_minutes` y no `ends_at`. Guardar ambas sería redundante (DB-12).
 - `boards.project_id` sí se guarda, porque es la relación de pertenencia. `activities` llega al proyecto a través del tablero.
 
 ## 6. Integridad referencial y restricciones
 
-| Restricción | Mecanismo |
+### Claves foráneas y política de borrado
+
+- `RESTRICT` en las relaciones de las entidades de negocio (usuarios, proyectos, tableros, actividades, documentos, facultades, áreas, etc.), junto con eliminación lógica (DB-10).
+- `CASCADE` solo en asociativas puras o dependientes que no tienen sentido sin su padre: `user_roles`, `area_managers`, `project_faculties` (al borrar el proyecto), `activity_assignees` (al borrar la actividad), `activity_attachments` (al borrar la actividad), `announcement_audiences` (al borrar la novedad) y `meeting_participants` (al borrar la reunión).
+
+### Restricciones personalizadas (SQL de la migración inicial)
+
+Prisma no puede expresar estos CHECK e índices únicos parciales; se añaden al final de `apps/backend/prisma/migrations/*_init/migration.sql`. Deben mantenerse sincronizadas con esta tabla.
+
+| Nombre | Tabla | Tipo | Qué garantiza | Origen |
+| --- | --- | --- | --- | --- |
+| `faculty_deans_one_current_per_faculty` | `faculty_deans` | Índice único parcial (`faculty_id` WHERE `ends_at IS NULL`) | Un decano vigente por facultad | DB-03, P-06 |
+| `faculty_deans_valid_period` | `faculty_deans` | CHECK | `ends_at` nulo o posterior a `starts_at` | DB-03 |
+| `project_members_one_active_per_user_project` | `project_members` | Índice único parcial (`project_id`, `user_id` WHERE `status = 'ACTIVE'`) | Un registro activo por usuario y proyecto | DB-02, P-25 |
+| `project_members_one_active_project_per_student` | `project_members` | Índice único parcial (`user_id` WHERE `status = 'ACTIVE'` y rol `STUDENT` o `STUDENT_LEADER`) | Un solo proyecto activo por estudiante | P-25 |
+| `project_members_one_active_leader_per_project` | `project_members` | Índice único parcial (`project_id` WHERE activo y rol `STUDENT_LEADER`) | Un líder activo por proyecto | P-03 |
+| `project_members_one_primary_tutor_per_project` | `project_members` | Índice único parcial (`project_id` WHERE activo y `is_primary`) | Un tutor principal activo por proyecto | P-05 |
+| `project_members_primary_only_tutor` | `project_members` | CHECK | Solo un `TUTOR` puede ser principal | P-05 |
+| `project_members_left_at_when_inactive` | `project_members` | CHECK | `left_at` tiene valor si y solo si el estado no es activo | P-25 |
+| `activity_attachments_kind_target` | `activity_attachments` | CHECK | Enlace (solo `url`) o documento (solo `document_id`), nunca ambos | P-14, DB-07 |
+| `activities_approval_consistency` | `activities` | CHECK | Aprobación `PENDING` sin aprobador ni fecha; en otro caso, con ambos | P-12 |
+| `documents_size_positive` | `documents` | CHECK | `size_bytes > 0` | RN-60 |
+| `announcement_audiences_target` | `announcement_audiences` | CHECK | El destino corresponde a `audience_type` | DB-06 |
+| `meetings_duration_positive` | `meetings` | CHECK | `duration_minutes > 0` | DB-12 |
+| `projects_valid_dates` | `projects` | CHECK | `ends_on >= starts_on` si ambas existen | Validación de fechas |
+
+### Validaciones en el servicio (no en la base de datos)
+
+| Restricción | Motivo |
 | --- | --- |
-| Pertenencias obligatorias (tablero → proyecto, actividad → tablero) | FK NN |
-| Un decano vigente por facultad | Índice único parcial `faculty_deans(faculty_id) WHERE ends_at IS NULL` |
-| Un participante activo por usuario y proyecto | Índice único parcial o `UQ` simple (P-25) |
-| Adjunto exclusivo (enlace o documento) | CHECK |
-| Audiencia coherente con su tipo | CHECK |
-| Duración positiva | CHECK |
-| Responsables y encargados son participantes del proyecto | Validación en el servicio (DB-05) |
-| Política de borrado | `RESTRICT` por defecto y eliminación lógica en entidades de negocio (DB-10) |
+| Todo proyecto tiene al menos una facultad (P-04) | Una FK no puede exigir filas en una tabla hija. |
+| Responsables de tablero y encargados de actividad son participantes activos del proyecto y con el rol correspondiente (DB-05) | Depende del rol y del estado, que una FK no comprueba. |
+| Pertenencias obligatorias (tablero → proyecto, actividad → tablero) | FK NN en la base de datos. |
+| Filtro de eliminación lógica (`deleted_at`) | Prisma no lo aplica automáticamente (§7). |
 
 ## 7. Consideraciones para Prisma ORM
 
-Son puntos a tener en cuenta al redactar `schema.prisma`, **sin crearlo todavía**:
+El proyecto usa **Prisma 7.10.1** con **PostgreSQL 18.6**. Puntos relevantes del esquema implementado:
 
-1. **N:M explícitas:** todas las relaciones N:M tienen atributos o pueden llegar a tenerlos. Conviene modelarlas como **modelos explícitos** y no como relaciones implícitas de Prisma.
-2. **Varias relaciones al mismo modelo:** `boards` (dos usuarios), `activities` (autor y aprobador) y `projects` (creador) necesitan **nombres de relación** que las distingan.
-3. **Restricciones no expresables en el esquema:** los CHECK y los índices únicos parciales no se declaran en `schema.prisma`. Requieren **SQL personalizado en la migración**. Esto queda pendiente de aprobación y debe documentarse cuando se haga.
-4. **Polimorfismo:** Prisma no tiene relaciones polimórficas. Este es otro motivo para elegir columnas FK opcionales en `announcement_audiences` (DB-06).
-5. **Enumeraciones:** se usan `enum` de Prisma, que en PostgreSQL son tipos enumerados. Cambiar sus valores requiere migración, por eso deben confirmarse antes (P-11, P-12, P-26).
-6. **Eliminación lógica:** Prisma no la aplica automáticamente. Se necesitaría un filtro central en `PrismaService` o una extensión del cliente (decisión técnica pendiente).
-7. **`onDelete`:** hay que definirlo de forma explícita en cada relación. La propuesta es `Restrict` en entidades de negocio y `Cascade` solo en asociativas puras (p. ej. `meeting_participants` al borrar físicamente una reunión).
-8. **Mapeo de nombres:** los modelos en PascalCase (`ProjectMember`) se mapean a tablas en snake_case (`project_members`) con `@@map`/`@map`, si se aprueba esa convención (DB-13).
-9. **Auth.js:** si se usa su adaptador de Prisma, este exige modelos propios (cuentas, sesiones, tokens) que deben convivir con `users`. Depende del flujo de autenticación, que está pendiente (`AGENTS.md` §4).
-10. **Identificadores:** el tipo de `id` está pendiente: UUID, CUID o autoincremental (DB-14).
-11. **Índices:** se recomiendan índices sobre las FK más consultadas (`project_members.user_id`, `activities.board_id`, `announcement_audiences.*_id`) y sobre `deleted_at` si se aplica eliminación lógica.
+1. **Generador y salida:** `generator client` con `provider = "prisma-client"` y `output = "../src/generated/prisma"` (relativo al esquema, es decir, `apps/backend/src/generated/prisma`).
+2. **URL de conexión:** en Prisma 7 no se declara en `schema.prisma` (el `datasource` solo indica `provider = "postgresql"`). Se configura en `apps/backend/prisma.config.ts`, a partir de variables de entorno (ver `apps/backend/.env.example`; nunca se versiona el `.env` real).
+3. **Adaptador:** el cliente se instancia con el adaptador de controlador `@prisma/adapter-pg`.
+4. **N:M explícitas:** todas las relaciones N:M son modelos explícitos (`UserRole`, `AreaManager`, `ProjectFaculty`, `ActivityAssignee`, `MeetingParticipant`), no relaciones implícitas de Prisma.
+5. **Varias relaciones al mismo modelo:** `Board` (dos usuarios), `Activity` (autor y aprobador), `ActivityAssignee` (encargado y quien asigna) y `Project` (creador) usan **nombres de relación** que las distinguen.
+6. **Restricciones no expresables en el esquema:** los CHECK y los índices únicos parciales (§6) viven en el SQL de la migración inicial. Prisma **no los detecta como drift** (verificado), por lo que conviven con el esquema sin conflicto. Cada migración futura debe conservarlos y documentarse aquí.
+7. **Polimorfismo:** Prisma no tiene relaciones polimórficas; por eso `announcement_audiences` usa columnas FK opcionales (DB-06).
+8. **Enumeraciones:** son `enum` de Prisma, tipos enumerados en PostgreSQL. Cambiar sus valores requiere migración.
+9. **Eliminación lógica:** Prisma no la aplica automáticamente. Hace falta un filtro central en `PrismaService` o una extensión del cliente (decisión técnica pendiente).
+10. **`onDelete`:** definido de forma explícita en cada relación (§6).
+11. **Mapeo de nombres:** `@@map`/`@map` a snake_case (DB-13).
+12. **Auth.js:** si se usa su adaptador de Prisma, este exige modelos propios (cuentas, sesiones, tokens) que deben convivir con `users`. Depende del flujo de autenticación, que está pendiente (`AGENTS.md` §4).
+13. **Índices:** el esquema declara `@@index` sobre las FK más consultadas y sobre `deleted_at` en las tablas con eliminación lógica.

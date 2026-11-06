@@ -16,11 +16,11 @@ El alcance, los módulos y el estado se documentan en `README.md`; no los repita
 
 ## 2. Estado actual del proyecto
 
-- **Fase de planificación:** no existe código de aplicación.
-- **Definido:** stack, estructura base del monorepo, workspace (pnpm + Turborepo) y scripts raíz.
-- **No instalado:** dependencias; no hay `pnpm-lock.yaml`.
-- **No implementado:** base de datos, API, autenticación, Docker, pruebas ni CI/CD.
-- Los scripts raíz existen, pero aún no hay paquetes de aplicación que ejecutar.
+- **Fase de planificación:** no existe código de aplicación (NestJS, React y React Native sin crear).
+- **Definido:** stack, versiones base, estructura del monorepo, workspace (pnpm + Turborepo) y scripts raíz.
+- **Implementado:** esquema de datos en `apps/backend/prisma/schema.prisma`, migración inicial y PostgreSQL local con Docker Compose ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)).
+- **Instalado:** solo Turborepo y Prisma (`pnpm-lock.yaml` versionado).
+- **No implementado:** API, `PrismaService`, autenticación, Docker de despliegue, pruebas ni CI/CD.
 
 Por lo tanto:
 
@@ -37,7 +37,8 @@ Por lo tanto:
 | `AGENTS.md` | Reglas operativas para agentes |
 | `docs/architecture/` | Arquitectura y estructura del monorepo |
 | `docs/domain/` | Dominio del negocio: entidades, glosario, reglas, permisos y flujos |
-| `docs/database/` | Propuesta de modelo de datos y decisiones de diseño (pendiente de aprobación) |
+| `docs/database/` | Modelo de datos, decisiones de diseño y guía de base de datos local |
+| `apps/backend/prisma/schema.prisma` | Fuente de verdad técnica del esquema de datos |
 | `docs/api/` | Contratos de API (pendiente) |
 | `docs/decisions/` | Decisiones técnicas (ADR) |
 
@@ -61,7 +62,9 @@ Si dos fuentes se contradicen, **detente y reporta**; no elijas una por tu cuent
 | Contenedores | Docker |
 | Arquitectura | MVC + monolito modular |
 
-**Pendiente de definición:** versiones (Node.js, pnpm, Turborepo, PostgreSQL, Prisma), framework de pruebas, CI/CD, infraestructura de despliegue, contratos de API, flujo de sesiones de Auth.js (incluido móvil), modelo de datos/migraciones y permisos por rol.
+**Versiones fijadas** ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)): Node.js 24 LTS (`.nvmrc`), pnpm 12.18.0 (`packageManager`, vía Corepack), Prisma 7.10.1 (con `@prisma/adapter-pg`) y PostgreSQL 18.6 (`postgres:18.6-alpine`).
+
+**Pendiente de definición:** versión de Turborepo (`latest`, fijada solo por el lockfile), framework de pruebas, CI/CD, infraestructura de despliegue, contratos de API, flujo de sesiones de Auth.js (incluido móvil), permisos por rol y preguntas abiertas del dominio (`docs/domain/business-rules.md`).
 
 No fijes versiones ni agregues herramientas para cubrir estos pendientes sin aprobación.
 
@@ -145,16 +148,16 @@ Detalle completo: [`docs/architecture/estructura.md`](docs/architecture/estructu
 
 ## 8. Comandos y ejecución
 
-El workspace está configurado, pero **no hay aplicaciones ni dependencias instaladas**.
+El workspace está configurado. Solo existe el paquete `@gestor-semilleros/backend`, con scripts de base de datos. Guía completa: [`docs/database/local-setup.md`](docs/database/local-setup.md).
 
 | Comando | Estado |
 | --- | --- |
-| `pnpm install` | Configurado; instalaría solo la dependencia raíz. **No ejecutado.** |
-| `pnpm dev` | Configurado; delega en Turborepo. Sin paquetes que ejecutar. |
-| `pnpm build`, `pnpm lint`, `pnpm test`, `pnpm typecheck` | Configurados; delegan en Turborepo. Sin paquetes todavía. |
-| `pnpm turbo run <tarea> --filter=<paquete>` | Previsto para cuando existan paquetes. |
-| Scripts de cada aplicación | **Pendientes** de crear con cada app. |
-| Docker, migraciones y despliegue | **Pendientes** de configuración. |
+| `pnpm install` | ✅ Funcional; instala Turborepo y Prisma. |
+| `pnpm db:up` / `db:down` / `db:logs` | ✅ PostgreSQL local con `docker/compose.yaml`. |
+| `pnpm db:migrate` / `db:generate` / `db:studio` | ✅ Delegan en `apps/backend` (Prisma). |
+| `db:validate`, `db:format`, `db:status`, `db:deploy`, `db:reset` | ✅ Scripts de `apps/backend`. `db:reset` borra los datos locales: requiere confirmación. |
+| `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm test`, `pnpm typecheck` | Configurados; delegan en Turborepo. Ningún paquete los implementa todavía. |
+| Docker de despliegue | **Pendiente** de configuración. |
 
 Reglas:
 
@@ -226,7 +229,8 @@ Si la decisión ya está aprobada y registrada, procede sin volver a preguntar.
 | [`docs/domain/roles-permissions.md`](docs/domain/roles-permissions.md) | Roles y matriz conceptual de permisos |
 | [`docs/domain/workflows.md`](docs/domain/workflows.md) | Flujos principales |
 | [`docs/database/data-model.md`](docs/database/data-model.md) | Modelo relacional propuesto |
-| [`docs/database/database-decisions.md`](docs/database/database-decisions.md) | Decisiones de datos (`DB-xx`), en propuesta |
+| [`docs/database/database-decisions.md`](docs/database/database-decisions.md) | Decisiones de datos (`DB-xx`) |
+| [`docs/database/local-setup.md`](docs/database/local-setup.md) | Instalación local de la base de datos |
 | `docs/api/` | Contratos de API (pendientes) |
 | `docs/decisions/` | ADRs |
 

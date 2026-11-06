@@ -1,6 +1,6 @@
 # Reglas de negocio
 
-> **Estado:** planificación. Reglas acordadas, todavía no implementadas. No inventes reglas adicionales.
+> **Estado:** reglas acordadas. El modelo de datos que las soporta está implementado en `apps/backend/prisma/schema.prisma`; la lógica de negocio (servicios) todavía no. No inventes reglas adicionales.
 > Marcas: ✅ confirmada · 🟡 hipótesis (no implementar sin confirmar) · ❓ pendiente.
 > Las reglas nuevas deben aprobarse y documentarse aquí antes de implementarse.
 
@@ -8,11 +8,11 @@
 
 | ID | Regla | Estado |
 | --- | --- | --- |
-| RN-01 | El seguimiento debe poder filtrarse por **semillero, integrante, tutor, facultad y decano**. Con el modelo actual, "semillero" corresponde a proyecto o área (P-01) e "integrante", a estudiante participante. | ✅ (términos 🟡) |
+| RN-01 | El seguimiento debe poder filtrarse por **semillero, integrante, tutor, facultad y decano**. "Semillero" es un tipo de proyecto, es decir, un Área (P-01); "integrante" es un estudiante participante. | ✅ |
 | RN-02 | En las tareas se distinguen **progreso** (avance) y **resultado** (desenlace). | ✅ |
-| RN-03 | Estados de tarea permitidos: `pendiente`, `en progreso`, `finalizado`, `cancelado`, `éxito`, `fracaso`. | ✅ (falta confirmar si aplican a Actividad, P-11) |
+| RN-03 | Estados permitidos para tableros y actividades: progreso (`pendiente`, `en progreso`, `finalizado`, `cancelado`) y resultado opcional (`éxito`, `fracaso`), en columnas separadas (P-11, DB-09). | ✅ |
 | RN-04 | Un resultado (`éxito`/`fracaso`) no reemplaza al estado de progreso. | ✅ |
-| RN-05 | Los recordatorios y las notificaciones pertenecen a un usuario o a un contexto; no son globales. | ✅ (ver la tensión con RN-50) |
+| RN-05 | Los recordatorios y las notificaciones pertenecen a un usuario o a un contexto; no son globales. | ✅ (tensión con RN-50 resuelta por P-16) |
 | RN-06 | Los documentos e imágenes se almacenan en AWS S3; sus metadatos, en PostgreSQL. | ✅ |
 | RN-07 | La lógica de negocio vive en los servicios del backend, no en la UI ni en los controladores de transporte. | ✅ |
 
@@ -21,7 +21,8 @@
 | ID | Regla | Estado |
 | --- | --- | --- |
 | RN-10 | Solo el Administrador crea usuarios, y lo hace con roles preestablecidos. | ✅ |
-| RN-11 | Solo el Administrador modifica roles globales. | 🟡 (el tutor también cambia roles de estudiantes, P-21) |
+| RN-14 | Un usuario puede tener **varios roles globales**; sus permisos se suman (P-02, DB-01). | ✅ |
+| RN-11 | Solo el Administrador modifica roles globales. | 🟡 (el tutor cambia roles de proyecto de estudiantes, P-21) |
 | RN-12 | El tutor solo puede cambiar el rol de estudiantes de sus proyectos y dentro de los límites definidos. | ✅ (límites ❓) |
 | RN-13 | Un usuario desactivado conserva su historial: autoría, participaciones y aprobaciones. | 🟡 |
 
@@ -30,10 +31,10 @@
 | ID | Regla | Estado |
 | --- | --- | --- |
 | RN-20 | Un decano tiene una o varias facultades a su cargo. | ✅ |
-| RN-21 | Un proyecto puede pertenecer a una facultad. | ✅ (obligatoriedad ❓, P-04) |
-| RN-22 | Cada proyecto pertenece a exactamente un área (su tipo). | 🟡 |
+| RN-21 | Un proyecto pertenece a **una o varias facultades** (mínimo una). El mínimo se valida en el servicio (P-04). | ✅ |
+| RN-22 | Cada proyecto pertenece a exactamente un área (su tipo). El semillero es un tipo de proyecto (P-01). | ✅ |
 | RN-23 | El decano solo crea, modifica o elimina proyectos de sus facultades. | 🟡 |
-| RN-24 | Una facultad tiene, como máximo, un decano vigente. | 🟡 (P-06) |
+| RN-24 | Una facultad tiene, como máximo, un decano vigente. Se conserva el historial de decanos con vigencia (P-06, DB-03). | ✅ |
 | RN-25 | El encargado de área solo administra las áreas que tiene asignadas. | ❓ (P-08) |
 
 ## 4. Pertenencia a proyectos y asignación de tutores
@@ -43,29 +44,31 @@
 | RN-30 | Un proyecto tiene participantes activos: decano, tutor y estudiantes. | ✅ |
 | RN-31 | El decano asigna los tutores responsables de un proyecto. | ✅ |
 | RN-32 | Un tutor puede tener uno o varios proyectos a su cargo. | ✅ |
-| RN-33 | Un proyecto tiene al menos un tutor responsable mientras está activo. | 🟡 (cantidad, P-05) |
+| RN-33 | Un proyecto tiene al menos un tutor responsable mientras está activo. Puede tener varios, y uno se marca como **principal** (P-05). | ✅ (mínimo validado en el servicio) |
 | RN-34 | Solo un usuario con rol global Tutor puede asignarse como tutor de un proyecto. | 🟡 |
 | RN-35 | Un usuario no puede figurar dos veces como participante activo del mismo proyecto. | 🟡 |
-| RN-36 | El decano del proyecto es el de la facultad a la que pertenece; no se asigna por separado. | 🟡 (P-07) |
-| RN-37 | Un estudiante puede participar en varios proyectos a la vez. | ❓ (P-25) |
-| RN-38 | La salida de un participante se registra como inactivación, no como borrado. | 🟡 (P-25) |
+| RN-36 | El decano de un proyecto se deriva de sus facultades (`project_faculties` → `faculty_deans`); no se asigna por separado. Un proyecto interfacultad puede tener varios decanos (P-07, DB-04). | ✅ |
+| RN-37 | Un estudiante solo puede tener **un proyecto activo** a la vez (aplica a los roles de proyecto Estudiante y Estudiante líder). Un tutor puede tener varios (RN-32). | ✅ (P-25) |
+| RN-38 | La salida de un participante se registra como inactivación (`status`, `left_at`), no como borrado; se conserva el historial de participación. | ✅ (P-25) |
+| RN-39 | El **estudiante líder** es un rol de proyecto, no global. Un proyecto tiene como máximo un líder activo (P-03). | ✅ |
+| RN-39a | Solo un tutor puede marcarse como **principal**; hay como máximo un tutor principal activo por proyecto (P-05). | ✅ |
 
 ## 5. Tableros y actividades
 
 | ID | Regla | Estado |
 | --- | --- | --- |
 | RN-40 | Un tablero pertenece a un proyecto y agrupa actividades con una meta común. | ✅ (pertenencia 🟡) |
-| RN-41 | Un tablero tiene título, fecha de entrega, estado, tutor responsable y estudiante encargado. | ✅ |
-| RN-42 | El tutor responsable de un tablero debe ser tutor activo del proyecto del tablero. | 🟡 (P-24) |
-| RN-43 | El estudiante encargado de un tablero debe ser estudiante activo del mismo proyecto. | 🟡 (P-24) |
+| RN-41 | Un tablero tiene título, fecha de entrega, estado de progreso, resultado opcional, **un** tutor responsable y **un** estudiante encargado (P-11, P-24). | ✅ |
+| RN-42 | El tutor responsable de un tablero debe ser tutor activo del proyecto del tablero. Validación en el servicio (DB-05). | 🟡 (P-24) |
+| RN-43 | El estudiante encargado de un tablero debe ser estudiante activo del mismo proyecto. Validación en el servicio (DB-05). Si es o no el líder sigue sin definirse. | 🟡 (P-24) |
 | RN-44 | Una actividad pertenece a un único tablero. | ✅ |
-| RN-45 | Una actividad tiene autor, estado, información, estado de aprobación del tutor y un adjunto opcional (enlace o documento). | ✅ |
-| RN-46 | Los encargados de una actividad deben ser participantes activos del proyecto. | 🟡 |
-| RN-47 | El estudiante líder crea, modifica y elimina encargados de actividades según los permisos establecidos. | ✅ (alcance ❓, P-10) |
+| RN-45 | Una actividad tiene autor, progreso, resultado opcional, información, estado de aprobación del tutor y cero o más adjuntos (enlace o documento). | ✅ (P-11, P-14) |
+| RN-46 | Una actividad puede tener **varios encargados** (P-10), que deben ser participantes activos del proyecto. Validación en el servicio (DB-05). | ✅ (cantidad) / 🟡 (validación) |
+| RN-47 | El estudiante líder crea, modifica y elimina encargados de actividades según los permisos establecidos. | ✅ (alcance sobre "otras actividades" ❓) |
 | RN-48 | Los estudiantes solo interactúan con las actividades que tienen asignadas. | ✅ (qué es "interactuar" ❓, P-13) |
-| RN-49 | La aprobación de una actividad la registra un tutor del proyecto. El estado de aprobación es independiente del estado de la actividad. | ✅ (qué tutor ❓, P-12) |
+| RN-49 | La aprobación de una actividad la registra un tutor del proyecto. El estado de aprobación (`pendiente`, `aprobada`, `rechazada`) es independiente del estado de la actividad. Solo se guarda el estado actual, con quién aprobó y cuándo; sin historial ni observaciones (P-12). | ✅ (qué tutor ❓) |
 | RN-49a | Una actividad solo puede aprobarse cuando su progreso está en `finalizado`. | ❓ (no definido; no implementar) |
-| RN-49b | El adjunto de una actividad es **o** un enlace **o** un documento, nunca ambos. | 🟡 (P-14) |
+| RN-49b | Cada adjunto de una actividad es **o** un enlace **o** un documento, nunca ambos. Una actividad puede tener varios adjuntos (P-14, DB-07). | ✅ |
 
 ## 6. Distribución de novedades
 
@@ -74,11 +77,12 @@
 | RN-50 | Una novedad puede dirigirse a todos los usuarios, a determinados roles, a una facultad, a un área o a un proyecto. | ✅ |
 | RN-51 | El encargado de área publica novedades para todos los usuarios o para determinados roles. | ✅ |
 | RN-52 | El decano publica novedades para sus facultades o para proyectos específicos. | ✅ (proyectos de sus facultades 🟡) |
-| RN-53 | Una novedad puede tener varias audiencias. Un usuario la recibe si pertenece a **al menos una** (unión). | 🟡 (P-16) |
-| RN-54 | La audiencia se calcula al consultar. Un usuario que se une después a un proyecto ve las novedades previas del proyecto. | 🟡 (DB-06) |
+| RN-53 | Una novedad puede tener varias audiencias. Un usuario la recibe si pertenece a **al menos una** (unión). | 🟡 |
+| RN-54 | La audiencia se calcula al consultar; no hay registro de lectura (P-16, DB-06). Un usuario que se une después a un proyecto ve las novedades previas del proyecto. | ✅ (cálculo) / 🟡 (novedades previas) |
 | RN-55 | La información institucional de áreas y facultades se publica mediante novedades. | ✅ |
+| RN-56 | Una **notificación** es un tipo de novedad (`NEWS`, `COMMUNICATION`, `CHANGE`, `NOTIFICATION`). Los canales externos (WhatsApp, correo) siguen pendientes (P-16). | ✅ (tipo) / ❓ (canales) |
 
-> **Tensión detectada:** RN-05 dice que las notificaciones "no son globales", mientras que RN-50 permite novedades "para todos". Si novedad y notificación son conceptos distintos, no hay contradicción. Está pendiente confirmarlo (P-16).
+> **Tensión resuelta (P-16):** RN-05 dice que las notificaciones "no son globales" y RN-50 permite novedades "para todos". Como la notificación es un tipo de novedad (RN-56), RN-50 prevalece en cuanto a la audiencia: una novedad de cualquier tipo puede dirigirse a todos. RN-05 se aplica a los **recordatorios** y a las notificaciones dirigidas a un usuario o contexto concretos.
 
 ## 7. Documentos
 
@@ -87,8 +91,9 @@
 | RN-60 | Formatos admitidos: PDF, Word, Excel e imágenes. | ✅ |
 | RN-61 | El sistema guarda los metadatos y la referencia de acceso del archivo, no el binario. | ✅ |
 | RN-62 | Web y móvil no acceden directamente al almacenamiento; el backend media el acceso. | ✅ (AGENTS.md) |
-| RN-63 | Todo documento queda asociado a un contexto (proyecto y, opcionalmente, actividad). | 🟡 (P-15) |
+| RN-63 | Todo documento pertenece siempre a un proyecto y, opcionalmente, se adjunta a actividades (P-15). | ✅ |
 | RN-64 | El tamaño máximo y la validación del tipo real de archivo están por definir. | ❓ |
+| RN-65 | De cada documento se guarda la clave de almacenamiento (`storage_key`) de S3; el backend genera el enlace de acceso (P-15, DB-08). | ✅ |
 
 ## 8. Reuniones
 
@@ -98,7 +103,7 @@
 | RN-71 | Localmente se guardan fecha, motivo, participantes, enlace de acceso o grabación y duración. | ✅ |
 | RN-72 | No se replica localmente toda la información de Teams. | ✅ |
 | RN-73 | El tutor crea las reuniones. | ✅ (otros roles ❓) |
-| RN-74 | Los participantes de una reunión son usuarios del sistema vinculados al proyecto. | 🟡 (externos, P-18) |
+| RN-74 | Los participantes de una reunión son usuarios del sistema. El proyecto de la reunión es **opcional** (P-18). | ✅ |
 
 ## 9. Recordatorios
 
@@ -106,6 +111,7 @@
 | --- | --- | --- |
 | RN-80 | El tutor crea recordatorios. | ✅ |
 | RN-81 | Un recordatorio pertenece a un usuario o a un contexto (ver RN-05). | ✅ |
+| RN-82 | Los atributos y destinatarios del recordatorio están por definir; el modelo es mínimo y provisional (P-19). | ❓ |
 
 ## 10. Dependencias entre entidades
 
@@ -126,47 +132,59 @@ flowchart LR
 
 - No puede existir un tablero sin proyecto, ni una actividad sin tablero.
 - Las validaciones de pertenencia (RN-42, RN-43 y RN-46) dependen de **Participante de proyecto**.
-- La eliminación de un proyecto afecta a todos sus dependientes (P-20).
+- La eliminación es **lógica** (`deleted_at`, P-20, DB-10): eliminar un proyecto no borra físicamente a sus dependientes. Los tableros, actividades, documentos y reuniones asociados quedan ocultos con él (el filtro es del servicio).
+- Las restricciones de unicidad de la participación (RN-35, RN-37, RN-39, RN-39a) están garantizadas además en la base de datos (ver [`data-model.md`](../database/data-model.md) §6).
 
 ## 11. Validaciones en los límites del sistema
 
 🟡 Son validaciones derivadas de las reglas anteriores. Se aplican en el backend:
 
-- Fechas coherentes: la fecha de entrega de un tablero no es anterior a su creación (❓ si se exige) y la duración de una reunión es positiva.
+- Fechas coherentes: la fecha de entrega de un tablero no es anterior a su creación (❓ si se exige), la duración de una reunión es positiva y la fecha de fin de un proyecto no es anterior a la de inicio.
+- Todo proyecto tiene al menos una facultad (RN-21) y al menos un tutor activo (RN-33).
 - Las referencias a usuarios (tutor responsable, encargados, participantes) deben corresponder a participantes activos del proyecto.
 - El formato de documento pertenece al conjunto permitido (RN-60).
 - Toda novedad tiene al menos una audiencia, y cada audiencia identifica un único destino.
+- Un adjunto es un enlace o un documento, nunca ambos (RN-49b).
 - Los enlaces (adjuntos, Teams) son URLs válidas.
 
 ---
 
 ## Preguntas pendientes
 
+Se conservan las preguntas resueltas, con su respuesta, para trazabilidad.
+
+### Resueltas
+
+| ID | Pregunta | Respuesta | Reglas / decisiones |
+| --- | --- | --- | --- |
+| P-01 | ¿Un semillero es un tipo de proyecto o un grupo que contiene proyectos? | ✅ Es un **tipo de proyecto** (un Área). No hay entidad Semillero. | RN-01, RN-22 |
+| P-02 | ¿Un usuario puede tener varios roles globales? | ✅ Sí, **varios**. Sus permisos se suman. | RN-14, DB-01 |
+| P-03 | ¿El estudiante líder es rol global o de proyecto? ¿Varios líderes? | ✅ Es un **rol de proyecto**; como máximo **uno** activo por proyecto. | RN-39, DB-02 |
+| P-04 | ¿Todo proyecto debe pertenecer a una facultad? ¿A varias? | ✅ A **una o varias** facultades (mínimo una, validado en el servicio). | RN-21, DB-04 |
+| P-05 | ¿Uno o varios tutores por proyecto? ¿Principal? | ✅ **Varios**, con **uno principal**. | RN-33, RN-39a |
+| P-06 | ¿Un único decano vigente? ¿Historial? | ✅ Un decano vigente por facultad, con **historial** y vigencia. | RN-24, DB-03 |
+| P-07 | ¿El decano es participante o se deriva de la facultad? | ✅ Se **deriva** de las facultades del proyecto (resuelta por DB-04). | RN-36, DB-04 |
+| P-10 | ¿Uno o varios encargados por actividad? | ✅ **Varios**. | RN-46, `activity_assignees` |
+| P-11 | ¿Qué estados tienen tablero y actividad? | ✅ Progreso (`PENDING`, `IN_PROGRESS`, `DONE`, `CANCELLED`) y resultado opcional separado (`SUCCESS`, `FAILURE`), en ambos. | RN-03, RN-41, DB-09 |
+| P-12 | ¿Qué valores y qué historial tiene la aprobación? | ✅ `PENDING`, `APPROVED`, `REJECTED`; **solo el estado actual**, con quién y cuándo. Sin historial ni observaciones. | RN-49, DB-09 |
+| P-14 | ¿Adjunto único o múltiple? | ✅ **Varios** adjuntos, cada uno enlace o documento. | RN-49b, DB-07 |
+| P-15 | ¿A qué contexto pertenece un documento? ¿Qué se guarda? | ✅ Siempre a un **proyecto**; se guarda `storage_key` de S3 y el backend genera el enlace. | RN-63, RN-65, DB-08 |
+| P-16 | ¿Novedad y notificación son lo mismo? ¿Lectura? ¿Canales? | ✅ La notificación es un **tipo de novedad**; sin registro de lectura; audiencia calculada al consultar. Canales (WhatsApp, correo) ❓. | RN-54, RN-56, DB-06 |
+| P-18 | ¿La reunión siempre tiene proyecto? ¿Participantes externos? | ✅ Proyecto **opcional**; participantes son usuarios del sistema. | RN-74 |
+| P-20 | ¿Eliminación física o lógica? | ✅ **Lógica** (`deleted_at`). | DB-10 |
+| P-25 | ¿Historial de participación? ¿Varios proyectos por estudiante? | ✅ Historial (`joined_at`, `left_at`, `status`); un estudiante solo puede tener **un proyecto activo**. | RN-37, RN-38, DB-02 |
+| P-26 | ¿Qué estados tiene un proyecto? | ✅ `ACTIVE`, `FINISHED`, `CANCELLED`. | RN-33 |
+
+### Pendientes
+
 | ID | Pregunta | Afecta a |
 | --- | --- | --- |
-| P-01 | ¿Un **semillero** es un tipo de proyecto (Área) o un grupo estable que contiene varios proyectos a lo largo del tiempo? | Modelo central |
-| P-02 | ¿Un usuario puede tener **varios roles globales** (p. ej. Tutor y Decano)? ¿Cómo se combinan sus permisos? | Usuario, permisos |
-| P-03 | ¿**Estudiante líder** es un rol global o un rol de proyecto? ¿Puede haber varios líderes por proyecto? | Participante de proyecto |
-| P-04 | ¿Todo proyecto **debe** pertenecer a una facultad? ¿Puede pertenecer a varias (proyectos interfacultad)? | Proyecto |
-| P-05 | ¿Un proyecto tiene **uno o varios tutores**? ¿Hay un tutor principal? | Proyecto, Tablero |
-| P-06 | ¿Una facultad tiene **un único decano vigente**? ¿Se debe guardar el historial de decanos? | Asignación de decano |
-| P-07 | ¿El decano se registra como **participante** del proyecto o su vínculo se deriva de la facultad? | Participante de proyecto |
-| P-08 | ¿El **encargado de área** actúa sobre áreas asignadas o sobre todas? ¿Puede crear o modificar proyectos? ¿Qué es "administrar información de áreas"? | Área, permisos |
+| P-08 | ¿El **encargado de área** actúa sobre áreas asignadas o sobre todas? ¿Puede crear o modificar proyectos? ¿Qué es "administrar información de áreas"? (Modelo provisional: `area_managers`.) | Área, permisos |
 | P-09 | ¿Quién crea **tableros** y quién crea **actividades**? ¿"Tarea" equivale a actividad? | Permisos |
-| P-10 | ¿Una actividad tiene **uno o varios encargados**? ¿Sobre qué actividades actúa el líder ("otras actividades")? | Encargado de actividad |
-| P-11 | ¿Qué valores tienen los **estados de tablero** y de **actividad**? ¿Se aplican a la actividad los estados de progreso y resultado de RN-03? | Tablero, Actividad |
-| P-12 | ¿Qué valores tiene el **estado de aprobación** (pendiente, aprobada, rechazada…)? ¿Qué tutor aprueba? ¿Se guarda historial y observaciones? ¿Se puede revertir? | Actividad |
 | P-13 | ¿Qué significa **interactuar** con una actividad: cambiar el estado, adjuntar, comentar, editar? | Permisos |
-| P-14 | ¿El adjunto es **único o múltiple**? ¿Un enlace externo se registra como Documento? | Actividad, Documento |
-| P-15 | ¿A qué contexto pertenece un **documento**: proyecto, actividad, novedad? ¿Quién puede subir, ver o eliminar? ¿Hay versionado? | Documento |
-| P-16 | ¿**Novedad** y **notificación** son lo mismo? ¿Qué canales hay (app, WhatsApp, correo)? ¿Se registra la lectura? ¿Las audiencias se combinan? ¿Las novedades expiran? | Novedad |
 | P-17 | ¿El administrador o el tutor pueden publicar novedades? ¿A qué audiencias? | Permisos |
-| P-18 | ¿Una reunión siempre pertenece a un proyecto? ¿Admite participantes sin cuenta? ¿Quién más puede crearlas? ¿Cómo se sincroniza con Teams? | Reunión |
-| P-19 | ¿Qué atributos y destinatarios tiene un **recordatorio**? ¿Por qué canal se envía? | Recordatorio |
-| P-20 | ¿La eliminación es **física o lógica**? ¿Qué pasa con tableros, actividades, documentos y reuniones al eliminar un proyecto? | Integridad |
+| P-19 | ¿Qué atributos y destinatarios tiene un **recordatorio**? ¿Por qué canal se envía? (Modelo mínimo provisional: `reminders`.) | Recordatorio |
 | P-21 | ¿Cuáles son los **límites del tutor** al cambiar roles de estudiantes? | Permisos |
 | P-22 | ¿El **administrador** tiene acceso operativo total o solo de gestión de usuarios y métricas? | Permisos |
 | P-23 | ¿Cómo se corresponden los módulos del backend (`semilleros`, `tasks`, `notifications`…) con las nuevas entidades (Proyecto, Tablero, Actividad, Novedad)? | Arquitectura |
-| P-24 | En un tablero, ¿el tutor responsable y el estudiante encargado son únicos? ¿Deben ser participantes del proyecto? ¿El estudiante encargado es el líder? | Tablero |
-| P-25 | ¿Hace falta el **historial de participación** (ingreso y salida)? ¿Un estudiante puede estar en varios proyectos a la vez? | Participante de proyecto |
-| P-26 | ¿Qué **estados o ciclo de vida** tiene un proyecto (activo, finalizado, cancelado…)? | Proyecto |
+| P-24 | **Parcial.** Confirmado: el tablero tiene exactamente un tutor responsable y un estudiante encargado. Pendiente (🟡, validación en servicio): ¿deben ser participantes activos del proyecto? ¿El estudiante encargado es el líder? | Tablero |

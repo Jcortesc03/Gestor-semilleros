@@ -1,6 +1,6 @@
 # Entidades del dominio
 
-> **Estado:** planificación. Modelo **conceptual**: no todas las entidades se convertirán en tablas, y algunas tablas no son entidades del negocio. La traducción relacional está en [`../database/data-model.md`](../database/data-model.md).
+> **Estado:** modelo **conceptual** con las preguntas P-01 a P-07, P-10 a P-12, P-14 a P-16, P-18, P-20, P-25 y P-26 ya respondidas. No todas las entidades son tablas y algunas tablas no son entidades del negocio. La traducción relacional, ya implementada en `apps/backend/prisma/schema.prisma`, está en [`../database/data-model.md`](../database/data-model.md).
 > Marcas: ✅ confirmado · 🟡 hipótesis · ❓ pendiente. Los códigos `P-xx` remiten a las [preguntas pendientes](business-rules.md#preguntas-pendientes).
 
 ## Índice
@@ -23,12 +23,12 @@ Persona con cuenta en la plataforma. La entidad no aparece de forma explícita e
 | --- | --- | --- |
 | Nombre completo | 🟡 | |
 | Correo electrónico | 🟡 | Se supone único e institucional. |
-| Rol(es) global(es) | ✅ | Falta confirmar si son uno o varios (P-02). |
+| Rol(es) global(es) | ✅ | Puede tener **varios** (P-02). |
 | Estado (activo/inactivo) | 🟡 | Permite desactivar sin perder el historial. |
 | Datos de autenticación | — | Los gestiona **Auth.js**; están fuera del dominio. |
 
 **Responsabilidades:** identificar a la persona y concentrar sus roles y vinculaciones.
-**Relaciones:** se vincula con facultades (decano), áreas (encargado), proyectos (participante), tableros, actividades, documentos, novedades y reuniones.
+**Relaciones:** se vincula con facultades (decano), áreas (encargado), proyectos (participante), tableros, actividades (autor, encargado, aprobador), documentos, novedades y reuniones.
 
 ### Área
 
@@ -46,7 +46,7 @@ Tipo de proyecto académico, por ejemplo *semillero de investigación*, *proyect
 - Área **N : M** Usuario, como encargado de área (🟡, P-08).
 - Área **1 : N** Audiencia de novedad.
 
-> ❓ P-01: hay que confirmar si "Semillero de investigación" es un tipo de proyecto o un grupo que contiene proyectos. Si es un grupo, aparecería una entidad **Semillero** entre Área y Proyecto.
+> ✅ P-01: "Semillero de investigación" es un **tipo de proyecto** (un Área). No existe una entidad Semillero.
 
 ### Facultad
 
@@ -60,8 +60,8 @@ Facultad de la universidad.
 
 **Responsabilidades:** agrupar proyectos y delimitar el alcance del decano.
 **Relaciones:**
-- Facultad **1 : N** Proyecto. La pertenencia es posible, pero falta confirmar si es obligatoria (P-04).
-- Decano **1 : N** Facultad (✅, "una o varias facultades a su cargo"). Falta confirmar si una facultad tiene un único decano vigente (P-06).
+- Facultad **N : M** Proyecto, mediante **Proyecto-Facultad** (✅ P-04). Un proyecto tiene al menos una facultad (se valida en el servicio).
+- Decano **1 : N** Facultad (✅, "una o varias facultades a su cargo"). Una facultad tiene un único decano vigente y se conserva el historial (✅ P-06).
 
 ### Proyecto
 
@@ -72,17 +72,19 @@ Proyecto académico en desarrollo. Es el **núcleo del dominio**.
 | Título | 🟡 | |
 | Descripción / información | ✅ | "Gestionar su información". |
 | Área (tipo) | 🟡 | Obligatoria, una por proyecto. |
-| Facultad | ✅ / ❓ | "Pueden pertenecer"; falta confirmar la obligatoriedad (P-04). |
-| Estado / ciclo de vida | ❓ | No hay valores definidos (P-26). |
+| Facultades | ✅ | Una o varias, mínimo una (P-04). |
+| Estado / ciclo de vida | ✅ | Activo, finalizado o cancelado (P-26). |
 | Fechas (inicio, fin) | 🟡 | |
 | Creado por | 🟡 | Un decano, según los permisos. |
+| Eliminación | ✅ | Lógica (P-20). |
 
 **Responsabilidades:** contener participantes, tableros, actividades, documentos y reuniones.
 **Relaciones:**
-- Proyecto **N : M** Usuario, a través de **Participante de proyecto**.
+- Proyecto **N : M** Facultad, a través de **Proyecto-Facultad** (✅ P-04).
+- Proyecto **N : M** Usuario, a través de **Participante de proyecto**. Como máximo un estudiante líder activo (P-03) y un tutor principal activo (P-05).
 - Proyecto **1 : N** Tablero.
-- Proyecto **1 : N** Documento (🟡, P-15).
-- Proyecto **1 : N** Reunión (🟡, P-18).
+- Proyecto **1 : N** Documento (✅ P-15).
+- Proyecto **0..1 : N** Reunión (✅ P-18, el proyecto es opcional en la reunión).
 
 ### Tablero
 
@@ -92,9 +94,10 @@ Recopilación de actividades relacionadas con una meta común.
 | --- | --- | --- |
 | Título | ✅ | |
 | Fecha de entrega | ✅ | |
-| Estado | ✅ | No hay valores definidos (P-11). |
-| Tutor responsable | ✅ | Debe ser tutor del proyecto (🟡, P-24). |
-| Estudiante encargado | ✅ | Debe ser estudiante del proyecto (🟡, P-24). |
+| Estado de progreso | ✅ | Pendiente, en progreso, finalizado o cancelado (P-11). |
+| Resultado | ✅ | Opcional: éxito o fracaso, independiente del progreso (P-11). |
+| Tutor responsable | ✅ | Exactamente uno. Debe ser tutor del proyecto (🟡, P-24). |
+| Estudiante encargado | ✅ | Exactamente uno. Debe ser estudiante del proyecto (🟡, P-24). |
 | Proyecto | 🟡 | Se deduce de "gestionar sus tableros". |
 
 **Responsabilidades:** agrupar y dar seguimiento a un conjunto de actividades.
@@ -108,14 +111,15 @@ Tarea o unidad de trabajo pequeña dentro de un tablero.
 | --- | --- | --- |
 | Información (título, descripción) | ✅ | |
 | Autor | ✅ | Usuario que la creó. |
-| Estado | ✅ | Falta confirmar si se distinguen progreso y resultado (P-11). |
-| Estado de aprobación del tutor | ✅ | No hay valores definidos (P-12). |
-| Adjunto opcional | ✅ | Puede ser un enlace o un documento (P-14). |
-| Encargado(s) | ✅ / ❓ | Se infiere del permiso del líder; falta la cardinalidad (P-10). |
+| Estado de progreso | ✅ | Pendiente, en progreso, finalizado o cancelado (P-11). |
+| Resultado | ✅ | Opcional: éxito o fracaso (P-11). |
+| Estado de aprobación del tutor | ✅ | Pendiente, aprobada o rechazada; solo el estado actual, con quién y cuándo (P-12). |
+| Adjuntos | ✅ | Cero o varios; cada uno es un enlace o un documento (P-14). |
+| Encargados | ✅ | Uno o varios (P-10). |
 | Fecha límite | ❓ | No está definida. |
 
 **Responsabilidades:** representar el trabajo asignable, verificable y aprobable.
-**Relaciones:** Tablero **1 : N** Actividad; Actividad **N : 1** Usuario (autor); Actividad **N : M** Usuario (encargados, 🟡); Actividad **0..1** Adjunto; Actividad **N : 1** Usuario (tutor que aprueba, 🟡).
+**Relaciones:** Tablero **1 : N** Actividad; Actividad **N : 1** Usuario (autor); Actividad **N : M** Usuario (encargados, ✅ P-10); Actividad **1 : N** Adjunto de actividad (✅ P-14); Actividad **N : 1** Usuario (tutor que aprueba, 🟡; cuál tutor aprueba sigue ❓).
 
 ### Documento
 
@@ -125,14 +129,14 @@ Archivo guardado en un servidor externo y accesible por API. El sistema guarda l
 | --- | --- | --- |
 | Nombre | 🟡 | |
 | Formato | ✅ | PDF, Word, Excel o imagen. |
-| Enlace de descarga / referencia de acceso | ✅ | Ver la decisión DB-08 sobre URL frente a clave de almacenamiento. |
+| Clave de almacenamiento | ✅ | Clave del objeto en S3; el backend genera el enlace de acceso (P-15, DB-08). |
 | Tamaño | 🟡 | |
 | Subido por | 🟡 | |
 | Fecha de carga | 🟡 | |
-| Contexto (proyecto, actividad…) | ❓ | P-15. |
+| Proyecto | ✅ | Todo documento pertenece a un proyecto (P-15). |
 
 **Responsabilidades:** permitir identificar y recuperar el archivo externo.
-**Relaciones:** Documento **N : 1** Usuario (autor de la carga); Documento **N : 1** Proyecto (🟡); Documento **0..1 : 1** Actividad, como adjunto.
+**Relaciones:** Documento **N : 1** Usuario (autor de la carga); Documento **N : 1** Proyecto (✅); Documento **1 : N** Adjunto de actividad (un mismo documento puede adjuntarse a varias actividades).
 
 ### Novedad
 
@@ -142,11 +146,13 @@ Noticia, comunicación, cambio o notificación dirigida a un grupo de usuarios.
 | --- | --- | --- |
 | Título | 🟡 | |
 | Contenido | ✅ | |
-| Tipo (noticia, comunicación, cambio, notificación) | 🟡 | Se deduce de la definición. |
+| Tipo (noticia, comunicación, cambio, notificación) | ✅ | La notificación es un tipo de novedad (P-16). |
 | Autor | 🟡 | |
 | Fecha de publicación | 🟡 | |
 | Audiencia(s) | ✅ | Todos, roles, facultad, área o proyecto. |
-| Vigencia / expiración | ❓ | P-16. |
+| Vigencia / expiración | ❓ | No definida; no hay columna de expiración. |
+| Registro de lectura | ✅ | No existe; la audiencia se calcula al consultar (P-16). |
+| Canales externos (WhatsApp, correo) | ❓ | Pendientes (P-16). |
 
 **Responsabilidades:** comunicar información institucional a una audiencia acotada.
 **Relaciones:** Novedad **N : 1** Usuario (autor); Novedad **1 : N** Audiencia de novedad.
@@ -159,16 +165,16 @@ Registro local de una reunión de **Microsoft Teams**. No replica toda la inform
 | --- | --- | --- |
 | Fecha (y hora) | ✅ | |
 | Motivo | ✅ | |
-| Participantes | ✅ | Relación N:M con usuarios. |
+| Participantes | ✅ | Relación N:M con usuarios del sistema (P-18). |
 | Enlace de acceso | ✅ | |
 | Enlace de grabación | ✅ | "Enlace de acceso **o** grabación"; se proponen dos atributos opcionales. |
 | Duración | ✅ | |
 | Identificador externo de Teams | 🟡 | Necesario para sincronizar. |
-| Proyecto | 🟡 | P-18. |
+| Proyecto | ✅ | Opcional (P-18). |
 | Organizador | 🟡 | Probablemente un tutor. |
 
 **Responsabilidades:** registrar la reunión y su acceso sin depender de consultar Teams cada vez.
-**Relaciones:** Reunión **N : M** Usuario, a través de **Participante de reunión**; Reunión **N : 1** Proyecto (🟡).
+**Relaciones:** Reunión **N : M** Usuario, a través de **Participante de reunión**; Reunión **N : 0..1** Proyecto (✅).
 
 ---
 
@@ -176,17 +182,18 @@ Registro local de una reunión de **Microsoft Teams**. No replica toda la inform
 
 | Entidad | Tipo | Une | Atributos propios | Estado |
 | --- | --- | --- | --- | --- |
-| **Asignación de rol global** | Asociativa | Usuario ↔ Rol | Fecha de asignación, asignado por | 🟡 Solo si un usuario puede tener varios roles (P-02). |
-| **Asignación de decano** | Asociativa | Usuario (decano) ↔ Facultad | Vigencia (desde/hasta) | 🟡 P-06 |
-| **Asignación de encargado de área** | Asociativa | Usuario ↔ Área | Vigencia | 🟡 P-08 |
-| **Participante de proyecto** | Asociativa | Usuario ↔ Proyecto | Rol de proyecto, estado (activo/inactivo), fecha de ingreso y salida | 🟡 Es necesaria: el proyecto tiene varios participantes y un usuario participa en varios proyectos. |
-| **Encargado de actividad** | Asociativa | Usuario ↔ Actividad | Asignado por, fecha | 🟡 P-10 |
-| **Audiencia de novedad** | Asociativa | Novedad ↔ (todos / rol / facultad / área / proyecto) | Tipo de audiencia | 🟡 Sistema de destinatarios flexible. Ver DB-06. |
+| **Asignación de rol global** | Asociativa | Usuario ↔ Rol | Fecha de asignación, asignado por | ✅ Un usuario puede tener varios roles (P-02). |
+| **Asignación de decano** | Asociativa | Usuario (decano) ↔ Facultad | Vigencia (desde/hasta) | ✅ P-06 |
+| **Asignación de encargado de área** | Asociativa | Usuario ↔ Área | Fecha de asignación | 🟡 Provisional (P-08) |
+| **Proyecto-Facultad** | Asociativa | Proyecto ↔ Facultad | — | ✅ P-04 |
+| **Participante de proyecto** | Asociativa | Usuario ↔ Proyecto | Rol de proyecto, tutor principal, estado (activo/inactivo), fecha de ingreso y salida | ✅ Con historial de participación (P-25). Un estudiante tiene un solo proyecto activo; un proyecto tiene un líder y un tutor principal como máximo. |
+| **Encargado de actividad** | Asociativa | Usuario ↔ Actividad | Asignado por, fecha | ✅ P-10 |
+| **Audiencia de novedad** | Asociativa | Novedad ↔ (todos / rol / facultad / área / proyecto) | Tipo de audiencia | ✅ Sistema de destinatarios flexible. Ver DB-06. |
 | **Participante de reunión** | Asociativa | Usuario ↔ Reunión | Asistencia (❓) | 🟡 |
-| **Recordatorio** | Secundaria | Usuario (creador), Proyecto (❓) | Título, fecha y hora, destinatarios (❓) | ✅ Existe / ❓ P-19 |
-| **Adjunto de actividad** | Componente | Actividad → (enlace o Documento) | Tipo, URL o documento | 🟡 Puede resolverse con atributos de la actividad. Ver DB-07. |
+| **Recordatorio** | Secundaria | Usuario (creador), Proyecto (opcional) | Título, fecha y hora | ✅ Existe / ❓ P-19 (modelo mínimo provisional) |
+| **Adjunto de actividad** | Asociativa | Actividad → (enlace o Documento) | Tipo (enlace/documento), URL o documento, creado por | ✅ P-14. Ver DB-07. |
 | **Rol** (catálogo) | Catálogo | — | Nombre | 🟡 Conjunto cerrado y pequeño; puede modelarse como enumeración. |
-| **Rol de proyecto** (catálogo) | Catálogo | — | Tutor, Estudiante, Estudiante líder… | 🟡 P-03 |
+| **Rol de proyecto** (catálogo) | Catálogo | — | Tutor, Estudiante, Estudiante líder | ✅ P-03 |
 
 ---
 
@@ -207,21 +214,22 @@ Registro local de una reunión de **Microsoft Teams**. No replica toda la inform
 | Relación | Cardinalidad | Estado | Mecanismo |
 | --- | --- | --- | --- |
 | Área – Proyecto | 1 : N | 🟡 | Referencia en Proyecto |
-| Facultad – Proyecto | 1 : N (0..1 por proyecto) | ✅ / ❓ obligatoriedad | Referencia en Proyecto |
-| Decano – Facultad | 1 : N (N : M si hay historial o codecanos) | ✅ / ❓ | Asignación de decano |
+| Facultad – Proyecto | N : M (mínimo una facultad por proyecto) | ✅ | Proyecto-Facultad |
+| Decano – Facultad | 1 : N (un decano vigente por facultad; con historial) | ✅ | Asignación de decano |
 | Encargado – Área | N : M | 🟡 | Asignación de encargado |
-| Usuario – Proyecto | N : M | ✅ | Participante de proyecto |
+| Usuario – Proyecto | N : M (estudiante: un proyecto activo) | ✅ | Participante de proyecto |
 | Proyecto – Tablero | 1 : N | 🟡 | Referencia en Tablero |
 | Tablero – Actividad | 1 : N | ✅ | Referencia en Actividad |
 | Tablero – Tutor responsable | N : 1 | ✅ | Referencia en Tablero |
 | Tablero – Estudiante encargado | N : 1 | ✅ | Referencia en Tablero |
 | Actividad – Autor | N : 1 | ✅ | Referencia en Actividad |
-| Actividad – Encargados | N : M | 🟡 | Encargado de actividad |
-| Actividad – Adjunto | 1 : 0..1 | ✅ | Atributos o referencia a Documento |
-| Proyecto – Documento | 1 : N | 🟡 | Referencia en Documento |
-| Novedad – Audiencia | 1 : N | 🟡 | Audiencia de novedad |
+| Actividad – Encargados | N : M | ✅ | Encargado de actividad |
+| Actividad – Adjunto | 1 : N | ✅ | Adjunto de actividad (enlace o Documento) |
+| Documento – Adjunto | 1 : N | ✅ | Referencia en Adjunto de actividad |
+| Proyecto – Documento | 1 : N | ✅ | Referencia en Documento |
+| Novedad – Audiencia | 1 : N | ✅ | Audiencia de novedad |
 | Reunión – Usuario | N : M | ✅ | Participante de reunión |
-| Proyecto – Reunión | 1 : N | 🟡 | Referencia en Reunión |
+| Proyecto – Reunión | 1 : N (proyecto opcional) | ✅ | Referencia opcional en Reunión |
 
 ---
 
@@ -237,7 +245,8 @@ erDiagram
     AREA ||--o{ ASIGNACION_ENCARGADO_AREA : "tiene"
 
     AREA ||--o{ PROYECTO : "clasifica"
-    FACULTAD |o--o{ PROYECTO : "agrupa"
+    PROYECTO ||--|{ PROYECTO_FACULTAD : "pertenece a"
+    FACULTAD ||--o{ PROYECTO_FACULTAD : "agrupa"
     USUARIO ||--o{ PARTICIPANTE_PROYECTO : "participa"
     PROYECTO ||--o{ PARTICIPANTE_PROYECTO : "tiene"
 
@@ -248,7 +257,8 @@ erDiagram
     USUARIO ||--o{ ACTIVIDAD : "es autor"
     ACTIVIDAD ||--o{ ENCARGADO_ACTIVIDAD : "asignada a"
     USUARIO ||--o{ ENCARGADO_ACTIVIDAD : "es encargado"
-    ACTIVIDAD |o--o| DOCUMENTO : "adjunto opcional"
+    ACTIVIDAD ||--o{ ADJUNTO_ACTIVIDAD : "tiene"
+    ADJUNTO_ACTIVIDAD }o--o| DOCUMENTO : "documento (si no es enlace)"
 
     PROYECTO ||--o{ DOCUMENTO : "almacena"
     USUARIO ||--o{ DOCUMENTO : "sube"
@@ -271,23 +281,23 @@ erDiagram
 ```mermaid
 flowchart LR
     U(("Usuario"))
-    U -- "rol global" --> RG["Administrador · Encargado de área ·<br/>Decano · Tutor · Estudiante"]
-    U -- "decano de (1..N)" --> F["Facultad"]
+    U -- "rol(es) global(es), uno o varios" --> RG["Administrador · Encargado de área ·<br/>Decano · Tutor · Estudiante"]
+    U -- "decano de (1..N, con historial)" --> F["Facultad"]
     U -- "encargado de (N:M) 🟡" --> A["Área"]
     U -- "participante (N:M)<br/>rol de proyecto" --> P["Proyecto"]
-    F -- "0..1 por proyecto ❓" --> P
-    A -- "1 por proyecto 🟡" --> P
+    F -- "N:M (mín. 1 por proyecto)" --> P
+    A -- "1 por proyecto" --> P
 ```
 
 ### Tableros y actividades
 
 ```mermaid
 flowchart TB
-    P["Proyecto"] -->|1:N| T["Tablero<br/>título · fecha de entrega · estado"]
+    P["Proyecto"] -->|1:N| T["Tablero<br/>título · fecha de entrega · progreso · resultado"]
     T -->|N:1| TR["Tutor responsable"]
     T -->|N:1| EE["Estudiante encargado"]
-    T -->|1:N| A["Actividad<br/>info · estado · aprobación"]
+    T -->|1:N| A["Actividad<br/>info · progreso · resultado · aprobación"]
     A -->|N:1| AU["Autor"]
-    A -->|N:M 🟡| EN["Encargados"]
-    A -->|0..1| AD["Adjunto: enlace o Documento"]
+    A -->|N:M| EN["Encargados"]
+    A -->|1:N| AD["Adjuntos: enlace o Documento"]
 ```

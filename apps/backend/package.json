@@ -1,0 +1,23 @@
+{
+  "name": "@gestor-semilleros/backend",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "db:format": "prisma format",
+    "db:validate": "prisma validate",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:status": "prisma migrate status",
+    "db:reset": "prisma migrate reset",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1"
+  },
+  "devDependencies": {
+    "dotenv": "18.0.9",
+    "prisma": "7.10.1"
+  }
+}

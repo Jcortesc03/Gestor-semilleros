@@ -2,13 +2,23 @@
   "name": "gestor-semilleros",
   "version": "0.0.0",
   "private": true,
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "db:up": "docker compose -f docker/compose.yaml up -d --wait",
+    "db:down": "docker compose -f docker/compose.yaml down",
+    "db:logs": "docker compose -f docker/compose.yaml logs -f postgres",
+    "db:generate": "pnpm --filter @gestor-semilleros/backend db:generate",
+    "db:migrate": "pnpm --filter @gestor-semilleros/backend db:migrate",
+    "db:studio": "pnpm --filter @gestor-semilleros/backend db:studio"
   },
   "devDependencies": {
     "turbo": "latest"

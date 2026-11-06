@@ -11,7 +11,7 @@
 ![Arquitectura](https://img.shields.io/badge/arquitectura-MVC%20%C2%B7%20monorepo-blue)
 
 > [!IMPORTANT]
-> El proyecto se encuentra en **fase de planificación**. El stack, la estructura y el workspace (pnpm + Turborepo) ya están configurados, pero aún **no existe código fuente ni dependencias de aplicación instaladas**.
+> El proyecto se encuentra en **fase de planificación**. El stack, la estructura y el workspace (pnpm + Turborepo) ya están configurados, pero aún **no existe código de las aplicaciones**. Ya están disponibles el esquema de base de datos (Prisma) y el entorno local de PostgreSQL.
 
 <a id="contenido"></a>
 
@@ -142,7 +142,7 @@ La estructura inicial de carpetas ya está creada (todavía sin código). El bac
 │   ├── web/        # React
 │   └── mobile/     # React Native
 ├── packages/       # types · validation · utils
-├── docker/         # configuración de contenedores
+├── docker/         # PostgreSQL local (compose.yaml)
 ├── docs/           # arquitectura · dominio · base de datos · API · ADRs
 ├── scripts/        # utilidades del monorepo
 ├── package.json    # workspace y scripts raíz
@@ -157,14 +157,14 @@ La estructura inicial de carpetas ya está creada (todavía sin código). El bac
 | Requisito | Estado |
 | --- | --- |
 | Git | Recomendado |
-| Node.js | Requerido (versión por definir) |
-| PostgreSQL | Requerido (versión por definir) |
-| pnpm | Requerido (versión por definir) |
-| Docker | Requerido para el despliegue |
+| Node.js | Requerido · 24 LTS (`.nvmrc`) |
+| PostgreSQL | 18.6 · se ejecuta en Docker, no requiere instalación local |
+| pnpm | Requerido · 12.18.0, activado con Corepack (`corepack enable`) |
+| Docker + Docker Compose | Requerido para la base de datos local y el despliegue |
 | Editor con soporte para TypeScript | Recomendado |
 | Acceso a AWS S3 | Requerido para la gestión documental |
 
-Las versiones mínimas de Node.js, pnpm, PostgreSQL y Prisma se documentarán al iniciar la implementación.
+Versiones registradas en [ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md). Prisma 7.10.1 se instala como dependencia del backend.
 
 <a id="instalacion"></a>
 
@@ -185,11 +185,11 @@ Las versiones mínimas de Node.js, pnpm, PostgreSQL y Prisma se documentarán al
    pnpm install
    ```
 
-   Instala las dependencias del workspace y Turborepo. Todavía no hay dependencias de aplicación declaradas.
+   Instala Turborepo y Prisma. Si `pnpm` no está disponible, ejecuta antes `corepack enable`.
 
-3. **Configurar las variables de entorno** a partir de la plantilla que se publicará con el proyecto. Ver [Variables de entorno](#variables-entorno).
+3. **Configurar las variables de entorno:** `cp apps/backend/.env.example apps/backend/.env`. Ver [Variables de entorno](#variables-entorno).
 
-4. **Preparar el entorno de contenedores** (pendiente: los Dockerfiles y la configuración de Docker aún no existen).
+4. **Levantar la base de datos y aplicar las migraciones:** `pnpm db:up` y luego `pnpm db:migrate`. La guía completa está en [`docs/database/local-setup.md`](docs/database/local-setup.md). La configuración de Docker para despliegue sigue pendiente.
 
 5. **Iniciar los entregables** según se describe en [Ejecución del proyecto](#ejecucion).
 
@@ -197,7 +197,7 @@ Las versiones mínimas de Node.js, pnpm, PostgreSQL y Prisma se documentarán al
 
 ## 🔐 Variables de entorno
 
-Aún no se han definido las variables requeridas. La plantilla se incorporará cuando exista el backend y se conozcan los servicios externos efectivamente integrados.
+Por ahora solo está definida `DATABASE_URL`, con su plantilla en [`apps/backend/.env.example`](apps/backend/.env.example). El resto de variables se añadirá cuando se integren los servicios externos.
 
 ```env
 # Pendiente de definición.
@@ -234,6 +234,9 @@ pnpm dev
 | Comando | Descripción |
 | --- | --- |
 | `pnpm install` | Instala las dependencias del workspace |
+| `pnpm db:up` / `pnpm db:down` | Inicia o detiene PostgreSQL local (Docker) |
+| `pnpm db:migrate` | Aplica las migraciones de Prisma y genera el cliente |
+| `pnpm db:studio` | Abre Prisma Studio |
 | `pnpm dev` | Inicia los entregables en modo desarrollo |
 | `pnpm build` | Compila los entregables |
 | `pnpm lint` | Ejecuta el análisis estático |
@@ -269,11 +272,11 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 | Estructura del proyecto | 🟢 Definida | Carpetas base del monorepo, sin código |
 | Herramientas del monorepo | 🟢 Definidas | pnpm + Turborepo |
 | Aplicación web | 🟡 En planificación | Sin código fuente |
-| Backend | 🟡 En planificación | Sin código fuente |
+| Backend | 🟡 En planificación | Esquema Prisma y migración inicial; sin código NestJS |
 | Aplicación móvil | 🟡 En planificación | Sin código fuente |
-| Documentación | 🟡 En elaboración | Alcance funcional y stack definidos |
+| Documentación | 🟡 En elaboración | Alcance, dominio y modelo de datos definidos |
 
-> Las versiones de Node.js, pnpm, PostgreSQL y Prisma aún no están fijadas.
+> Versiones fijadas: Node.js 24 LTS, pnpm 12.18.0, Prisma 7.10.1 y PostgreSQL 18.6.
 
 <a id="roadmap"></a>
 
@@ -284,7 +287,7 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 - [x] Selección de la base de datos y del ORM (PostgreSQL + Prisma)
 - [x] Estructura base del monorepo y de los módulos del backend
 - [x] Configuración del monorepo (pnpm + Turborepo)
-- [ ] Definición del modelo de datos y migraciones iniciales
+- [x] Definición del modelo de datos y migraciones iniciales
 - [ ] Definición de los contratos de la API y del flujo de autenticación
 - [ ] Configuración de Docker para desarrollo y despliegue
 - [ ] MVP del backend
