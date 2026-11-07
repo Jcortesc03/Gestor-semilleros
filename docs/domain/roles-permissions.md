@@ -1,6 +1,6 @@
 # Roles y permisos
 
-> **Estado:** definición funcional. Es una **matriz conceptual**: no constituye un sistema de autorización ni se ha implementado. Los roles globales y de proyecto sí existen en el modelo de datos (`user_roles`, `project_members`).
+> **Estado:** definición funcional. Es una **matriz conceptual**. Los roles globales y de proyecto existen en el modelo de datos (`user_roles`, `project_members`). **Implementado hoy** en el backend: `SessionGuard` (autenticación), `RolesGuard` + `@Roles` (rol global), **crear usuarios (solo `ADMIN`)** y la **autorización por proyecto** de proyectos, participantes, tableros y actividades (`can.*` en `apps/backend/src/modules/projects/models/project-access.ts`, [ADR 0004](../decisions/0004-proyectos-tableros-actividades.md)). Las celdas marcadas ✅ en la matriz de proyectos, tableros y actividades están implementadas. También están implementadas la **publicación de novedades y notificaciones** y las preferencias de copias (`notifications/models/publish-scope.ts`, [ADR 0005](../decisions/0005-notificaciones-y-copias-externas.md)). No están implementados los permisos de áreas, documentos, reuniones, recordatorios ni dashboards.
 > **No inventes permisos.** Lo que no aparece como ✅ requiere confirmación antes de implementarse.
 > Marcas: ✅ confirmado · 🟡 hipótesis · ❓ pendiente · `—` no definido. Los códigos `P-xx` remiten a las [preguntas pendientes](business-rules.md#preguntas-pendientes).
 
@@ -51,7 +51,7 @@ flowchart TB
 ### Administrador
 - **Alcance:** todo el sistema.
 - ✅ Modificar roles.
-- ✅ Crear usuarios con roles preestablecidos.
+- ✅ Crear usuarios con roles preestablecidos. Implementado en `POST /api/users` ([ADR 0003](../decisions/0003-alta-de-usuarios.md)).
 - ✅ Consultar métricas generales mediante dashboards.
 - ❓ No está definido si tiene acceso operativo sobre proyectos, tableros o novedades (P-22).
 
@@ -95,22 +95,24 @@ Una celda sin marca de estado está ✅ confirmada. Las celdas `—` no tienen p
 
 | Recurso | Administrador | Encargado de área | Decano | Tutor | Estudiante líder | Estudiante |
 | --- | --- | --- | --- | --- | --- | --- |
-| Usuarios | C | — | — | — | — | — |
-| Roles globales | U | — | — | — | — | — |
+| Usuarios | C (implementado) | — | — | — | — | — |
+| Roles globales | U (solo se asignan al crear el usuario; modificarlos no está implementado) | — | — | — | — | — |
 | Rol de estudiante en proyecto (incluye líder, máx. uno) | U ❓ | — | — | U (limitado, P-21) | — | — |
 | Áreas | — ❓ | R U (C D ❓) | — | — | — | — |
 | Facultades | — ❓ | — | R (sus facultades) | — | — | — |
-| Proyectos | — ❓ | — ❓ | C R U D (sus facultades 🟡) | R (sus proyectos) | R (su proyecto) | R (su proyecto) |
-| Asignación de tutor a proyecto | — ❓ | — | C (U D 🟡) | — | — | — |
-| Tableros | — | — | — | C ❓ (P-09) | — | — |
-| Actividades | — | — | — | C ❓ · A | I (asignadas) | I (asignadas) |
-| Encargados de actividad | — | — | — | — ❓ | C U D | — |
+| Proyectos | C R U D (todos) ✅ | — ❓ | C R U D (sus facultades) ✅ | R (sus proyectos) | R (su proyecto) | R (su proyecto) |
+| Asignación de tutor a proyecto | C U D ✅ | — | C U D ✅ | — | — | — |
+| Estudiantes y líder del proyecto | C U D ✅ | — | C U D ✅ | C U D ✅ | — | — |
+| Tableros | C R U D ✅ | — | R ✅ | C R U D ✅ | R | R |
+| Actividades | C R U D A ✅ | — | R ✅ | C R U D A ✅ | C R U D ✅ · I | R · I (asignadas: progreso y enlaces) ✅ |
+| Encargados de actividad | C U D ✅ | — | — | C U D ✅ | C U D ✅ | — |
 | Reuniones | — | — | — | C | R 🟡 (si es participante) | R 🟡 (si es participante) |
 | Recordatorios | — | — | — | C | — | — |
 | Documentos | — | — | — | — ❓ | — ❓ | — ❓ |
-| Novedades | — ❓ | C (todos / roles; área 🟡) | C (sus facultades / proyectos) | — | — | — |
-| Notificaciones | — | — | C (P-16) | — | — | — |
-| Lectura de novedades | R 🟡 (audiencia) | R 🟡 | R 🟡 | R 🟡 | R 🟡 | R 🟡 |
+| Novedades | C R D (todas; supuesto 🟡) ✅ | C (todos / roles; sus áreas 🟡) · D (propias) ✅ | C (sus facultades / proyectos de ellas) · D (propias) ✅ | — | — | — |
+| Notificaciones | C (supuesto 🟡) ✅ | — | C (P-16) ✅ | — | — | — |
+| Lectura de novedades | R (todas) ✅ | R (audiencia) ✅ | R (audiencia) ✅ | R (audiencia) ✅ | R (audiencia) ✅ | R (audiencia) ✅ |
+| Preferencias de copias (propias) | U ✅ | U ✅ | U ✅ | U ✅ | U ✅ | U ✅ |
 | Dashboard | R (general) | R (alcance ❓) | R (sus facultades) | R (sus proyectos) | R (su proyecto) | R (su proyecto) |
 
 ## 4. Restricciones conocidas

@@ -16,11 +16,12 @@ El alcance, los módulos y el estado se documentan en `README.md`; no los repita
 
 ## 2. Estado actual del proyecto
 
-- **Fase inicial de implementación:** el backend NestJS existe con el módulo de autenticación. Web (React) y móvil (React Native) aún no existen.
+- **Fase inicial de implementación:** el backend NestJS está en desarrollo (autenticación y alta de usuarios). Web (React) y móvil (React Native) aún no existen (solo carpetas vacías).
 - **Definido:** stack, versiones base, estructura del monorepo, workspace (pnpm + Turborepo) y scripts raíz.
-- **Implementado:** esquema de datos y migraciones, PostgreSQL local con Docker Compose ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)), y en el backend `PrismaService`, inicio de sesión con Auth.js (correo + contraseña y Google), `SessionGuard`, `GET /api/me` y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)).
+- **Implementado:** esquema de datos y migraciones, PostgreSQL local con Docker Compose ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)), y en el backend `PrismaService`, inicio de sesión con Auth.js (correo + contraseña y Google), `SessionGuard`, `GET /api/me` y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)); alta de usuarios `POST /api/users` con `RolesGuard` ([ADR 0003](docs/decisions/0003-alta-de-usuarios.md)); el script `admin:create` y la seed de desarrollo (`db:seed`).
 - **Instalado:** dependencias de Turborepo y del backend (`pnpm-lock.yaml` versionado).
-- **No implementado:** módulos de dominio (proyectos, tableros…), autorización por rol, alta de usuarios, autenticación móvil, Docker de despliegue ni CI/CD.
+- **Implementado también:** proyectos y participantes, tableros y actividades (encargados, aprobación, enlaces adjuntos) con permisos por proyecto ([ADR 0004](docs/decisions/0004-proyectos-tableros-actividades.md); API en `docs/api/projects.md` y `docs/api/boards.md`); novedades y notificaciones con copias por correo (SMTP) y WhatsApp (BuilderBot + Baileys, [ADR 0006](docs/decisions/0006-whatsapp-con-builderbot.md)) según las preferencias de cada usuario ([ADR 0005](docs/decisions/0005-notificaciones-y-copias-externas.md)).
+- **No implementado:** documentos (S3), reuniones, recordatorios, dashboards, permisos del encargado de área, resto de la gestión de usuarios, autenticación móvil, Docker de despliegue ni CI/CD.
 
 Por lo tanto:
 
@@ -62,7 +63,7 @@ Si dos fuentes se contradicen, **detente y reporta**; no elijas una por tu cuent
 | Contenedores | Docker |
 | Arquitectura | MVC + monolito modular |
 
-**Versiones fijadas** ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)): Node.js 24 LTS (`.nvmrc`), pnpm 12.18.0 (`packageManager`, vía Corepack), Prisma 7.10.1 (con `@prisma/adapter-pg`) y PostgreSQL 18.6 (`postgres:18.6-alpine`). Backend y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)): NestJS 12.3.3, TypeScript 6.0.3, `@auth/express` 0.12.3, Argon2id (`@node-rs/argon2`), Jest 30 + ts-jest + Supertest.
+**Versiones fijadas** ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)): Node.js 24 LTS (`.nvmrc`), pnpm 12.18.0 (`packageManager`, vía Corepack), Prisma 7.10.1 (con `@prisma/adapter-pg`) y PostgreSQL 18.6 (`postgres:18.6-alpine`). Backend y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)): NestJS 12.3.3, TypeScript 6.0.3, `@auth/express` 0.12.3, Argon2id (`@node-rs/argon2`), Jest 30 + ts-jest + Supertest. Correo ([ADR 0005](docs/decisions/0005-notificaciones-y-copias-externas.md)): nodemailer 10.3.1 (SMTP); WhatsApp con BuilderBot 1.4.4 (`@builderbot/bot`, `@builderbot/provider-baileys`) y provider intercambiable, inicialmente Baileys ([ADR 0006](docs/decisions/0006-whatsapp-con-builderbot.md)).
 
 **Pendiente de definición:** versión de Turborepo (`latest`, fijada solo por el lockfile), linting y formato, CI/CD, infraestructura de despliegue, contratos de API de los demás módulos, autenticación móvil, permisos por rol y preguntas abiertas del dominio (`docs/domain/business-rules.md`).
 
@@ -71,7 +72,7 @@ No fijes versiones ni agregues herramientas para cubrir estos pendientes sin apr
 ## 5. Reglas de oro
 
 1. **No inventar:** ni versiones, ni dependencias, ni scripts, ni rutas, ni contratos, ni datos.
-2. **No adelantar implementación:** la fase actual es de planificación.
+2. **No adelantar implementación:** solo existe lo descrito en §2; el resto está en planificación.
 3. **Cambios mínimos:** no refactorices fuera del alcance solicitado.
 4. **Sin secretos:** nunca credenciales, tokens, `.env` reales ni datos personales.
 5. **Preguntar antes de asumir:** ante ambigüedad técnica o funcional, detente.
@@ -158,6 +159,8 @@ El workspace está configurado. Solo existe el paquete `@gestor-semilleros/backe
 | `db:validate`, `db:format`, `db:status`, `db:deploy`, `db:reset` | ✅ Scripts de `apps/backend`. `db:reset` borra los datos locales: requiere confirmación. |
 | `pnpm dev`, `pnpm build`, `pnpm typecheck` | ✅ Backend (`nest start --watch`, `nest build`, `tsc --noEmit`). Requieren `apps/backend/.env`. |
 | `pnpm test` | ✅ Pruebas unitarias (Jest), sin base de datos. |
+| `pnpm --filter @gestor-semilleros/backend admin:create` | ✅ Crea un administrador (`ADMIN_EMAIL`, `ADMIN_FULL_NAME`, `ADMIN_PASSWORD`). |
+| `pnpm db:seed` | ✅ Siembra datos de **desarrollo** (`src/cli/seed.ts`): un usuario por tipo (`admin@example.test`, `encargado.area@`, `decano@`, `tutor@`, `lider@`, `estudiante@`), área, facultad y un proyecto demo. Requiere `SEED_PASSWORD` (8–256 caracteres), es idempotente y se niega a correr con `NODE_ENV=production`. Ej.: `SEED_PASSWORD='…' pnpm db:seed` (fish: anteponer `env`). |
 | `pnpm test:e2e` | ✅ Pruebas de la API contra `TEST_DATABASE_URL` (requiere `pnpm db:up`). |
 | `pnpm lint` | Configurado; ningún paquete lo implementa (herramienta pendiente). |
 | Docker de despliegue | **Pendiente** de configuración. |
@@ -235,6 +238,11 @@ Si la decisión ya está aprobada y registrada, procede sin volver a preguntar.
 | [`docs/database/database-decisions.md`](docs/database/database-decisions.md) | Decisiones de datos (`DB-xx`) |
 | [`docs/database/local-setup.md`](docs/database/local-setup.md) | Instalación local de la base de datos |
 | [`docs/api/auth.md`](docs/api/auth.md) | Contrato de la API de autenticación |
+| [`docs/api/users.md`](docs/api/users.md) | Contrato de la API de usuarios |
+| [`docs/api/projects.md`](docs/api/projects.md) | Contrato de la API de proyectos y participantes |
+| [`docs/api/boards.md`](docs/api/boards.md) | Contrato de la API de tableros y actividades |
+| [`docs/api/announcements.md`](docs/api/announcements.md) | Contrato de la API de novedades y notificaciones |
+| [`docs/api/notification-preferences.md`](docs/api/notification-preferences.md) | Preferencias de notificación y envío de copias por correo y WhatsApp |
 | `docs/decisions/` | ADRs |
 
 Antes de implementar cualquier funcionalidad del dominio (entidades, permisos, flujos o esquema de datos), consulta `docs/domain/` empezando por su `README.md`, y `docs/database/` si afecta a la persistencia. Lo marcado como 🟡 hipótesis o ❓ pendiente **no** se implementa sin confirmación. **No inventes reglas de negocio ni permisos** que sigan pendientes.

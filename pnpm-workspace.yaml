@@ -2,6 +2,10 @@ packages:
   - "apps/*"
   - "packages/*"
 allowBuilds:
+  '@ffmpeg-installer/linux-x64': false
+  baileys: false
+  protobufjs: false
+  sharp: false
   '@parcel/watcher': false
   '@prisma/engines': true
   prisma: true

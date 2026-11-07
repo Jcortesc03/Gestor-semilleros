@@ -1,3 +1,6 @@
+import { loadNotificationsConfig } from './notifications.config';
+import type { NotificationsConfig } from './notifications.config.types';
+
 /**
  * Lectura y validación de variables de entorno del backend.
  * Falla al arrancar si falta una variable obligatoria o tiene un formato inválido.
@@ -16,6 +19,8 @@ export interface AppEnv {
   /** Duración máxima de la sesión en segundos. */
   sessionMaxAge: number;
   google: GoogleOAuthConfig | null;
+  /** Copias de novedades por correo y WhatsApp (ADR 0005). */
+  notifications: NotificationsConfig;
 }
 
 export class EnvValidationError extends Error {}
@@ -57,6 +62,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     authTrustHost: source.AUTH_TRUST_HOST === 'true',
     sessionMaxAge: positiveInt(source.AUTH_SESSION_MAX_AGE, 'AUTH_SESSION_MAX_AGE', DEFAULT_SESSION_MAX_AGE),
     google: googleId && googleSecret ? { clientId: googleId, clientSecret: googleSecret } : null,
+    notifications: loadNotificationsConfig(source),
   };
 }
 

@@ -19,5 +19,9 @@ coverage/
 pnpm-debug.log*
 .DS_Store
 
+# Sesión y QR de WhatsApp (BuilderBot/Baileys): contienen credenciales de la cuenta vinculada
+*_sessions/
+*.qr.png
+
 # Cliente de Prisma generado
 apps/backend/src/generated/

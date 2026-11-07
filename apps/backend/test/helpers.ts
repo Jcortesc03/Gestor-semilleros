@@ -8,8 +8,13 @@ import { PrismaService } from '../src/database/prisma.service';
 import { PasswordService } from '../src/modules/auth';
 import type { Role } from '../src/generated/prisma/enums';
 
-export async function createTestApp(): Promise<INestApplication> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+/** Proveedores a reemplazar en la app de pruebas (p. ej. canales de envío falsos). */
+export type ProviderOverride = { token: unknown; value: unknown };
+
+export async function createTestApp(overrides: ProviderOverride[] = []): Promise<INestApplication> {
+  let builder = Test.createTestingModule({ imports: [AppModule] });
+  for (const o of overrides) builder = builder.overrideProvider(o.token).useValue(o.value);
+  const moduleRef = await builder.compile();
   const app = configureApp(moduleRef.createNestApplication({ logger: false }));
   await app.init();
   return app;
