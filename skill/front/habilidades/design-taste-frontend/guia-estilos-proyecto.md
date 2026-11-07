@@ -4,7 +4,7 @@ Directrices de diseño, paleta de colores, tipografía y estructura visual para 
 
 Archivo de referencia para las skills de diseño (`design-taste-frontend`, `frontlipe`). Consúltalo antes de entregar cualquier componente, vista o prototipo.
 
-> Estado: definido como propuesta. Sujeto a aprobación del stack de CSS/frontend antes de implementar componentes.
+> Estado: aprobado para la primera aplicación web con Tailwind CSS y Montserrat ([ADR 0007](../../../../docs/decisions/0007-aplicacion-web-y-sistema-visual.md)). La implementación móvil sigue pendiente.
 
 ## 1. Paleta de colores
 
@@ -23,7 +23,7 @@ Utiliza estos valores hexadecimales exactos para mantener la coherencia visual:
 
 ### Familia de fuentes
 
-Utiliza exclusivamente una fuente Sans-serif moderna, geométrica y limpia (ej. `Montserrat`, `Poppins` o `Roboto`). **No mezcles familias tipográficas.**
+La aplicación web utiliza exclusivamente **Montserrat**, una fuente sans-serif moderna, geométrica y limpia, con archivos locales. **No mezcles familias tipográficas.** La implementación móvil deberá confirmar su integración antes de introducir dependencias.
 
 ### Jerarquía y pesos
 

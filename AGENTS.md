@@ -16,11 +16,12 @@ El alcance, los módulos y el estado se documentan en `README.md`; no los repita
 
 ## 2. Estado actual del proyecto
 
-- **Fase inicial de implementación:** el backend NestJS está en desarrollo (autenticación y alta de usuarios). Web (React) y móvil (React Native) aún no existen (solo carpetas vacías).
+- **Fase inicial de implementación:** el backend NestJS incluye autenticación, usuarios y los módulos incorporados desde `Tableros`; la integración está en verificación. La web React tiene inicio de sesión y panel personal; las vistas de los cinco roles están autorizadas y pendientes. Móvil sigue pendiente.
 - **Definido:** stack, versiones base, estructura del monorepo, workspace (pnpm + Turborepo) y scripts raíz.
 - **Implementado:** esquema de datos y migraciones, PostgreSQL local con Docker Compose ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)), y en el backend `PrismaService`, inicio de sesión con Auth.js (correo + contraseña y Google), `SessionGuard`, `GET /api/me` y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)); alta de usuarios `POST /api/users` con `RolesGuard` ([ADR 0003](docs/decisions/0003-alta-de-usuarios.md)); el script `admin:create` y la seed de desarrollo (`db:seed`).
 - **Instalado:** dependencias de Turborepo y del backend (`pnpm-lock.yaml` versionado).
 - **Implementado también:** proyectos y participantes, tableros y actividades (encargados, aprobación, enlaces adjuntos) con permisos por proyecto ([ADR 0004](docs/decisions/0004-proyectos-tableros-actividades.md); API en `docs/api/projects.md` y `docs/api/boards.md`); novedades y notificaciones con copias por correo (SMTP) y WhatsApp (BuilderBot + Baileys, [ADR 0006](docs/decisions/0006-whatsapp-con-builderbot.md)) según las preferencias de cada usuario ([ADR 0005](docs/decisions/0005-notificaciones-y-copias-externas.md)).
+- **Web ([ADR 0007](docs/decisions/0007-aplicacion-web-y-sistema-visual.md)):** React + Vite + Tailwind y Montserrat local. Login y vistas compartidas por roles en desarrollo, con defectos de carga y asincronía pendientes; no hay cinco paneles terminados. Leer [el relevo](docs/handoffs/2026-11-07-frontend.md). El usuario aclaró que su entrega es frontend: no ampliar el backend; cualquier demo debe identificarse como simulada, sin fingir persistencia real ni inventar permisos.
 - **No implementado:** documentos (S3), reuniones, recordatorios, dashboards, permisos del encargado de área, resto de la gestión de usuarios, autenticación móvil, Docker de despliegue ni CI/CD.
 
 Por lo tanto:
@@ -65,6 +66,8 @@ Si dos fuentes se contradicen, **detente y reporta**; no elijas una por tu cuent
 
 **Versiones fijadas** ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)): Node.js 24 LTS (`.nvmrc`), pnpm 12.18.0 (`packageManager`, vía Corepack), Prisma 7.10.1 (con `@prisma/adapter-pg`) y PostgreSQL 18.6 (`postgres:18.6-alpine`). Backend y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)): NestJS 12.3.3, TypeScript 6.0.3, `@auth/express` 0.12.3, Argon2id (`@node-rs/argon2`), Jest 30 + ts-jest + Supertest. Correo ([ADR 0005](docs/decisions/0005-notificaciones-y-copias-externas.md)): nodemailer 10.3.1 (SMTP); WhatsApp con BuilderBot 1.4.4 (`@builderbot/bot`, `@builderbot/provider-baileys`) y provider intercambiable, inicialmente Baileys ([ADR 0006](docs/decisions/0006-whatsapp-con-builderbot.md)).
 
+**Web aprobada** ([ADR 0007](docs/decisions/0007-aplicacion-web-y-sistema-visual.md)): React/React DOM 19.3.1, Vite 8.3.6, Tailwind CSS y `@tailwindcss/vite` 4.3.4, `@vitejs/plugin-react` 6.2.1, Montserrat local (`@fontsource/montserrat` 5.3.0) e iconos `lucide-react` 1.68.0. Sin biblioteca de componentes, router ni estado global adicional. Pruebas HTTP con el runner incorporado de Node 24. Frontlipe implementa las vistas y la guía específica del proyecto prevalece sobre preferencias visuales genéricas.
+
 **Pendiente de definición:** versión de Turborepo (`latest`, fijada solo por el lockfile), linting y formato, CI/CD, infraestructura de despliegue, contratos de API de los demás módulos, autenticación móvil, permisos por rol y preguntas abiertas del dominio (`docs/domain/business-rules.md`).
 
 No fijes versiones ni agregues herramientas para cubrir estos pendientes sin aprobación.
@@ -72,7 +75,7 @@ No fijes versiones ni agregues herramientas para cubrir estos pendientes sin apr
 ## 5. Reglas de oro
 
 1. **No inventar:** ni versiones, ni dependencias, ni scripts, ni rutas, ni contratos, ni datos.
-2. **No adelantar implementación:** solo existe lo descrito en §2; el resto está en planificación.
+2. **No adelantar implementación:** limitar los cambios a las entregas autorizadas; los módulos pendientes no se implementan por inferencia.
 3. **Cambios mínimos:** no refactorices fuera del alcance solicitado.
 4. **Sin secretos:** nunca credenciales, tokens, `.env` reales ni datos personales.
 5. **Preguntar antes de asumir:** ante ambigüedad técnica o funcional, detente.
@@ -124,7 +127,7 @@ Detalle completo: [`docs/architecture/estructura.md`](docs/architecture/estructu
 - Documentación, interfaz y mensajes al usuario en español; identificadores en inglés (salvo términos del dominio acordados).
 - Validar datos en los límites del sistema.
 - Commits con **Conventional Commits**.
-- Linting, formato y pruebas: herramientas **pendientes**; no imponerlas.
+- Linting y formato: herramientas **pendientes**; no imponerlas. Las pruebas aprobadas son Jest en backend y el runner de Node 24 en el cliente HTTP web.
 
 ### Backend
 
@@ -149,7 +152,7 @@ Detalle completo: [`docs/architecture/estructura.md`](docs/architecture/estructu
 
 ## 8. Comandos y ejecución
 
-El workspace está configurado. Solo existe el paquete `@gestor-semilleros/backend`. Requiere `pnpm` en el PATH (`corepack enable`) para que Turborepo funcione. Guía completa: [`docs/database/local-setup.md`](docs/database/local-setup.md).
+El workspace contiene `@gestor-semilleros/backend` y la primera entrega de `@gestor-semilleros/web`. Requiere `pnpm` en el PATH (`corepack enable`) para que Turborepo funcione. Guías: [`docs/database/local-setup.md`](docs/database/local-setup.md) y [`apps/web/README.md`](apps/web/README.md).
 
 | Comando | Estado |
 | --- | --- |
@@ -157,8 +160,9 @@ El workspace está configurado. Solo existe el paquete `@gestor-semilleros/backe
 | `pnpm db:up` / `db:down` / `db:logs` | ✅ PostgreSQL local con `docker/compose.yaml`. |
 | `pnpm db:migrate` / `db:generate` / `db:studio` | ✅ Delegan en `apps/backend` (Prisma). |
 | `db:validate`, `db:format`, `db:status`, `db:deploy`, `db:reset` | ✅ Scripts de `apps/backend`. `db:reset` borra los datos locales: requiere confirmación. |
-| `pnpm dev`, `pnpm build`, `pnpm typecheck` | ✅ Backend (`nest start --watch`, `nest build`, `tsc --noEmit`). Requieren `apps/backend/.env`. |
-| `pnpm test` | ✅ Pruebas unitarias (Jest), sin base de datos. |
+| `pnpm dev`, `pnpm build`, `pnpm typecheck` | Backend y web mediante Turborepo; el backend requiere `apps/backend/.env`. La integración de Tableros se verifica por separado en `odd/tasks/web-application.md`. |
+| `pnpm test` | Pruebas sin base de datos: Jest en backend y Node en el cliente HTTP web. |
+| `pnpm --filter @gestor-semilleros/web dev` | Vite en `127.0.0.1:5173`; proxy `/api` al backend local en el puerto 3000. |
 | `pnpm --filter @gestor-semilleros/backend admin:create` | ✅ Crea un administrador (`ADMIN_EMAIL`, `ADMIN_FULL_NAME`, `ADMIN_PASSWORD`). |
 | `pnpm db:seed` | ✅ Siembra datos de **desarrollo** (`src/cli/seed.ts`): un usuario por tipo (`admin@example.test`, `encargado.area@`, `decano@`, `tutor@`, `lider@`, `estudiante@`), área, facultad y un proyecto demo. Requiere `SEED_PASSWORD` (8–256 caracteres), es idempotente y se niega a correr con `NODE_ENV=production`. Ej.: `SEED_PASSWORD='…' pnpm db:seed` (fish: anteponer `env`). |
 | `pnpm test:e2e` | ✅ Pruebas de la API contra `TEST_DATABASE_URL` (requiere `pnpm db:up`). |
@@ -173,6 +177,8 @@ Reglas:
 - No ejecutes comandos destructivos (`rm -rf`, resets, limpiezas de historial) sin confirmación.
 
 ## 9. Flujo de trabajo para agentes
+
+**OpenCode (solo este proyecto):** `opencode.json` mantiene `gentle-orchestrator` con `openai/gpt-6.1-sol` como agente principal y registra diez subagentes `free-*`, uno por modelo gratuito disponible al configurarlos. El orquestador delega tareas acotadas en sesiones hijas cuando corresponde; no es necesario ejecutar todos los modelos en cada solicitud. La gratuidad y disponibilidad de los subagentes dependen del proveedor y no se extienden al modelo del orquestador. No se modifica la configuración global.
 
 1. Leer `AGENTS.md`, `README.md` y la documentación relevante.
 2. Verificar el estado real (`git status`, árbol, archivos existentes).
