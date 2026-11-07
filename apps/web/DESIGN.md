@@ -195,13 +195,48 @@ Reglas de contraste:
   lg:px-10 lg:py-10` sobre `min-w-0`. Encabezado con eyebrow
   «Tu espacio de investigación», H1 `text-3xl sm:text-4xl
   font-extrabold text-balance` y filete dorado.
-- «Mi cuenta»: `PanelCard` «Hola, {nombre}» con datos reales
-  (`dl grid gap-6 sm:grid-cols-2`, `break-all` en el correo) y
-  nota de que el servidor comprueba permisos. «Funciones
-  disponibles»: botones `min-h-20 rounded-xl border
-  border-navy/15 p-4` con icono en círculo `bg-gold/20`,
-  `hover:-translate-y-0.5 hover:border-navy/40 hover:shadow-card`.
-  «Módulos pendientes» con `EmptyState` sin operaciones ficticias.
+- «Mi panel» (antes «Mi cuenta», página `account`): primero
+  `DashboardWorkspace` (ver sección siguiente) y debajo una
+  `PanelCard` compacta «Hola, {nombre}» con correo, roles y
+  «Actualizar cuenta». Se eliminaron «Funciones disponibles» y
+  «Módulos pendientes»: los accesos viven en cada bloque del panel.
+
+### Panel por rol (`features/dashboard`)
+
+Un bloque por sección devuelta por `GET /api/dashboard`, en el
+orden del backend (ADMIN, AREA_MANAGER, DEAN, TUTOR, STUDENT);
+un usuario con varios roles ve los bloques apilados. Debajo, una
+rejilla `lg:grid-cols-2` con «Próximas reuniones» (máx. 5) y
+«Novedades recientes» (máx. 3). Cada fuente tiene su propia
+carga (`role="status"`), vacío (`EmptyState`) y error
+(`ErrorNotice`); un fallo no oculta las demás.
+
+- **Administrador:** único bloque sobre azul marino con puntos
+  (`darkCard`): H2 «Toda la institución», tres cifras de
+  `text-4xl` (proyectos, tableros vencidos, actividades por
+  aprobar; las dos últimas en dorado si son mayores que 0),
+  botones dorados «Crear usuarios» y «Estado de WhatsApp», y una
+  tarjeta `bg-navy-soft` con «Proyectos por estado».
+- **Encargado de área:** tarjeta clara; áreas asignadas como
+  pastillas con borde, tres cifras (proyectos, actividades,
+  tableros vencidos), lista de proyectos con avance y botón «Ver
+  novedades».
+- **Decano:** facultades como lista tipográfica de filete a filete
+  (`text-lg font-bold`) y proyectos con su avance; botón «Ver
+  proyectos».
+- **Tutor:** dos avisos con borde izquierdo de 4 px: actividades
+  pendientes de aprobación (dorado tenue cuando hay) y tableros
+  vencidos (rojo `alert` cuando hay), seguidos de sus proyectos
+  con avance.
+- **Estudiante:** dos columnas desde `md`: a la izquierda el
+  medidor «Hechas: n de m» y el desglose por progreso de sus
+  actividades asignadas; a la derecha sus proyectos, con la
+  pastilla dorada «Líder del proyecto» si `projectRole` es
+  `STUDENT_LEADER`.
+- **Medidores:** el número siempre va en texto («Avance: 1 de 5
+  (20 %)»); la barra (`h-2`, `aria-hidden`) solo refuerza.
+  Las distribuciones son listas con cifra visible, sin depender
+  del color. Los botones de acceso llaman a `onNavigate`.
 
 ### Alertas, botones y estados (`AlertMessage`, `WorkspaceUi`)
 

@@ -94,6 +94,39 @@ describe('MeetingsWorkspace', () => {
     expect(await screen.findByText('Reunión creada.')).toBeInTheDocument();
   });
 
+  it('crea una reunión sin proyecto eligiendo participantes con el buscador', async () => {
+    const created = { ...meeting, id: 'm-3', project: null };
+    const request = fake({
+      ...base,
+      'GET /api/integrations/microsoft/status': linked,
+      'GET /api/meetings': [],
+      'GET /api/users?search=an': [
+        { id: 'u-1', fullName: 'Tutor', email: 'tutor@example.test', roles: ['TUTOR'] },
+        { id: 'u-2', fullName: 'Ana', email: 'ana@example.test', roles: ['STUDENT'] },
+      ],
+      'POST /api/meetings': created,
+      'GET /api/meetings/m-3': created,
+    });
+    render(<MeetingsWorkspace user={tutor} request={request} />);
+    const user = userEvent.setup();
+    await screen.findByText('No tienes reuniones');
+    await user.type(screen.getByLabelText('Motivo'), 'Reunión libre');
+    await user.type(screen.getByLabelText('Inicio'), '2030-11-20T15:00');
+    expect(screen.getByRole('button', { name: /Crear reunión/ })).toBeDisabled();
+
+    await user.type(screen.getByRole('combobox', { name: 'Buscar participantes' }), 'an');
+    const options = await within(await screen.findByRole('listbox', { name: /Resultados/ })).findAllByRole('option');
+    expect(options).toHaveLength(1);
+    await user.click(options[0]);
+    expect(screen.getByRole('list', { name: 'Participantes elegidos' })).toHaveTextContent('Ana');
+    await user.click(screen.getByRole('button', { name: /Crear reunión/ }));
+
+    await waitFor(() => expect(request).toHaveBeenCalledWith('/api/meetings', {
+      method: 'POST',
+      body: { reason: 'Reunión libre', startsAt: new Date('2030-11-20T15:00').toISOString(), durationMinutes: 60, projectId: null, participantIds: ['u-2'] },
+    }));
+  });
+
   it('descarta la respuesta obsoleta del detalle al cambiar la selección', async () => {
     const second = { ...meeting, id: 'm-2', reason: 'Segunda reunión' };
     let resolveFirst: (value: unknown) => void = () => undefined;

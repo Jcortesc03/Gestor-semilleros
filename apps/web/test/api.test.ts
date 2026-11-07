@@ -80,3 +80,67 @@ test('los validadores compartidos distinguen objetos y listas', () => {
   }), [2, 4]);
   assert.throws(() => parseArray({}, (value) => value), ApiError);
 });
+
+test('muestra el mensaje del backend en errores 403 y 409', async () => {
+  const forbidden = createApiRequest(async () => Response.json({ message: 'Solo el encargado puede editar esta actividad.' }, { status: 403 }));
+  await assert.rejects(forbidden('/api/projects'), (error: unknown) => {
+    assert.ok(error instanceof ApiError);
+    assert.equal(error.status, 403);
+    assert.equal(error.message, 'Solo el encargado puede editar esta actividad.');
+    assert.equal(error.errors, undefined);
+    return true;
+  });
+  const conflict = createApiRequest(async () => Response.json({ message: 'Ya existe un usuario con ese correo.' }, { status: 409 }));
+  await assert.rejects(conflict('/api/users', { method: 'POST', body: {} }), (error: unknown) => error instanceof ApiError && error.message === 'Ya existe un usuario con ese correo.');
+});
+
+test('conserva errors[] de la validación 400 y descarta entradas no válidas', async () => {
+  const many = Array.from({ length: 25 }, (_, index) => `Error ${index + 1}.`);
+  const request = createApiRequest(async () => Response.json({ message: 'Datos inválidos.', errors: ['  Falta el título.  ', '', 42, null, ...many] }, { status: 400 }));
+  await assert.rejects(request('/api/projects', { method: 'POST', body: {} }), (error: unknown) => {
+    assert.ok(error instanceof ApiError);
+    assert.equal(error.message, 'Datos inválidos.');
+    assert.equal(error.errors?.length, 20);
+    assert.equal(error.errors?.[0], 'Falta el título.');
+    assert.equal(error.errors?.[1], 'Error 1.');
+    return true;
+  });
+});
+
+test('un cuerpo de error no JSON usa el mensaje genérico por código', async () => {
+  const request = createApiRequest(async () => new Response('<html>Forbidden</html>', { status: 403 }));
+  await assert.rejects(request('/api/projects'), (error: unknown) => error instanceof ApiError && error.message === 'No tienes permiso para realizar esta acción.');
+});
+
+test('los errores 5xx usan el mensaje genérico aunque el backend envíe texto', async () => {
+  const request = createApiRequest(async () => Response.json({ message: 'Cannot read properties of undefined', errors: ['detalle interno'] }, { status: 503 }));
+  await assert.rejects(request('/api/projects'), (error: unknown) => {
+    assert.ok(error instanceof ApiError);
+    assert.equal(error.message, 'El servicio no está disponible en este momento.');
+    assert.equal(error.errors, undefined);
+    return true;
+  });
+});
+
+test('el constructor conserva la firma original y acepta detalles opcionales', () => {
+  const legacy = new ApiError(403);
+  assert.equal(legacy.status, 403);
+  assert.equal(legacy.name, 'ApiError');
+  assert.equal(legacy.message, 'No tienes permiso para realizar esta acción.');
+  assert.equal(legacy.errors, undefined);
+
+  const detailed = new ApiError(409, { message: '  Conflicto con el estado.  ' });
+  assert.equal(detailed.message, 'Conflicto con el estado.');
+
+  const blank = new ApiError(404, { message: '   ' });
+  assert.equal(blank.message, 'No encontramos el recurso solicitado.');
+
+  const long = new ApiError(400, { message: 'a'.repeat(500) });
+  assert.equal(long.message.length, 300);
+});
+
+test('ApiError ignora los mensajes por defecto de NestJS en inglés', () => {
+  assert.equal(new ApiError(404, { message: 'Cannot GET /api/inexistente' }).message, 'No encontramos el recurso solicitado.');
+  assert.equal(new ApiError(403, { message: 'Forbidden resource' }).message, 'No tienes permiso para realizar esta acción.');
+  assert.equal(new ApiError(403, { message: 'Solo el tutor del proyecto puede aprobar.' }).message, 'Solo el tutor del proyecto puede aprobar.');
+});

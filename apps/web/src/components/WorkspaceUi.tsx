@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
-import { LoaderCircle } from 'lucide-react';
+import { CircleAlert, LoaderCircle } from 'lucide-react';
 import { AlertMessage } from './AlertMessage';
 import { ApiError } from '../lib/api';
 
@@ -48,7 +48,7 @@ export function PanelCard({ title, children, action, className = '' }: { title: 
   return (
     <section className={`min-w-0 rounded-xl border border-navy/10 bg-white p-5 shadow-card sm:p-7 ${className}`}>
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h2 className="min-w-0 flex-1 text-xl font-bold tracking-tight text-navy">{title}</h2>
+        <h2 className="min-w-[min(100%,14rem)] flex-1 break-words text-xl font-bold tracking-tight text-navy">{title}</h2>
         {action}
       </header>
       {children}
@@ -77,8 +77,25 @@ export function LoadingState({ label = 'Cargando información…' }: { label?: s
   return <p role="status" className="flex min-w-0 items-center gap-3 py-6 text-sm leading-relaxed text-navy/70"><LoaderCircle aria-hidden="true" className="size-5 shrink-0 animate-spin text-navy motion-reduce:animate-none" />{label}</p>;
 }
 
+/**
+ * Error de una petición. Si el backend devolvió `errors` (validación),
+ * se listan dentro del mismo `role="alert"` para que se anuncien juntos.
+ */
 export function ErrorNotice({ error }: { error: unknown }) {
-  return <AlertMessage message={error instanceof ApiError ? error.message : 'No pudimos completar la solicitud. Intenta de nuevo.'} />;
+  const message = error instanceof ApiError ? error.message : 'No pudimos completar la solicitud. Intenta de nuevo.';
+  const errors = error instanceof ApiError ? error.errors ?? [] : [];
+  if (errors.length === 0) return <AlertMessage message={message} />;
+  return (
+    <div role="alert" className="flex items-start gap-3 rounded-xl border border-alert/30 bg-alert/10 px-4 py-3">
+      <CircleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-alert" strokeWidth={1.75} />
+      <div className="min-w-0 space-y-2">
+        <p className="text-sm font-semibold leading-relaxed text-alert">{message}</p>
+        <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed text-alert">
+          {errors.map((item, index) => <li key={index}>{item}</li>)}
+        </ul>
+      </div>
+    </div>
+  );
 }
 
 export function formatDate(value: string | null | undefined): string {

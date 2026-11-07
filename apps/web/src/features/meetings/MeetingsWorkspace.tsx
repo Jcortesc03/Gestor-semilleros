@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ExternalLink, Link2, Unlink, Video } from 'lucide-react';
 import { Button, EmptyState, ErrorNotice, Field, LoadingState, PanelCard, inputClassName } from '../../components/WorkspaceUi';
+import { UserPicker, canSearchUsers } from '../directory';
+import type { DirectoryUser } from '../directory';
 import type { CurrentUser } from '../../types/auth';
 import type { ApiRequest } from '../../types/api';
 import {
@@ -145,6 +147,7 @@ function CreateMeeting({ user, request, linked, onCreated }: { user: CurrentUser
   const [duration, setDuration] = useState('60');
   const [projectId, setProjectId] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
+  const [picked, setPicked] = useState<DirectoryUser[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [created, setCreated] = useState(false);
@@ -152,6 +155,7 @@ function CreateMeeting({ user, request, linked, onCreated }: { user: CurrentUser
 
   useEffect(() => {
     setSelected([]);
+    setPicked([]);
     if (!projectId) { setMembers(null); return undefined; }
     let current = true;
     setMembers({ phase: 'loading' });
@@ -161,6 +165,8 @@ function CreateMeeting({ user, request, linked, onCreated }: { user: CurrentUser
     );
     return () => { current = false; };
   }, [projectId, request, user.id]);
+
+  const participantIds = projectId ? selected : picked.map((item) => item.id);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -174,9 +180,9 @@ function CreateMeeting({ user, request, linked, onCreated }: { user: CurrentUser
         startsAt: date.toISOString(),
         durationMinutes: Number(duration),
         projectId: projectId || null,
-        participantIds: selected,
+        participantIds,
       });
-      setReason(''); setStartsAt(''); setSelected([]); setCreated(true);
+      setReason(''); setStartsAt(''); setSelected([]); setPicked([]); setCreated(true);
       onCreated(meeting);
     } catch (caught) { setError(caught); } finally { setBusy(false); }
   }
@@ -193,13 +199,34 @@ function CreateMeeting({ user, request, linked, onCreated }: { user: CurrentUser
         <div className="space-y-2">
           <label htmlFor="meeting-project" className="block text-sm font-semibold">Proyecto</label>
           <select id="meeting-project" className={inputClassName} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-            <option value="">Selecciona un proyecto</option>
+            <option value="">Sin proyecto</option>
             {projects.phase === 'ready' && projects.data.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
           </select>
           {projects.phase === 'loading' && <LoadingState label="Cargando proyectos…" />}
           {projects.phase === 'error' && <ErrorNotice error={projects.error} />}
-          <p className="text-sm text-navy/70">Los participantes se eligen entre los miembros del proyecto.</p>
+          <p className="text-sm text-navy/70">{projectId ? 'Los participantes se eligen entre los miembros del proyecto.' : 'Sin proyecto, puedes invitar a cualquier usuario activo.'}</p>
         </div>
+        {!projectId && (canSearchUsers(user.roles) ? (
+          <div className="space-y-3">
+            <UserPicker
+              request={request}
+              label="Buscar participantes"
+              hint="Escribe al menos 2 letras del nombre o del correo."
+              excludeIds={[user.id, ...picked.map((item) => item.id)]}
+              onSelect={(person) => setPicked((prev) => [...prev, person])}
+            />
+            {picked.length > 0 && (
+              <ul aria-label="Participantes elegidos" className="divide-y divide-navy/10 rounded-lg border border-navy/15">
+                {picked.map((person) => (
+                  <li key={person.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                    <span className="min-w-0">{person.fullName} <span className="text-navy/70">({person.email})</span></span>
+                    <Button variant="secondary" onClick={() => setPicked((prev) => prev.filter((item) => item.id !== person.id))}>Quitar a {person.fullName}</Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : <p className="text-sm text-navy/70">Elige un proyecto para invitar a sus miembros.</p>)}
         {members?.phase === 'loading' && <LoadingState label="Cargando participantes…" />}
         {members?.phase === 'error' && <ErrorNotice error={members.error} />}
         {members?.phase === 'ready' && members.data.length === 0 && <EmptyState title="Sin participantes" description="El proyecto no tiene otros miembros activos para invitar." />}
@@ -216,7 +243,7 @@ function CreateMeeting({ user, request, linked, onCreated }: { user: CurrentUser
         )}
         {error !== null && (error instanceof Error && error.name !== 'ApiError' ? <p role="alert" className="text-sm text-alert">{error.message}</p> : <ErrorNotice error={error} />)}
         {created && <p role="status" className="text-sm font-semibold">Reunión creada.</p>}
-        <Button type="submit" disabled={busy || !linked || selected.length === 0 || !reason.trim() || !startsAt}>
+        <Button type="submit" disabled={busy || !linked || participantIds.length === 0 || !reason.trim() || !startsAt}>
           <Video aria-hidden="true" className="size-5" />Crear reunión
         </Button>
       </form>

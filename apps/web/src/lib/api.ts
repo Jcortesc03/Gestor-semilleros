@@ -9,13 +9,60 @@ const MESSAGES: Record<number, string> = {
   409: 'Ya existe un registro con esos datos o hay un conflicto con su estado.',
 };
 
+const MAX_MESSAGE_LENGTH = 300;
+const MAX_ERRORS = 20;
+
+/** Detalles opcionales que el backend envía en su cuerpo de error (`{ message, errors }`). */
+export interface ApiErrorDetails {
+  message?: string;
+  errors?: string[];
+}
+
+function cleanText(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const text = value.trim();
+  return text.length > 0 ? text : undefined;
+}
+
+/**
+ * Mensajes por defecto de NestJS/Express (en inglés y con detalles de rutas) que no
+ * deben llegar a la interfaz: en esos casos se usa el genérico en español.
+ */
+const FRAMEWORK_DEFAULT_MESSAGE = /^(Cannot (GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) |Forbidden resource$|Unauthorized$|Not Found$|Bad Request$|Conflict$|Too Many Requests$|Validation failed)/;
+
+function userFacingMessage(value: unknown): string | undefined {
+  const text = cleanText(value);
+  return text === undefined || FRAMEWORK_DEFAULT_MESSAGE.test(text) ? undefined : text;
+}
+
 export class ApiError extends Error {
   readonly status: number;
+  readonly errors?: string[];
 
-  constructor(status: number) {
-    super(status >= 500 ? 'El servicio no está disponible en este momento.' : MESSAGES[status] ?? 'No pudimos completar la solicitud.');
+  /**
+   * Los textos del backend solo se muestran para errores 4xx; en 5xx se usa
+   * el mensaje genérico para no filtrar detalles internos.
+   */
+  constructor(status: number, details: ApiErrorDetails = {}) {
+    const backendMessage = status >= 500 ? undefined : userFacingMessage(details.message);
+    const generic = status >= 500 ? 'El servicio no está disponible en este momento.' : MESSAGES[status] ?? 'No pudimos completar la solicitud.';
+    super(backendMessage ? backendMessage.slice(0, MAX_MESSAGE_LENGTH) : generic);
     this.name = 'ApiError';
     this.status = status;
+    const errors = status >= 500 ? [] : (details.errors ?? []).map(cleanText).filter((item): item is string => item !== undefined).slice(0, MAX_ERRORS);
+    if (errors.length > 0) this.errors = errors;
+  }
+}
+
+/** Lee `{ message, errors }` del cuerpo de error sin confiar en su forma. */
+async function readErrorDetails(response: Response): Promise<ApiErrorDetails> {
+  try {
+    const body: unknown = await response.json();
+    if (!isRecord(body)) return {};
+    const errors = Array.isArray(body.errors) ? body.errors.filter((item): item is string => typeof item === 'string') : undefined;
+    return { message: cleanText(body.message), ...(errors === undefined ? {} : { errors }) };
+  } catch {
+    return {};
   }
 }
 
@@ -56,8 +103,9 @@ export function createApiRequest(
     }
 
     if (!response.ok) {
+      const details = await readErrorDetails(response);
       if (response.status === 401) onUnauthorized?.();
-      throw new ApiError(response.status);
+      throw new ApiError(response.status, details);
     }
     if (response.status === 204) return undefined;
     try {
