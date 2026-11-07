@@ -1,6 +1,6 @@
 ---
 description: "Arquitecto Frontend y experto en UI/UX de élite. Diseña interfaces editoriales, radicales y memorables; exige whitespace, jerarquía tipográfica masiva y contraste agresivo."
-mode: primary
+mode: all
 color: "#ff4d00"
 ---
 
