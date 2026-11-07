@@ -39,6 +39,7 @@ describe('loadNotificationsConfig', () => {
       autoDispatch: true,
       dispatchIntervalSeconds: 60,
       maxAttempts: 5,
+      maxDeferHours: 24,
     });
   });
 
@@ -49,6 +50,7 @@ describe('loadNotificationsConfig', () => {
       NOTIFICATIONS_AUTO_DISPATCH: ' ',
       NOTIFICATIONS_DISPATCH_INTERVAL: '',
       NOTIFICATIONS_MAX_ATTEMPTS: '   ',
+      NOTIFICATIONS_MAX_DEFER_HOURS: '   ',
     });
 
     expect(config.email).toEqual({ transport: 'log' });
@@ -56,6 +58,7 @@ describe('loadNotificationsConfig', () => {
     expect(config.autoDispatch).toBe(true);
     expect(config.dispatchIntervalSeconds).toBe(60);
     expect(config.maxAttempts).toBe(5);
+    expect(config.maxDeferHours).toBe(24);
   });
 
   it('carga una configuración SMTP completa y recorta los valores', () => {
@@ -188,11 +191,13 @@ describe('loadNotificationsConfig', () => {
       NOTIFICATIONS_AUTO_DISPATCH: 'false',
       NOTIFICATIONS_DISPATCH_INTERVAL: '5',
       NOTIFICATIONS_MAX_ATTEMPTS: '20',
+      NOTIFICATIONS_MAX_DEFER_HOURS: '48',
     });
 
     expect(config.autoDispatch).toBe(false);
     expect(config.dispatchIntervalSeconds).toBe(5);
     expect(config.maxAttempts).toBe(20);
+    expect(config.maxDeferHours).toBe(48);
   });
 
   it('rechaza un transporte de correo desconocido y lista los permitidos', () => {
@@ -348,6 +353,24 @@ describe('loadNotificationsConfig', () => {
     expect(() => loadNotificationsConfig({ NOTIFICATIONS_MAX_ATTEMPTS: '2.5' })).toThrow(
       /NOTIFICATIONS_MAX_ATTEMPTS/,
     );
+  });
+
+  it('usa 24 horas por defecto para NOTIFICATIONS_MAX_DEFER_HOURS', () => {
+    expect(loadNotificationsConfig({}).maxDeferHours).toBe(24);
+  });
+
+  it('acepta un NOTIFICATIONS_MAX_DEFER_HOURS válido entre 1 y 168', () => {
+    expect(loadNotificationsConfig({ NOTIFICATIONS_MAX_DEFER_HOURS: '1' }).maxDeferHours).toBe(1);
+    expect(loadNotificationsConfig({ NOTIFICATIONS_MAX_DEFER_HOURS: '72' }).maxDeferHours).toBe(72);
+    expect(loadNotificationsConfig({ NOTIFICATIONS_MAX_DEFER_HOURS: '168' }).maxDeferHours).toBe(168);
+  });
+
+  it('valida NOTIFICATIONS_MAX_DEFER_HOURS entre 1 y 168', () => {
+    for (const value of ['0', '169', 'abc']) {
+      const error = loadError({ NOTIFICATIONS_MAX_DEFER_HOURS: value });
+
+      expect(error.message).toContain('NOTIFICATIONS_MAX_DEFER_HOURS');
+    }
   });
 
   it('no incluye SMTP_PASSWORD en los mensajes de error', () => {

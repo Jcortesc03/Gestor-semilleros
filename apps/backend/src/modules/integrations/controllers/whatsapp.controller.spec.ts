@@ -30,6 +30,7 @@ function config(whatsapp: NotificationsConfig['whatsapp']): NotificationsConfig 
     autoDispatch: false,
     dispatchIntervalSeconds: 60,
     maxAttempts: 3,
+    maxDeferHours: 24,
   };
 }
 

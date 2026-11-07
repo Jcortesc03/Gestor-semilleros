@@ -24,6 +24,7 @@ const DEFAULT_SMTP_PORT = 587;
 const DEFAULT_AUTO_DISPATCH = true;
 const DEFAULT_DISPATCH_INTERVAL = 60;
 const DEFAULT_MAX_ATTEMPTS = 5;
+const DEFAULT_MAX_DEFER_HOURS = 24;
 
 const MIN_PORT = 1;
 const MAX_PORT = 65535;
@@ -31,6 +32,8 @@ const MIN_DISPATCH_INTERVAL = 5;
 const MAX_DISPATCH_INTERVAL = 3600;
 const MIN_MAX_ATTEMPTS = 1;
 const MAX_MAX_ATTEMPTS = 20;
+const MIN_MAX_DEFER_HOURS = 1;
+const MAX_MAX_DEFER_HOURS = 168;
 
 const SESSION_NAME_PATTERN = /^[a-z0-9_-]{1,40}$/;
 const PAIRING_PHONE_PATTERN = /^\+[1-9]\d{7,14}$/;
@@ -196,6 +199,13 @@ export function loadNotificationsConfig(source: NodeJS.ProcessEnv): Notification
       DEFAULT_MAX_ATTEMPTS,
       MIN_MAX_ATTEMPTS,
       MAX_MAX_ATTEMPTS,
+    ),
+    maxDeferHours: integerInRange(
+      optional(source, 'NOTIFICATIONS_MAX_DEFER_HOURS'),
+      'NOTIFICATIONS_MAX_DEFER_HOURS',
+      DEFAULT_MAX_DEFER_HOURS,
+      MIN_MAX_DEFER_HOURS,
+      MAX_MAX_DEFER_HOURS,
     ),
   };
 }

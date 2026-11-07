@@ -16,6 +16,7 @@ import { maskAddress } from '../channels/log.sender';
 export class WhatsAppGateway implements OnModuleInit, OnApplicationShutdown {
   private readonly logger = new Logger('WhatsApp');
   private handle: WhatsAppProviderHandle | null = null;
+  private starting: Promise<void> | null = null;
   private status: WhatsAppStatus;
 
   constructor(
@@ -36,8 +37,14 @@ export class WhatsAppGateway implements OnModuleInit, OnApplicationShutdown {
     this.update('stopped');
   }
 
-  async start(): Promise<void> {
-    if (this.handle) return;
+  /** Arranca la conexión. Las llamadas simultáneas comparten el mismo arranque. */
+  start(): Promise<void> {
+    if (this.handle) return Promise.resolve();
+    this.starting ??= this.connect().finally(() => (this.starting = null));
+    return this.starting;
+  }
+
+  private async connect(): Promise<void> {
     this.update('starting');
     const handle = await this.factories[this.config.provider](this.config);
     this.handle = handle;
@@ -65,7 +72,14 @@ export class WhatsAppGateway implements OnModuleInit, OnApplicationShutdown {
       this.fail(Array.isArray(info) ? String(info[0] ?? '') : String(info ?? ''));
     });
 
-    await handle.start();
+    try {
+      await handle.start();
+    } catch (error) {
+      // Libera el provider para que un nuevo start() pueda reintentar desde cero.
+      this.handle = null;
+      await handle.stop().catch(() => undefined);
+      throw error;
+    }
   }
 
   getStatus(): WhatsAppStatus {
@@ -80,7 +94,7 @@ export class WhatsAppGateway implements OnModuleInit, OnApplicationShutdown {
   /** Envía un texto a un número E.164. Falla con error reintentable si no hay conexión. */
   async sendText(phoneE164: string, text: string): Promise<void> {
     if (!this.handle || this.status.state !== 'connected') {
-      throw new DeliveryError('WhatsApp no está conectado; se reintentará.', true);
+      throw new DeliveryError('WhatsApp no está conectado; la copia espera a que se reconecte.', true, true);
     }
     try {
       await this.handle.provider.sendMessage(phoneE164.replace(/^\+/, ''), text, {});

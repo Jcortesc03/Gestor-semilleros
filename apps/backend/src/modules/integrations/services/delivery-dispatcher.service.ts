@@ -9,12 +9,18 @@ export interface DispatchReport {
   retrying: number;
   failed: number;
   skipped: number;
+  /** Copias en espera porque el canal no está disponible (no gastan intentos). */
+  deferred: number;
 }
 
 /** Tiempo que un envío queda reservado mientras se procesa (evita duplicados entre instancias). */
 const LEASE_MS = 5 * 60_000;
 const MAX_BACKOFF_MS = 60 * 60_000;
 const MAX_ERROR_LENGTH = 500;
+/** Cada cuánto se vuelve a probar una copia en espera por un canal no disponible. */
+export const DEFER_RETRY_MS = 60_000;
+export const EXPIRED_REASON = (hours: number) =>
+  `La copia no pudo enviarse en ${hours} h (canal no disponible); se descartó para no enviar un aviso vencido.`;
 
 /** Espera exponencial entre reintentos: 1, 2, 4… minutos, con tope de una hora. */
 export function backoffMs(attempts: number): number {
@@ -62,7 +68,8 @@ export class DeliveryDispatcher implements OnModuleInit, OnApplicationShutdown {
   }
 
   private async process(batchSize: number): Promise<DispatchReport> {
-    const report: DispatchReport = { sent: 0, retrying: 0, failed: 0, skipped: 0 };
+    const report: DispatchReport = { sent: 0, retrying: 0, failed: 0, skipped: 0, deferred: 0 };
+    const expiresBefore = new Date(Date.now() - this.config.maxDeferHours * 3_600_000);
     const due = await this.prisma.notificationDelivery.findMany({
       where: { status: 'PENDING', nextAttemptAt: { lte: new Date() } },
       orderBy: { nextAttemptAt: 'asc' },
@@ -71,6 +78,7 @@ export class DeliveryDispatcher implements OnModuleInit, OnApplicationShutdown {
         id: true,
         channel: true,
         attempts: true,
+        createdAt: true,
         dispatch: { select: { kind: true, subject: true, body: true } },
         user: { select: { email: true, phone: true, status: true } },
       },
@@ -88,7 +96,9 @@ export class DeliveryDispatcher implements OnModuleInit, OnApplicationShutdown {
       const address = delivery.channel === 'EMAIL' ? delivery.user.email : delivery.user.phone;
       const sender = senderFor(this.senders, delivery.channel);
       const skipReason =
-        delivery.user.status !== 'ACTIVE'
+        delivery.createdAt < expiresBefore
+          ? EXPIRED_REASON(this.config.maxDeferHours)
+          : delivery.user.status !== 'ACTIVE'
           ? 'Usuario inactivo.'
           : !address
             ? 'El usuario no tiene dirección para este canal.'
@@ -108,7 +118,17 @@ export class DeliveryDispatcher implements OnModuleInit, OnApplicationShutdown {
       } catch (error) {
         const retryable = !(error instanceof DeliveryError) || error.retryable;
         const message = (error instanceof Error ? error.message : String(error)).slice(0, MAX_ERROR_LENGTH);
-        if (retryable && attempts < this.config.maxAttempts) {
+        if (error instanceof DeliveryError && error.deferred) {
+          // Canal no disponible: se devuelve el intento reservado y se vuelve a probar en un minuto.
+          // Si sigue sin canal al vencer `maxDeferHours`, la comprobación de arriba la descarta.
+          await this.mark(delivery.id, {
+            status: 'PENDING',
+            lastError: message,
+            attempts: delivery.attempts,
+            nextAttemptAt: new Date(Date.now() + DEFER_RETRY_MS),
+          });
+          report.deferred++;
+        } else if (retryable && attempts < this.config.maxAttempts) {
           await this.mark(delivery.id, {
             status: 'PENDING',
             lastError: message,
@@ -126,7 +146,13 @@ export class DeliveryDispatcher implements OnModuleInit, OnApplicationShutdown {
 
   private async mark(
     id: string,
-    data: { status: 'PENDING' | 'SENT' | 'FAILED' | 'SKIPPED'; lastError?: string | null; sentAt?: Date; nextAttemptAt?: Date },
+    data: {
+      status: 'PENDING' | 'SENT' | 'FAILED' | 'SKIPPED';
+      lastError?: string | null;
+      sentAt?: Date;
+      nextAttemptAt?: Date;
+      attempts?: number;
+    },
   ): Promise<void> {
     await this.prisma.notificationDelivery.update({ where: { id }, data });
   }

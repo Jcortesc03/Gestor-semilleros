@@ -81,6 +81,22 @@ describe('WhatsAppGateway', () => {
     expect(factory).toHaveBeenCalledTimes(1);
   });
 
+  it('dos start() simultáneos crean el provider una sola vez', async () => {
+    const { gateway, factory, start } = setup();
+    await Promise.all([gateway.start(), gateway.start()]);
+    expect(factory).toHaveBeenCalledTimes(1);
+    expect(start).toHaveBeenCalledTimes(1);
+  });
+
+  it('si el arranque del provider falla, lo detiene y permite reintentar', async () => {
+    const { gateway, factory, start, stop } = setup();
+    start.mockRejectedValueOnce(new Error('sin red'));
+    await expect(gateway.start()).rejects.toThrow('sin red');
+    expect(stop).toHaveBeenCalledTimes(1);
+    await gateway.start();
+    expect(factory).toHaveBeenCalledTimes(2);
+  });
+
   it('con require_action y QR pasa a awaiting_qr y expone la ruta de la imagen', async () => {
     const { gateway, emitter } = setup();
     await gateway.start();
@@ -141,13 +157,14 @@ describe('WhatsAppGateway', () => {
     expect(status.detail).toBe('motivo');
   });
 
-  it('sendText sin conexión falla con un error reintentable', async () => {
+  it('sendText sin conexión deja la copia en espera (no gasta intentos)', async () => {
     const { gateway } = setup();
 
     const error = await captureDeliveryError(gateway.sendText('+573000000001', 'Hola'));
 
     expect(error).toBeInstanceOf(DeliveryError);
     expect(error.retryable).toBe(true);
+    expect(error.deferred).toBe(true);
     expect(error.message).toContain('WhatsApp no está conectado');
   });
 

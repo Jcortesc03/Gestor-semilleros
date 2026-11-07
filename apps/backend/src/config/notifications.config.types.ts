@@ -37,4 +37,9 @@ export interface NotificationsConfig {
   autoDispatch: boolean;
   dispatchIntervalSeconds: number;
   maxAttempts: number;
+  /**
+   * Horas que una copia puede esperar en la bandeja de salida (p. ej. mientras WhatsApp está
+   * desconectado). Pasado ese tiempo se descarta (`SKIPPED`) para no enviar avisos viejos.
+   */
+  maxDeferHours: number;
 }

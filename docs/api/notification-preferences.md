@@ -210,6 +210,7 @@ Motivos de `SKIPPED` (se guardan en `last_error`):
 - `El usuario no tiene dirección para este canal.`: no hay correo o teléfono.
 - `Canal desactivado.`: el canal dejó de estar registrado después de encolar.
 - `Novedad eliminada.`: la novedad se eliminó antes de enviar la copia.
+- `La copia no pudo enviarse en 24 h (canal no disponible); se descartó para no enviar un aviso vencido.`: la copia superó `NOTIFICATIONS_MAX_DEFER_HOURS` (24 por defecto) desde que se encoló sin enviarse. Así no se envían de golpe avisos viejos cuando el canal vuelve o el backend se reinicia tras mucho tiempo apagado.
 
 Al eliminar una novedad, todos sus envíos `PENDING` pasan a `SKIPPED` con `Novedad eliminada.`.
 
@@ -218,9 +219,10 @@ Al eliminar una novedad, todos sus envíos `PENDING` pasan a `SKIPPED` con `Nove
 El despachador (`DeliveryDispatcher`) procesa como máximo **100 envíos por ciclo**, ordenados por `next_attempt_at` ascendente, y solo los `PENDING` cuya hora ya llegó.
 
 1. **Reserva de 5 minutos.** Antes de enviar, cada fila se reclama con una actualización condicional: incrementa `attempts` y fija `next_attempt_at = ahora + 5 minutos`. Si otra instancia ya la reclamó, la actualización no afecta filas y se omite. Así dos instancias no envían la misma copia. Si el proceso muere con la reserva tomada, la fila vuelve a estar disponible al vencer esos 5 minutos.
-2. **Envío.** Se resuelve la dirección (`email` o `phone`) y el canal. Si el usuario está inactivo, falta la dirección o el canal no existe, se marca `SKIPPED`.
+2. **Envío.** Si la copia lleva más de `NOTIFICATIONS_MAX_DEFER_HOURS` horas encolada, se marca `SKIPPED` por vencida. Si no, se resuelve la dirección (`email` o `phone`) y el canal; si el usuario está inactivo, falta la dirección o el canal no existe, también se marca `SKIPPED`.
 3. **Resultado.**
    - Éxito: `SENT`.
+   - **Canal no disponible** (p. ej. WhatsApp desconectado): la copia queda **en espera**. Vuelve a `PENDING`, se **devuelve el intento** reservado (no cuenta para `NOTIFICATIONS_MAX_ATTEMPTS`) y se prueba de nuevo cada minuto hasta que el canal vuelva o la copia venza a las `NOTIFICATIONS_MAX_DEFER_HOURS` horas.
    - Error reintentable y `attempts < NOTIFICATIONS_MAX_ATTEMPTS`: vuelve a `PENDING` con espera exponencial.
    - Error no reintentable o intentos agotados: `FAILED`. `last_error` se recorta a 500 caracteres.
 
@@ -254,7 +256,7 @@ El ciclo se lanza justo después de encolar (`kick`) y cada `NOTIFICATIONS_DISPA
 - Envía el texto a través de la conexión de WhatsApp que mantiene el backend con BuilderBot ([ADR 0006](../decisions/0006-whatsapp-con-builderbot.md)). El provider se elige con `WHATSAPP_PROVIDER`; hoy solo existe Baileys, que usa WhatsApp Web.
 - No hay plantillas: el mensaje es texto libre con el asunto en negrita (`*…*`), una línea en blanco y el cuerpo. Se trunca a 4000 caracteres (con `…` al final si sobra texto).
 - El teléfono debe estar registrado en E.164. El destinatario se envía sin el `+` inicial.
-- Si WhatsApp no está conectado (estado distinto de `connected`), el envío falla con un error **reintentable** y el despachador lo vuelve a intentar según la espera exponencial. Si sigue sin conexión al agotar `NOTIFICATIONS_MAX_ATTEMPTS`, el envío queda `FAILED`.
+- Si WhatsApp no está conectado (estado distinto de `connected`), la copia queda **en espera sin gastar intentos** y se vuelve a probar cada minuto; sale en cuanto la sesión se reconecta. Si pasan más de `NOTIFICATIONS_MAX_DEFER_HOURS` horas (24 por defecto) desde que se encoló, se descarta (`SKIPPED`). Los errores del provider estando conectado sí gastan intentos.
 - Los errores del provider también se consideran reintentables; el motivo se guarda recortado a 300 caracteres.
 
 #### `log`: registro sin envío real
@@ -276,6 +278,7 @@ El ciclo se lanza justo después de encolar (`kick`) y cada `NOTIFICATIONS_DISPA
 | `NOTIFICATIONS_AUTO_DISPATCH` | `true` o `false`. Por defecto `true`. |
 | `NOTIFICATIONS_DISPATCH_INTERVAL` | Segundos entre ciclos. Por defecto 60; rango 5–3600. |
 | `NOTIFICATIONS_MAX_ATTEMPTS` | Intentos máximos por envío. Por defecto 5; rango 1–20. |
+| `NOTIFICATIONS_MAX_DEFER_HOURS` | Horas máximas que una copia puede esperar a enviarse (las esperas por canal no disponible no gastan intentos). Por defecto 24; rango 1–168. |
 
 El resto de variables de SMTP y WhatsApp (`WHATSAPP_PROVIDER`, `WHATSAPP_SESSION_NAME`, `WHATSAPP_PAIRING_PHONE`) se describen en [`apps/backend/.env.example`](../../apps/backend/.env.example).
 

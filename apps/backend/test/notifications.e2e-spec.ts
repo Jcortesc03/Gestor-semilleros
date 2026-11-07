@@ -59,11 +59,11 @@ describe('Novedades, notificaciones y copias por correo/WhatsApp (e2e)', () => {
       });
 
       expect(await feedTitles('outsider')).toEqual(['Convocatoria']);
-      expect(await dispatch()).toEqual({ sent: 9, retrying: 0, failed: 0, skipped: 0 });
+      expect(await dispatch()).toEqual({ sent: 9, retrying: 0, failed: 0, skipped: 0, deferred: 0 });
       expect(email.sent.map((s) => s.address).sort()).not.toContain(emailOf('areaManager'));
       expect(email.sent[0].message).toEqual({ kind: 'NEWS', subject: '[Noticia] Convocatoria', body: expect.stringContaining('Detalles') });
       expect(whatsapp.sent).toEqual([]);
-      expect(await dispatch()).toEqual({ sent: 0, retrying: 0, failed: 0, skipped: 0 });
+      expect(await dispatch()).toEqual({ sent: 0, retrying: 0, failed: 0, skipped: 0, deferred: 0 });
     });
 
     it('una audiencia por rol solo llega a ese rol', async () => {
@@ -193,13 +193,13 @@ describe('Novedades, notificaciones y copias por correo/WhatsApp (e2e)', () => {
     it('reintenta los fallos transitorios y marca como fallidos los definitivos', async () => {
       const created = await publish('dean', { audiences: [{ type: 'PROJECT', projectId }] });
       email.failWith = new DeliveryError('Servidor no disponible.', true);
-      expect(await dispatch()).toEqual({ sent: 0, retrying: 4, failed: 0, skipped: 0 });
+      expect(await dispatch()).toEqual({ sent: 0, retrying: 4, failed: 0, skipped: 0, deferred: 0 });
       // El próximo intento está programado en el futuro: no se reenvía de inmediato.
-      expect(await dispatch()).toEqual({ sent: 0, retrying: 0, failed: 0, skipped: 0 });
+      expect(await dispatch()).toEqual({ sent: 0, retrying: 0, failed: 0, skipped: 0, deferred: 0 });
 
       await world.prisma.notificationDelivery.updateMany({ data: { nextAttemptAt: new Date(0) } });
       email.failWith = new DeliveryError('Destinatario rechazado.', false);
-      expect(await dispatch()).toEqual({ sent: 0, retrying: 0, failed: 4, skipped: 0 });
+      expect(await dispatch()).toEqual({ sent: 0, retrying: 0, failed: 4, skipped: 0, deferred: 0 });
 
       const summary = await (await world.as('dean')).get(`/api/announcements/${created.id}/deliveries`).expect(200);
       expect(summary.body.EMAIL).toEqual({ PENDING: 0, SENT: 0, FAILED: 4, SKIPPED: 0 });
@@ -209,10 +209,53 @@ describe('Novedades, notificaciones y copias por correo/WhatsApp (e2e)', () => {
       await (await world.as('student')).get(`/api/announcements/${created.id}/deliveries`).expect(403);
     });
 
+    it('si WhatsApp no está conectado la copia espera sin gastar intentos y sale al reconectar', async () => {
+      await (await world.as('student'))
+        .put('/api/me/notification-preferences')
+        .send({ phone: '+573000000001', preferences: [{ kind: 'NEWS', channel: 'WHATSAPP', enabled: true }] })
+        .expect(200);
+      await publish('dean', { audiences: [{ type: 'PROJECT', projectId }] });
+
+      whatsapp.failWith = new DeliveryError('WhatsApp no está conectado; la copia espera a que se reconecte.', true, true);
+      expect(await dispatch()).toEqual({ sent: 4, retrying: 0, failed: 0, skipped: 0, deferred: 1 });
+      const waiting = await world.prisma.notificationDelivery.findFirstOrThrow({ where: { channel: 'WHATSAPP' } });
+      expect(waiting).toMatchObject({ status: 'PENDING', attempts: 0 });
+
+      // Muchos ciclos sin conexión no agotan los intentos.
+      for (let i = 0; i < 8; i++) {
+        await world.prisma.notificationDelivery.updateMany({ where: { channel: 'WHATSAPP' }, data: { nextAttemptAt: new Date(0) } });
+        expect((await dispatch()).deferred).toBe(1);
+      }
+      expect(await world.prisma.notificationDelivery.findFirstOrThrow({ where: { channel: 'WHATSAPP' } })).toMatchObject({
+        status: 'PENDING',
+        attempts: 0,
+      });
+
+      whatsapp.failWith = null;
+      await world.prisma.notificationDelivery.updateMany({ where: { channel: 'WHATSAPP' }, data: { nextAttemptAt: new Date(0) } });
+      expect(await dispatch()).toEqual({ sent: 1, retrying: 0, failed: 0, skipped: 0, deferred: 0 });
+      expect(whatsapp.sent.map((s) => s.address)).toEqual(['+573000000001']);
+    });
+
+    it('descarta las copias que llevan más de 24 h sin poder enviarse', async () => {
+      await publish('dean', { audiences: [{ type: 'PROJECT', projectId }] });
+      email.failWith = new DeliveryError('Canal no disponible.', true, true);
+      expect((await dispatch()).deferred).toBe(4);
+
+      const dayAndAHourAgo = new Date(Date.now() - 25 * 3_600_000);
+      await world.prisma.notificationDelivery.updateMany({ data: { createdAt: dayAndAHourAgo, nextAttemptAt: new Date(0) } });
+      email.failWith = null; // aunque el canal ya volvió, la copia está vencida
+      expect(await dispatch()).toEqual({ sent: 0, retrying: 0, failed: 0, skipped: 4, deferred: 0 });
+      expect(email.sent).toEqual([]);
+      const stored = await world.prisma.notificationDelivery.findFirstOrThrow();
+      expect(stored.status).toBe('SKIPPED');
+      expect(stored.lastError).toMatch(/24 h/);
+    });
+
     it('omite a los usuarios desactivados después de encolar', async () => {
       await publish('dean', { audiences: [{ type: 'PROJECT', projectId }] });
       await world.prisma.user.update({ where: { id: world.ids.student }, data: { status: 'INACTIVE' } });
-      expect(await dispatch()).toEqual({ sent: 3, retrying: 0, failed: 0, skipped: 1 });
+      expect(await dispatch()).toEqual({ sent: 3, retrying: 0, failed: 0, skipped: 1, deferred: 0 });
     });
 
     it('al eliminar la novedad se cancelan las copias pendientes', async () => {
@@ -221,7 +264,7 @@ describe('Novedades, notificaciones y copias por correo/WhatsApp (e2e)', () => {
       await (await world.as('student')).delete(`/api/announcements/${created.id}`).expect(403);
       await (await world.as('dean')).delete(`/api/announcements/${created.id}`).expect(204);
 
-      expect(await dispatch()).toEqual({ sent: 0, retrying: 0, failed: 0, skipped: 0 });
+      expect(await dispatch()).toEqual({ sent: 0, retrying: 0, failed: 0, skipped: 0, deferred: 0 });
       expect(email.sent).toEqual([]);
       expect(await feedTitles('student')).toEqual([]);
       await (await world.as('dean')).get(`/api/announcements/${created.id}`).expect(404);
