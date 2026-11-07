@@ -25,7 +25,8 @@ La autenticación usa **Auth.js** (`@auth/express`) montado en NestJS con **sesi
 
 **Respuestas del inicio de sesión:** siempre responde `302`.
 - Si tiene éxito, fija la cookie de sesión y redirige a la aplicación.
-- Si falla, redirige a `…/api/auth/signin?error=CredentialsSignin&code=credentials`. La respuesta es **idéntica** si el correo no existe, si la contraseña es incorrecta o si el usuario está inactivo, para que no se pueda averiguar qué cuentas existen.
+- Si falla, redirige a `…/api/auth/signin?error=CredentialsSignin&code=credentials`.
+- **Errores de OAuth** (p. ej. `AccessDenied` cuando el correo de Google no corresponde a un usuario activo): Auth.js redirige a la página de error configurada, `pages.error = '/login'` (`AUTH_ERROR_PAGE`), es decir `/login?error=AccessDenied`. La web traduce ese código a un mensaje seguro. La respuesta es **idéntica** si el correo no existe, si la contraseña es incorrecta o si el usuario está inactivo, para que no se pueda averiguar qué cuentas existen.
 
 ## Endpoints protegidos
 

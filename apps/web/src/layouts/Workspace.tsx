@@ -23,6 +23,13 @@ interface WorkspaceProps {
   error: string | null;
 }
 
+function getInitials(user: CurrentUser): string {
+  const parts = user.fullName.trim().split(/\s+/).filter((part) => part.length > 0);
+  if (parts.length >= 2) return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('');
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return user.email.trim().charAt(0).toUpperCase() || 'U';
+}
+
 export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, error }: WorkspaceProps) {
   const [page, setPage] = useState<Page>('account');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -77,16 +84,26 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
   function renderNavigation() {
     return <>
       <BrandMark variant="light" />
-      <div className="mt-8 rounded-xl bg-navy-soft p-4">
-        <p className="break-words font-bold">{user.fullName}</p>
-        <p className="mt-1 break-all text-sm text-white/80">{user.email}</p>
-        <p className="mt-3 text-xs font-semibold leading-relaxed text-gold">{user.roles.map(roleLabel).join(' · ') || 'Sin roles asignados'}</p>
+      <div className="mt-8 min-w-0 rounded-xl bg-navy-soft p-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="grid size-10 shrink-0 place-items-center rounded-full bg-gold text-sm font-bold text-navy"
+          >
+            {getInitials(user)}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-white">{user.fullName}</p>
+            <p className="truncate text-xs text-white/75">{user.email}</p>
+          </div>
+        </div>
+        <p className="mt-3 border-t border-white/10 pt-3 text-[0.6875rem] font-semibold uppercase leading-relaxed tracking-[0.18em] text-gold">{user.roles.map(roleLabel).join(' · ') || 'Sin roles asignados'}</p>
       </div>
-      <nav aria-label="Secciones de la aplicación" className="mt-7 space-y-2">
+      <nav aria-label="Secciones de la aplicación" className="mt-7 space-y-1.5">
         {navigation.map(({ key, label, icon: Icon }) => (
           <button key={key} type="button" disabled={signingOut} aria-current={page === key ? 'page' : undefined}
-            onClick={() => navigate(key)} className={`flex min-h-12 w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${page === key ? 'bg-gold text-navy' : 'text-white/85 hover:bg-white/10 hover:text-white'}`}>
-            <Icon aria-hidden="true" className="size-5 shrink-0" />{label}
+            onClick={() => navigate(key)} className={`flex min-h-12 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${page === key ? 'bg-gold text-navy' : 'text-white/85 hover:bg-white/10 hover:text-white'}`}>
+            <Icon aria-hidden="true" className="size-5 shrink-0" strokeWidth={1.75} /><span className="min-w-0">{label}</span>
           </button>
         ))}
       </nav>
@@ -98,31 +115,38 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
 
   const title = navigation.find((item) => item.key === page)?.label ?? 'Mi cuenta';
   return (
-    <div className="min-h-dvh bg-canvas text-navy lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
-      <aside className="on-dark sticky top-0 hidden h-dvh flex-col gap-5 bg-navy p-6 text-white lg:flex">{renderNavigation()}</aside>
+    <div className="min-h-dvh overflow-x-clip bg-canvas text-navy lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
+      <aside className="on-dark relative hidden h-dvh flex-col gap-5 overflow-hidden bg-navy p-6 text-white lg:flex">
+        <div aria-hidden="true" className="texture-dots pointer-events-none absolute -right-12 top-0 h-44 w-44 opacity-30" />
+        <div className="relative flex min-h-0 flex-1 flex-col gap-5">{renderNavigation()}</div>
+      </aside>
       <dialog ref={dialog} onClose={() => setMenuOpen(false)} aria-labelledby="mobile-menu-title"
-        className="on-dark fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none border-0 bg-navy p-6 text-white backdrop:bg-navy/60 sm:max-w-sm">
-        <header className="mb-6 flex items-center justify-between gap-4"><h2 id="mobile-menu-title" className="font-bold">Navegación</h2><button type="button" onClick={() => setMenuOpen(false)} aria-label="Cerrar navegación" className="grid size-12 place-items-center rounded-lg hover:bg-white/10"><X aria-hidden="true" /></button></header>
+        className="on-dark fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none overflow-y-auto border-0 bg-navy p-6 text-white backdrop:bg-navy/60 sm:max-w-sm">
+        <header className="mb-6 flex items-center justify-between gap-4"><h2 id="mobile-menu-title" className="font-bold">Navegación</h2><button type="button" onClick={() => setMenuOpen(false)} aria-label="Cerrar navegación" className="grid size-12 shrink-0 place-items-center rounded-lg transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"><X aria-hidden="true" /></button></header>
         <div className="flex min-h-[calc(100dvh-110px)] flex-col gap-5">{renderNavigation()}</div>
       </dialog>
       <div className="min-w-0">
         <header className="flex items-center justify-between gap-4 border-b border-navy/10 bg-white px-5 py-4 sm:px-8 lg:px-10">
-          <p className="text-sm font-semibold">Gestor de Semilleros <span className="hidden text-navy/70 sm:inline">/ Espacio de trabajo</span></p>
-          <button type="button" onClick={() => setMenuOpen(true)} aria-label="Abrir navegación" aria-expanded={menuOpen} className="grid size-12 shrink-0 place-items-center rounded-lg border border-navy/30 lg:hidden"><Menu aria-hidden="true" /></button>
+          <p className="min-w-0 text-sm font-bold tracking-tight">Gestor de Semilleros <span className="hidden font-semibold text-navy/70 sm:inline">/ Espacio de trabajo</span></p>
+          <button type="button" onClick={() => setMenuOpen(true)} aria-label="Abrir navegación" aria-expanded={menuOpen} className="grid size-12 shrink-0 place-items-center rounded-lg border border-navy/30 text-navy transition hover:bg-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy lg:hidden"><Menu aria-hidden="true" /></button>
         </header>
         <main inert={signingOut} aria-busy={signingOut} className="mx-auto w-full max-w-7xl space-y-7 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
-          <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-navy/70">Tu espacio de investigación</p><h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">{title}</h1></div>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-navy/70">Tu espacio de investigación</p>
+            <h1 className="mt-2 text-balance text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">{title}</h1>
+            <div aria-hidden="true" className="hairline-gold mt-4" />
+          </div>
           {error && <AlertMessage message={error} />}
           {page === 'account' ? <>
             <PanelCard title={`Hola, ${user.fullName}`} action={<Button variant="secondary" onClick={onRefresh}>Actualizar cuenta</Button>}>
               <dl className="grid gap-6 sm:grid-cols-2">
-                <div><dt className="text-sm text-navy/70">Correo electrónico</dt><dd className="mt-1 break-all font-semibold">{user.email}</dd></div>
-                <div><dt className="text-sm text-navy/70">Roles asignados</dt><dd className="mt-1 font-semibold">{user.roles.map(roleLabel).join(' · ') || 'Sin roles asignados'}</dd></div>
+                <div className="min-w-0"><dt className="text-sm text-navy/70">Correo electrónico</dt><dd className="mt-1 break-all font-semibold text-navy">{user.email}</dd></div>
+                <div className="min-w-0"><dt className="text-sm text-navy/70">Roles asignados</dt><dd className="mt-1 font-semibold text-navy">{user.roles.map(roleLabel).join(' · ') || 'Sin roles asignados'}</dd></div>
               </dl>
-              <p className="mt-6 text-sm leading-relaxed text-navy/70">Los accesos corresponden a los roles de tu cuenta. El servidor comprueba los permisos y el alcance de cada operación.</p>
+              <p className="mt-6 max-w-2xl text-sm leading-relaxed text-navy/70">Los accesos corresponden a los roles de tu cuenta. El servidor comprueba los permisos y el alcance de cada operación.</p>
             </PanelCard>
             <PanelCard title="Funciones disponibles">
-              <div className="grid gap-3 sm:grid-cols-2">{navigation.filter((item) => item.key !== 'account').map(({ key, label, icon: Icon }) => <button key={key} type="button" onClick={() => navigate(key)} className="flex min-h-20 items-center gap-4 rounded-lg border border-navy/20 p-4 text-left font-semibold transition hover:-translate-y-0.5 hover:border-navy/50 focus-visible:outline-navy motion-reduce:transform-none"><Icon aria-hidden="true" className="size-6 shrink-0" />{label}</button>)}</div>
+              <div className="grid gap-3 sm:grid-cols-2">{navigation.filter((item) => item.key !== 'account').map(({ key, label, icon: Icon }) => <button key={key} type="button" onClick={() => navigate(key)} className="flex min-h-20 min-w-0 items-center gap-4 rounded-xl border border-navy/15 bg-white p-4 text-left font-semibold text-navy transition hover:-translate-y-0.5 hover:border-navy/40 hover:shadow-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy motion-reduce:transform-none motion-reduce:shadow-none"><span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-full bg-gold/20 text-navy"><Icon aria-hidden="true" className="size-5" strokeWidth={1.75} /></span><span className="min-w-0">{label}</span></button>)}</div>
             </PanelCard>
             <EmptyState title="Módulos pendientes" description="La gestión de áreas y facultades, documentos, recordatorios y métricas todavía no dispone de API. No se muestran operaciones ficticias para esos módulos." />
           </> : page === 'academic'

@@ -22,6 +22,12 @@ const ERROR_ID = "login-error";
  * Sin llamadas de red, persistencia de sesión ni enrutado: el padre
  * conecta las credenciales con Auth.js y el estado de la sesión.
  * Tras cada intento se limpia la contraseña del formulario.
+ *
+ * Dirección (Frontlipe): producto institucional editorial y sobrio.
+ * Área de marca azul marino con titular display en 800 e interletraje
+ * ajustado, palabra clave en dorado; formulario en tarjeta blanca
+ * sobre beige. Una sola familia (Montserrat), radios 8–12 px y
+ * foco siempre visible. Sin héroe completo ni pruebas inventadas.
  */
 export function LoginPage({ onSubmit, onGoogle, pending, error }: LoginPageProps) {
   const [email, setEmail] = useState("");
@@ -58,7 +64,7 @@ export function LoginPage({ onSubmit, onGoogle, pending, error }: LoginPageProps
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-0 left-0 h-40 w-40 opacity-25"
+          className="pointer-events-none absolute bottom-6 right-6 hidden h-44 w-44 opacity-25 lg:block"
         >
           <GraduationCapWatermark />
         </div>
@@ -67,44 +73,48 @@ export function LoginPage({ onSubmit, onGoogle, pending, error }: LoginPageProps
           <BrandMark variant="light" />
 
           <div className="mt-10 max-w-xl lg:mt-0 lg:flex lg:flex-1 lg:flex-col lg:justify-center">
-            <h1 className="text-4xl font-extrabold leading-[0.95] tracking-tight sm:text-5xl lg:text-6xl">
-              Gestión de semilleros de investigación
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">
+              Gestión académica y organizativa
+            </p>
+            <h1 className="mt-4 text-[clamp(2.25rem,5vw,4.5rem)] font-extrabold leading-[0.95] tracking-tight sm:text-6xl">
+              Semilleros de{" "}
+              <span className="text-gold">investigación</span>
             </h1>
-            <p className="mt-6 max-w-md text-base leading-relaxed text-white/80 sm:text-lg">
+            <p className="mt-6 max-w-md text-base leading-relaxed text-white/85 sm:text-lg">
               Plataforma para la gestión académica, administrativa y
-              organizativa de los semilleros de investigación de la
-              universidad.
+              organizativa de los semilleros de investigación universitaria.
             </p>
 
-            <dl className="mt-10 hidden gap-8 border-t border-white/15 pt-8 sm:grid sm:grid-cols-3 lg:mt-14">
+            <dl className="mt-10 hidden gap-8 border-t border-white/15 pt-8 sm:grid sm:grid-cols-3 lg:mt-12">
               <div>
                 <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">
-                  Alcance inicial
+                  Trabajo académico
                 </dt>
-                <dd className="mt-2 text-sm leading-relaxed text-white/75">
-                  Acceso y consulta de tu cuenta personal.
+                <dd className="mt-2 text-sm leading-relaxed text-white/80">
+                  Proyectos, tableros y actividades de tu semillero.
                 </dd>
               </div>
               <div>
                 <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">
-                  En desarrollo
+                  Encuentros
                 </dt>
-                <dd className="mt-2 text-sm leading-relaxed text-white/75">
-                  Reuniones, documentos y seguimiento de semilleros.
+                <dd className="mt-2 text-sm leading-relaxed text-white/80">
+                  Reuniones con Microsoft Teams y novedades.
                 </dd>
               </div>
               <div>
                 <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">
                   Acceso
                 </dt>
-                <dd className="mt-2 text-sm leading-relaxed text-white/75">
-                  Solo para cuentas registradas por la institución.
+                <dd className="mt-2 text-sm leading-relaxed text-white/80">
+                  Solo cuentas institucionales activas.
                 </dd>
               </div>
             </dl>
           </div>
 
-          <p className="mt-10 text-xs font-semibold uppercase tracking-[0.22em] text-white/50 lg:mt-0">
+          <p className="mt-10 hidden flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold uppercase tracking-[0.22em] text-white/60 lg:mt-0 lg:flex">
+            <span aria-hidden="true" className="h-px w-8 bg-gold/80" />
             Gestor de Semilleros Universitarios
           </p>
         </div>
@@ -117,9 +127,12 @@ export function LoginPage({ onSubmit, onGoogle, pending, error }: LoginPageProps
           className="w-full max-w-md rounded-xl border border-navy/10 bg-white p-6 shadow-card sm:p-10"
         >
           <div className="mb-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-navy/60">
+              Acceso institucional
+            </p>
             <h2
               id="login-heading"
-              className="text-2xl font-extrabold tracking-tight text-navy sm:text-3xl"
+              className="mt-2 text-2xl font-extrabold tracking-tight text-navy sm:text-3xl"
             >
               Iniciar sesión
             </h2>
@@ -194,7 +207,7 @@ export function LoginPage({ onSubmit, onGoogle, pending, error }: LoginPageProps
                   aria-pressed={showPassword}
                   aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                   disabled={pending}
-                  className="absolute right-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-navy/70 transition-colors duration-150 hover:bg-canvas hover:text-navy disabled:cursor-not-allowed disabled:text-navy/40"
+                  className="absolute right-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-navy/70 transition-colors duration-150 hover:bg-canvas hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy disabled:cursor-not-allowed disabled:text-navy/40"
                 >
                   {showPassword ? (
                     <EyeOff aria-hidden="true" className="size-5" strokeWidth={1.75} />
@@ -208,11 +221,11 @@ export function LoginPage({ onSubmit, onGoogle, pending, error }: LoginPageProps
             <button
               type="submit"
               disabled={pending}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-gold text-base font-semibold text-navy transition duration-150 hover:brightness-[0.97] hover:shadow-raised active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-none disabled:active:scale-100"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-gold text-base font-semibold text-navy transition duration-150 hover:brightness-[0.97] hover:shadow-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-none disabled:active:scale-100"
             >
               {pending ? (
                 <>
-                  <LoaderCircle aria-hidden="true" className="size-5 animate-spin" />
+                  <LoaderCircle aria-hidden="true" className="size-5 animate-spin motion-reduce:animate-none" />
                   Iniciando sesión…
                 </>
               ) : (

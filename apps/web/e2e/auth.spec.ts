@@ -79,6 +79,13 @@ test.describe('Inicio de sesión con Google', () => {
     expect(url.searchParams.get('scope')).toContain('email');
   });
 
+  test('la página de error de Auth.js devuelve a /login con el mensaje propio', async ({ page }) => {
+    // Auth.js redirige aquí cuando Google autentica un correo sin cuenta activa (`pages.error`).
+    await page.goto('/api/auth/error?error=AccessDenied');
+    await expect(page.getByRole('alert')).toContainText('No hay una cuenta activa registrada con ese correo de Google');
+    await expect(page).toHaveURL(/\/login$/);
+  });
+
   test('muestra un mensaje claro si Auth.js devuelve AccessDenied', async ({ page }) => {
     await page.goto('/login?error=AccessDenied');
     await expect(page.getByRole('alert')).toContainText('No hay una cuenta activa registrada con ese correo de Google');

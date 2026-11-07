@@ -4,33 +4,51 @@ import { LoaderCircle } from 'lucide-react';
 import { AlertMessage } from './AlertMessage';
 import { ApiError } from '../lib/api';
 
-export const inputClassName = 'min-h-12 w-full rounded-lg border border-navy/50 bg-white px-3 py-2 text-base text-navy placeholder:text-navy/70 focus:outline-2 focus:outline-offset-2 focus:outline-navy disabled:cursor-not-allowed disabled:bg-canvas';
+/**
+ * Campo de formulario: altura mínima 48 px, borde navy/50, foco
+ * con outline navy de 2 px. El texto de ayuda usa navy/70 con
+ * negrita en claves (ver DESIGN.md § Componentes).
+ */
+export const inputClassName = 'min-h-12 w-full rounded-lg border border-navy/50 bg-white px-3 py-2 text-base text-navy placeholder:text-navy/70 focus:border-navy focus:outline-2 focus:outline-offset-2 focus:outline-navy disabled:cursor-not-allowed disabled:bg-canvas disabled:text-navy/60';
 
+/**
+ * Botón del sistema: dorado sobre navy para la acción principal,
+ * blanco con borde para la secundaria, rojo solo para el peligro.
+ * Siempre 48 px de alto (objetivo táctil) y foco visible global.
+ */
 export function Button({ variant = 'primary', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' }) {
   const color = variant === 'primary' ? 'border-transparent bg-gold text-navy'
     : variant === 'danger' ? 'border-alert bg-alert text-white'
     : 'border-navy/30 bg-white text-navy';
-  return <button type="button" {...props} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border px-4 py-2 font-semibold transition hover:-translate-y-0.5 active:translate-y-0 disabled:transform-none disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transform-none ${color} ${className}`} />;
+  return <button type="button" {...props} className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border px-4 py-2 text-base font-semibold transition hover:-translate-y-0.5 hover:shadow-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy motion-reduce:transform-none motion-reduce:shadow-none active:translate-y-0 disabled:transform-none disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-none ${color} ${className}`} />;
 }
 
+/**
+ * Campo con etiqueta visible y pista opcional: la etiqueta es el
+ * nombre accesible; la pista se asocia con `aria-describedby`.
+ */
 export function Field({ label, hint, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string }) {
   const generatedId = useId();
   const id = props.id ?? generatedId;
   const description = [props['aria-describedby'], hint ? `${id}-hint` : null].filter(Boolean).join(' ');
   return (
-    <div className="space-y-2">
-      <label htmlFor={id} className="block text-sm font-semibold">{label}</label>
+    <div className="min-w-0 space-y-2">
+      <label htmlFor={id} className="block text-sm font-semibold text-navy">{label}</label>
       <input {...props} id={id} aria-describedby={description || undefined} className={`${inputClassName} ${props.className ?? ''}`} />
       {hint && <p id={`${id}-hint`} className="text-sm leading-relaxed text-navy/70">{hint}</p>}
     </div>
   );
 }
 
-export function PanelCard({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
+/**
+ * Tarjeta de contenido: contenedor blanco sobre beige, borde
+ * navy/10 y sombra sutil. Título H2 en 700 y acción a la derecha.
+ */
+export function PanelCard({ title, children, action, className = '' }: { title: string; children: ReactNode; action?: ReactNode; className?: string }) {
   return (
-    <section className="min-w-0 rounded-xl border border-navy/10 bg-white p-5 shadow-card sm:p-7">
+    <section className={`min-w-0 rounded-xl border border-navy/10 bg-white p-5 shadow-card sm:p-7 ${className}`}>
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h2 className="text-xl font-bold tracking-tight">{title}</h2>
+        <h2 className="min-w-0 flex-1 text-xl font-bold tracking-tight text-navy">{title}</h2>
         {action}
       </header>
       {children}
@@ -38,12 +56,25 @@ export function PanelCard({ title, children, action }: { title: string; children
   );
 }
 
+/**
+ * Estado vacío: borde discontinuo y fondo beige tenue para
+ * distinguirlo de las tarjetas de contenido sin inventar datos.
+ */
 export function EmptyState({ title, description }: { title: string; description: string }) {
-  return <div className="rounded-lg border border-dashed border-navy/30 bg-canvas/50 p-6"><p className="font-semibold">{title}</p><p className="mt-2 text-sm leading-relaxed text-navy/70">{description}</p></div>;
+  return (
+    <div className="min-w-0 rounded-xl border border-dashed border-navy/30 bg-canvas/50 p-5 sm:p-6">
+      <p className="font-semibold text-navy">{title}</p>
+      <p className="mt-2 text-sm leading-relaxed text-navy/70">{description}</p>
+    </div>
+  );
 }
 
+/**
+ * Carga con `role="status"`: el lector anuncia el texto sin mover
+ * el foco. El giro se detiene con `prefers-reduced-motion`.
+ */
 export function LoadingState({ label = 'Cargando información…' }: { label?: string }) {
-  return <p role="status" className="flex items-center gap-3 py-6 text-sm text-navy/70"><LoaderCircle aria-hidden="true" className="size-5 animate-spin motion-reduce:animate-none" />{label}</p>;
+  return <p role="status" className="flex min-w-0 items-center gap-3 py-6 text-sm leading-relaxed text-navy/70"><LoaderCircle aria-hidden="true" className="size-5 shrink-0 animate-spin text-navy motion-reduce:animate-none" />{label}</p>;
 }
 
 export function ErrorNotice({ error }: { error: unknown }) {

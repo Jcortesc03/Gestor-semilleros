@@ -20,7 +20,7 @@ La web consume el [contrato existente](../api/auth.md) de Auth.js. Solicita CSRF
 
 En desarrollo, Vite escucha en `127.0.0.1:5173` y reenvía `/api` a `127.0.0.1:3000`, conservando el encabezado Host. El navegador utiliza un solo origen y el backend conserva sus cookies HttpOnly. No se habilita CORS ni se cambia el backend. El backend debe tener el puerto local 3000 y la configuración de confianza del host que documenta su entorno de desarrollo.
 
-La configuración de producción y su proxy de mismo origen siguen pendientes; el servidor de desarrollo no es una configuración de despliegue. La web conecta correo y contraseña y, si el backend lo habilita (`GET /api/auth/providers`), Google: el botón obtiene el CSRF y envía un formulario real a `POST /api/auth/signin/google` para que Auth.js redirija a Google; al volver, la sesión se comprueba con `/api/me`. Si Auth.js devuelve `?error=AccessDenied` a `/login`, se muestra un mensaje seguro.
+La configuración de producción y su proxy de mismo origen siguen pendientes; el servidor de desarrollo no es una configuración de despliegue. La web conecta correo y contraseña y, si el backend lo habilita (`GET /api/auth/providers`), Google: el botón obtiene el CSRF y envía un formulario real a `POST /api/auth/signin/google` para que Auth.js redirija a Google; al volver, la sesión se comprueba con `/api/me`. El backend configura `pages.error = '/login'`, así que los errores de OAuth (p. ej. `AccessDenied`) vuelven a `/login?error=…` y la web muestra un mensaje seguro.
 
 ## Verificación
 

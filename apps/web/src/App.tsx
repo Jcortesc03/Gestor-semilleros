@@ -107,22 +107,32 @@ export function App() {
   if (session.status !== 'ready') {
     const unavailable = session.status === 'unavailable';
     return (
-      <main className="grid min-h-dvh place-items-center bg-[#F5F2EB] px-6 text-[#151B40]">
-        <section aria-labelledby="session-title" className="w-full max-w-lg rounded-xl border border-[#151B40]/10 bg-white p-8 sm:p-12">
-          <p className="mb-6 text-sm font-semibold">Gestor de Semilleros</p>
-          <h1 id="session-title" className="text-2xl font-bold">
+      <main className="grid min-h-dvh place-items-center overflow-x-clip bg-canvas px-5 py-10 text-navy sm:px-8">
+        <section aria-labelledby="session-title" className="w-full max-w-md overflow-hidden rounded-xl border border-navy/10 bg-white p-6 shadow-card sm:p-10">
+          <div aria-hidden="true" className="hairline-gold -mx-6 -mt-6 mb-8 sm:-mx-10 sm:-mt-10" />
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-navy/60">
+            Gestor de Semilleros Universitarios
+          </p>
+          <h1 id="session-title" className="mt-3 text-2xl font-extrabold tracking-tight text-balance sm:text-3xl">
             {unavailable ? 'No podemos conectar con la aplicación' : 'Estamos verificando tu sesión'}
           </h1>
-          <p className="mt-4 leading-relaxed" role={unavailable ? 'alert' : 'status'}>
-            {unavailable
-              ? 'El servicio no está disponible en este momento. Tu sesión no se ha modificado.'
-              : 'Un momento, por favor.'}
+          <p className="mt-4 flex items-start gap-3 text-base leading-relaxed text-navy/70" role={unavailable ? 'alert' : 'status'}>
+            {unavailable ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-alert"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-0.5 size-5 shrink-0 animate-spin text-navy motion-reduce:animate-none"><path d="M21 12a9 9 0 1 1-6.2-8.56" /></svg>
+            )}
+            <span>
+              {unavailable
+                ? 'El servicio no está disponible en este momento. Tu sesión no se ha modificado.'
+                : 'Un momento, por favor.'}
+            </span>
           </p>
           {unavailable && (
             <button
               type="button"
               onClick={() => setAttempt((value) => value + 1)}
-              className="mt-8 min-h-12 rounded-lg bg-[#F3B92F] px-6 font-semibold transition hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#151B40] motion-reduce:transform-none"
+              className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-gold px-6 text-base font-semibold text-navy transition hover:brightness-[0.97] hover:shadow-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy active:scale-[0.985] sm:w-auto"
             >
               Reintentar conexión
             </button>

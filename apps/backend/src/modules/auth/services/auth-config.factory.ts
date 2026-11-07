@@ -12,6 +12,9 @@ export const AUTH_BASE_PATH = '/api/auth';
 export const AUTH_CONFIG = Symbol('AUTH_CONFIG');
 
 /** Errores esperados en el uso normal (credenciales erróneas, CSRF ausente…). */
+/** Ruta de la web que muestra los errores de inicio de sesión (apps/web lee `?error=`). */
+export const AUTH_ERROR_PAGE = '/login';
+
 const EXPECTED_AUTH_ERRORS = new Set(['CredentialsSignin', 'MissingCSRF', 'AccessDenied']);
 const logger = new Logger('Auth');
 
@@ -40,6 +43,9 @@ export function createAuthConfig(env: AppEnv, auth: AuthService): ExpressAuthCon
 
   return {
     basePath: AUTH_BASE_PATH,
+    // Los errores de OAuth (p. ej. AccessDenied con Google) vuelven a la web con `?error=`
+    // en lugar de la página de error propia de Auth.js. El fallo de credenciales no cambia.
+    pages: { error: AUTH_ERROR_PAGE },
     secret: env.authSecret,
     trustHost: env.authTrustHost,
     session: { strategy: 'jwt', maxAge: env.sessionMaxAge },

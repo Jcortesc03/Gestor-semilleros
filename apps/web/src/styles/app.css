@@ -7,7 +7,9 @@
 
 /**
  * Tema de Tailwind 4: Montserrat como única familia y los seis
- * colores exactos de la guía del proyecto.
+ * colores exactos de la guía del proyecto. Sin otras familias ni
+ * paletas. Las utilidades `bg-canvas`, `text-navy`, `bg-gold`,
+ * etc. resuelven contra estos valores.
  */
 @theme {
   --font-sans: "Montserrat", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -28,11 +30,13 @@
 @layer base {
   html {
     scroll-behavior: auto;
+    overflow-x: clip;
   }
 
   body {
     @apply bg-canvas font-sans text-navy antialiased;
     text-rendering: optimizeLegibility;
+    overflow-x: clip;
   }
 
   code, kbd, pre, samp {
@@ -41,13 +45,20 @@
 
   /* Foco de teclado siempre visible: anillo azul sobre fondos claros. */
   :focus-visible {
-    outline: 2px solid var(--color-navy);
+    outline: var(--focus-ring);
     outline-offset: 2px;
   }
 
-  /* Sobre fondos oscuros el anillo paso a dorado (contraste AA). */
+  /* Sobre fondos oscuros el anillo pasa a dorado (contraste AA sobre navy). */
   .on-dark :focus-visible {
-    outline-color: var(--color-gold);
+    outline: var(--focus-ring-dark);
+  }
+
+  /* Los campos usan su propio anillo dorado y no heredan el outline doble. */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
   }
 
   ::selection {
@@ -58,8 +69,9 @@
 
 @layer components {
   /**
-   * Textura sutil de puntos para las áreas de marca sobre azul marino.
-   * Decorativa: nunca lleva contenido.
+   * Textura sutil de puntos dorados para áreas de marca sobre azul marino.
+   * Decorativa (`aria-hidden` en el marcado): nunca lleva contenido
+   * ni se aplica sobre formularios o texto.
    */
   .texture-dots {
     background-image: radial-gradient(rgb(243 185 47 / 0.22) 1.5px, transparent 1.5px);
@@ -69,6 +81,12 @@
   .texture-dots-light {
     background-image: radial-gradient(rgb(21 27 64 / 0.10) 1.5px, transparent 1.5px);
     background-size: 22px 22px;
+  }
+
+  /** Filete fino dorado para separar el encabezado editorial del sistema. */
+  .hairline-gold {
+    background: linear-gradient(to right, var(--color-gold) 0 3rem, rgb(243 185 47 / 0.25) 3rem 100%);
+    height: 2px;
   }
 }
 

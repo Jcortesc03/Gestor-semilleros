@@ -24,7 +24,7 @@ Para arrancar únicamente la web: `pnpm --filter @gestor-semilleros/web dev`. Si
 - La sesión se comprueba al cargar la aplicación. Los permisos reales siempre corresponden al backend, no a ocultar controles.
 - **Google:** el botón «Continuar con Google» aparece solo si `GET /api/auth/providers` incluye `google` (backend con `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`). Envía un formulario real a `/api/auth/signin/google` con el CSRF y `callbackUrl=/panel`.
 - **URI de redirección en Google Cloud:** a través del proxy de Vite, Auth.js construye la URI con el origen de la web, no con el del backend. Registra en la consola de Google la URI exacta con la que abras la app, p. ej. `http://localhost:5173/api/auth/callback/google` y/o `http://127.0.0.1:5173/api/auth/callback/google`, además de la del backend.
-- Si el correo de Google no corresponde a un usuario activo, Auth.js responde `AccessDenied`. Sin `pages.error` configurado en el backend, el navegador termina en la página de error propia de Auth.js; la web solo muestra su mensaje cuando llega a `/login?error=AccessDenied`.
+- Si el correo de Google no corresponde a un usuario activo, Auth.js responde `AccessDenied` y, por `pages.error` del backend, redirige a `/login?error=AccessDenied`, donde la web muestra un mensaje seguro y limpia la URL.
 
 El despliegue deberá resolver el mismo origen para `/api` y el fallback de las rutas `/login` y `/panel`. La configuración de desarrollo no define ni autoriza infraestructura de producción.
 
@@ -51,7 +51,7 @@ pnpm --filter @gestor-semilleros/web exec playwright install chromium   # una ve
 pnpm --filter @gestor-semilleros/web test:e2e
 ```
 
-Playwright compila y levanta el backend en el puerto 3000 y Vite en el 5173 (ambos deben estar libres). Usa la base aislada `semilleros_web_e2e_test`, le aplica migraciones y la seed de desarrollo con la contraseña sintética de `e2e/backend-env.ts`; no toca la base de desarrollo. Cubre: login correcto, recarga con sesión, cierre de sesión, contraseña incorrecta, cuenta inexistente, secciones del administrador, redirección de Google (interceptada, sin contactar a Google) y el mensaje de `AccessDenied`. El inicio de sesión completo con una cuenta real de Google solo puede probarse a mano.
+Playwright compila y levanta el backend en el puerto 3000 y Vite en el 5173 (ambos deben estar libres). Usa la base aislada `semilleros_web_e2e_test`, le aplica migraciones y la seed de desarrollo con la contraseña sintética de `e2e/backend-env.ts`; no toca la base de desarrollo. Cubre: login correcto, recarga con sesión, cierre de sesión, contraseña incorrecta, cuenta inexistente, secciones del administrador, redirección de Google (interceptada, sin contactar a Google) y el mensaje de `AccessDenied` (también pasando por la página de error real de Auth.js). El inicio de sesión completo con una cuenta real de Google solo puede probarse a mano.
 
 Para una revisión de navegador aislada del backend:
 
