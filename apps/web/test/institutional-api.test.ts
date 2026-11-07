@@ -10,6 +10,7 @@ import {
   removeAnnouncement,
   updateNotificationPreferences,
   createAnnouncement,
+  listProjectsForAudience,
   whatsappQrUrl,
 } from '../src/features/institutional/api.ts';
 
@@ -96,4 +97,31 @@ test('parses the builderbot QR state and exposes the QR image only through its P
   assert.equal(status.transport, 'builderbot');
   assert.equal(whatsappQrUrl(status.transport === 'builderbot' ? status.updatedAt : undefined), '/api/integrations/whatsapp/qr?v=2026-11-06T12%3A00%3A00.000Z');
   assert.equal(whatsappQrUrl(), '/api/integrations/whatsapp/qr');
+});
+
+test('tutors use GET /api/projects/tutored without querying members of each project', async () => {
+  const routes: Record<string, unknown> = {
+    '/api/projects/tutored': [{ id: 'p-1', title: 'Uno', status: 'ACTIVE', isPrimaryTutor: true }],
+  };
+  const paths: string[] = [];
+  const request = async (path: string) => { paths.push(path); return routes[path]; };
+  assert.deepEqual(await listProjectsForAudience(request, { visible: false, tutored: true }), [{ id: 'p-1', title: 'Uno' }]);
+  assert.deepEqual(paths, ['/api/projects/tutored']);
+});
+
+test('admins and deans use every visible project from GET /api/projects', async () => {
+  const mock = mockApiRequest([{ id: 'p-1', title: 'Uno' }, { id: 'p-2', title: 'Dos' }]);
+  assert.deepEqual(await listProjectsForAudience(mock.request, { visible: true, tutored: false }), [{ id: 'p-1', title: 'Uno' }, { id: 'p-2', title: 'Dos' }]);
+  assert.deepEqual(mock.calls.map((call) => call.path), ['/api/projects']);
+});
+
+test('a dean who is also a tutor merges both sources without duplicates', async () => {
+  const routes: Record<string, unknown> = {
+    '/api/projects': [{ id: 'p-1', title: 'Uno' }, { id: 'p-2', title: 'Dos' }],
+    '/api/projects/tutored': [{ id: 'p-2', title: 'Dos', status: 'ACTIVE', isPrimaryTutor: false }, { id: 'p-3', title: 'Tres', status: 'ACTIVE', isPrimaryTutor: true }],
+  };
+  const request = async (path: string) => routes[path];
+  assert.deepEqual(await listProjectsForAudience(request, { visible: true, tutored: true }), [
+    { id: 'p-1', title: 'Uno' }, { id: 'p-2', title: 'Dos' }, { id: 'p-3', title: 'Tres' },
+  ]);
 });

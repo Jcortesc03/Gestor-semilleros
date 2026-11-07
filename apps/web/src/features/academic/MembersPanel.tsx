@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Users } from 'lucide-react';
-import { Button, EmptyState, Field, PanelCard, inputClassName } from '../../components/WorkspaceUi.tsx';
+import { Button, EmptyState, PanelCard, inputClassName } from '../../components/WorkspaceUi.tsx';
+import type { ApiRequest } from '../../types/api.ts';
+import { UserPicker } from '../directory/index.ts';
+import type { DirectoryUser } from '../directory/index.ts';
 import type { Member, ProjectRole } from './api.ts';
 import { PROJECT_ROLE_LABELS } from './labels.ts';
 
 interface MembersPanelProps {
+  request: ApiRequest;
   members: Member[];
   canManageTutors: boolean;
   canManageStudents: boolean;
@@ -16,28 +20,37 @@ interface MembersPanelProps {
   onToggleLeader: (member: Member) => void;
 }
 
-export function MembersPanel({ members, canManageTutors, canManageStudents, busy, onAdd, onRemove, onTogglePrimary, onToggleLeader }: MembersPanelProps) {
-  const [userId, setUserId] = useState('');
+export function MembersPanel({ request, members, canManageTutors, canManageStudents, busy, onAdd, onRemove, onTogglePrimary, onToggleLeader }: MembersPanelProps) {
+  const [picked, setPicked] = useState<DirectoryUser | null>(null);
   const [role, setRole] = useState<ProjectRole>('STUDENT');
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (await onAdd(userId.trim(), role)) setUserId('');
+    if (picked && await onAdd(picked.id, role)) setPicked(null);
   };
 
   return (
     <PanelCard title="Participantes" action={<Users aria-hidden="true" className="size-5 text-gold" />}>
       {canManageStudents && (
         <form className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" onSubmit={(event) => void submit(event)}>
-          <Field label="UUID del usuario" hint="Aún no hay buscador de usuarios." value={userId} onChange={(event) => setUserId(event.target.value)} required />
+          <UserPicker
+            request={request}
+            label="Persona a añadir"
+            role={role === 'TUTOR' ? 'TUTOR' : 'STUDENT'}
+            excludeIds={members.map((item) => item.user.id)}
+            selected={picked}
+            onSelect={setPicked}
+            onClear={() => setPicked(null)}
+            disabled={busy}
+          />
           <label className="block space-y-2 text-sm font-semibold">Rol en el proyecto
-            <select className={inputClassName} value={role} onChange={(event) => setRole(event.target.value as ProjectRole)}>
+            <select className={inputClassName} value={role} onChange={(event) => { setRole(event.target.value as ProjectRole); setPicked(null); }}>
               <option value="STUDENT">{PROJECT_ROLE_LABELS.STUDENT}</option>
               <option value="STUDENT_LEADER">{PROJECT_ROLE_LABELS.STUDENT_LEADER}</option>
               {canManageTutors && <option value="TUTOR">{PROJECT_ROLE_LABELS.TUTOR}</option>}
             </select>
           </label>
-          <Button type="submit" disabled={busy}>Añadir participante</Button>
+          <Button type="submit" disabled={busy || !picked}>Añadir participante</Button>
         </form>
       )}
       {members.length === 0 ? (

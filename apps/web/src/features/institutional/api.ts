@@ -194,3 +194,26 @@ export async function updateNotificationPreferences(request: ApiRequest, body: N
 export async function getWhatsAppStatus(request: ApiRequest): Promise<WhatsAppStatus> {
   return parseWhatsAppStatus(await request('/api/integrations/whatsapp/status'));
 }
+
+/** Proyecto elegible como destino de una novedad de tipo PROJECT (ADR 0010, sec. 8). */
+export interface PublishableProject { id: string; title: string }
+
+function parsePublishableProject(value: unknown): PublishableProject {
+  if (!isRecord(value) || typeof value.id !== 'string' || typeof value.title !== 'string') throw new ApiError(0);
+  return { id: value.id, title: value.title };
+}
+
+/**
+ * Proyectos destinatarios (docs/api/projects.md): `GET /api/projects` para administradores y decanos, y
+ * `GET /api/projects/tutored` para tutores (proyectos donde son tutor `ACTIVE`). Si se piden ambas fuentes se
+ * unen sin duplicados, conservando el orden de la primera. El servidor valida cada destino al publicar.
+ */
+export async function listProjectsForAudience(
+  request: ApiRequest,
+  sources: { visible: boolean; tutored: boolean },
+): Promise<PublishableProject[]> {
+  const visible = sources.visible ? parseArray(await request('/api/projects'), parsePublishableProject) : [];
+  const tutored = sources.tutored ? parseArray(await request('/api/projects/tutored'), parsePublishableProject) : [];
+  const seen = new Set(visible.map((item) => item.id));
+  return [...visible, ...tutored.filter((item) => !seen.has(item.id))];
+}

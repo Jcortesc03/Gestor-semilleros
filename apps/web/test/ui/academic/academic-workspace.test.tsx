@@ -66,6 +66,8 @@ describe('AcademicWorkspace', () => {
     let list: unknown[] = [p1];
     const request = fakeRequest({
       'GET /api/projects': () => list,
+      'GET /api/areas': () => [{ id: uuid(1), name: 'Área de prueba', description: null }],
+      'GET /api/faculties': () => [{ id: uuid(2), name: 'Ingeniería' }, { id: uuid(3), name: 'Ciencias' }],
       'POST /api/projects': () => { list = [created, p1]; return created; },
       ...projectRoutes(p1.id, []),
       ...projectRoutes(created.id, []),
@@ -74,16 +76,54 @@ describe('AcademicWorkspace', () => {
     await screen.findByRole('button', { name: /Semillero de robótica/ });
 
     await userEvent.type(screen.getByLabelText('Título del nuevo proyecto'), '  Semillero nuevo ');
-    await userEvent.type(screen.getByLabelText('UUID del área'), uuid(1));
-    await userEvent.type(screen.getByLabelText('UUID de la facultad'), uuid(2));
+    expect(screen.getByRole('button', { name: 'Crear proyecto' })).toBeDisabled();
+    await screen.findByRole('option', { name: 'Área de prueba' });
+    await userEvent.selectOptions(screen.getByLabelText('Área del nuevo proyecto'), uuid(1));
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Ingeniería' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Ciencias' }));
     await userEvent.click(screen.getByRole('button', { name: 'Crear proyecto' }));
 
     await waitFor(() => expect(request).toHaveBeenCalledWith('/api/projects', {
-      method: 'POST', body: { title: 'Semillero nuevo', areaId: uuid(1), facultyIds: [uuid(2)] },
+      method: 'POST', body: { title: 'Semillero nuevo', areaId: uuid(1), facultyIds: [uuid(2), uuid(3)] },
     }));
     const button = await screen.findByRole('button', { name: /Semillero nuevo/ });
     expect(button).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByLabelText('Título del nuevo proyecto')).toHaveValue('');
+  });
+
+  it('añade un participante buscándolo en el directorio, sin escribir UUID', async () => {
+    const found = { id: uuid(60), fullName: 'Ana Estudiante', email: 'ana@example.test', roles: ['STUDENT'] };
+    const request = fakeRequest({
+      'GET /api/projects': () => [p1],
+      ...projectRoutes(p1.id, []),
+      'GET /api/users?search=ana&role=STUDENT': () => [found],
+      [`POST /api/projects/${p1.id}/members`]: () => makeMember(60, 'Ana Estudiante', 'STUDENT'),
+    });
+    render(<AcademicWorkspace user={admin} request={request} />);
+    await screen.findByText('Participantes');
+
+    expect(screen.queryByLabelText(/UUID/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Añadir participante' })).toBeDisabled();
+    await userEvent.type(screen.getByRole('combobox', { name: 'Persona a añadir' }), 'ana');
+    await userEvent.click(await screen.findByRole('option', { name: /Ana Estudiante/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Añadir participante' }));
+
+    await waitFor(() => expect(request).toHaveBeenCalledWith(`/api/projects/${p1.id}/members`, {
+      method: 'POST', body: { userId: uuid(60), projectRole: 'STUDENT' },
+    }));
+  });
+
+  it('filtra por rol TUTOR al añadir un tutor', async () => {
+    const request = fakeRequest({
+      'GET /api/projects': () => [p1],
+      ...projectRoutes(p1.id, []),
+      'GET /api/users?search=tu&role=TUTOR': () => [],
+    });
+    render(<AcademicWorkspace user={admin} request={request} />);
+    await screen.findByText('Participantes');
+    await userEvent.selectOptions(screen.getByLabelText('Rol en el proyecto'), 'TUTOR');
+    await userEvent.type(screen.getByRole('combobox', { name: 'Persona a añadir' }), 'tu');
+    await waitFor(() => expect(request).toHaveBeenCalledWith('/api/users?search=tu&role=TUTOR'));
   });
 
   it('un estudiante no ve formularios de gestión', async () => {

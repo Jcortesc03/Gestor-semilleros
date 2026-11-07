@@ -42,6 +42,8 @@ export function AcademicWorkspace({ user, request }: AcademicWorkspaceProps) {
 
       {canCreateProject(user) && (
         <CreateProjectForm
+          request={request}
+          user={user}
           busy={busy}
           onCreate={async (values) => {
             let createdId = '';
@@ -50,8 +52,8 @@ export function AcademicWorkspace({ user, request }: AcademicWorkspaceProps) {
                 const created = await api.createProject(request, {
                   title: values.title.trim(),
                   ...(values.description.trim() ? { description: values.description.trim() } : {}),
-                  areaId: values.areaId.trim(),
-                  facultyIds: [values.facultyId.trim()],
+                  areaId: values.areaId,
+                  facultyIds: values.facultyIds,
                 });
                 createdId = created.id;
               },
@@ -75,6 +77,8 @@ export function AcademicWorkspace({ user, request }: AcademicWorkspaceProps) {
         <>
           <ProjectDetail
             key={project.id}
+            request={request}
+            user={user}
             project={project}
             canManage={can.manageProject}
             busy={busy}
@@ -95,6 +99,7 @@ export function AcademicWorkspace({ user, request }: AcademicWorkspaceProps) {
             <>
               <div className="grid gap-6 xl:grid-cols-2">
                 <MembersPanel
+                  request={request}
                   members={members}
                   canManageTutors={can.manageTutors}
                   canManageStudents={can.manageStudents}

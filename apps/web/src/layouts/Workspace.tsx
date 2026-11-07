@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, CalendarClock, LayoutDashboard, LogOut, Megaphone, Menu, MessageCircle, Settings, Users, X } from 'lucide-react';
+import { BookOpen, Building2, CalendarClock, LayoutDashboard, LogOut, Megaphone, Menu, MessageCircle, Settings, Users, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { CurrentUser } from '../types/auth';
 import { createApiRequest } from '../lib/api';
 import { roleLabel } from '../lib/roles';
 import { BrandMark } from '../components/BrandMark';
 import { AlertMessage } from '../components/AlertMessage';
-import { Button, EmptyState, PanelCard } from '../components/WorkspaceUi';
+import { Button, PanelCard } from '../components/WorkspaceUi';
 import { AcademicWorkspace } from '../features/academic';
+import { DashboardWorkspace } from '../features/dashboard';
+import { InstitutionWorkspace } from '../features/institution';
 import { InstitutionalWorkspace } from '../features/institutional';
 import { MeetingsWorkspace } from '../features/meetings';
 import type { InstitutionalSection } from '../features/institutional';
 
-type Page = 'account' | 'academic' | 'meetings' | InstitutionalSection;
+type Page = 'account' | 'academic' | 'meetings' | 'institution' | InstitutionalSection;
 interface NavigationItem { key: Page; label: string; icon: LucideIcon }
 interface WorkspaceProps {
   user: CurrentUser;
@@ -45,12 +47,13 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
   }), [onExpired]);
 
   const navigation = useMemo<NavigationItem[]>(() => {
-    const items: NavigationItem[] = [{ key: 'account', label: 'Mi cuenta', icon: LayoutDashboard }];
-    if (user.roles.some((role) => ['ADMIN', 'DEAN', 'TUTOR', 'STUDENT'].includes(role))) {
+    const items: NavigationItem[] = [{ key: 'account', label: 'Mi panel', icon: LayoutDashboard }];
+    if (user.roles.some((role) => ['ADMIN', 'AREA_MANAGER', 'DEAN', 'TUTOR', 'STUDENT'].includes(role))) {
       items.push({ key: 'academic', label: 'Proyectos y actividades', icon: BookOpen });
     }
     // GET /api/meetings admite cualquier sesión válida (docs/api/meetings.md).
     items.push({ key: 'meetings', label: 'Reuniones', icon: CalendarClock });
+    if (user.roles.some((role) => role === 'ADMIN' || role === 'AREA_MANAGER')) items.push({ key: 'institution', label: 'Áreas y facultades', icon: Building2 });
     if (user.roles.includes('ADMIN')) items.push({ key: 'users', label: 'Crear usuarios', icon: Users });
     items.push({ key: 'announcements', label: 'Novedades', icon: Megaphone });
     items.push({ key: 'preferences', label: 'Mis notificaciones', icon: Settings });
@@ -79,6 +82,11 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
     setPage(next);
     window.location.hash = next;
     setMenuOpen(false);
+  }
+
+  function goTo(key: string) {
+    const target = navigation.find((item) => item.key === key);
+    if (target) navigate(target.key);
   }
 
   function renderNavigation() {
@@ -113,7 +121,7 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
     </>;
   }
 
-  const title = navigation.find((item) => item.key === page)?.label ?? 'Mi cuenta';
+  const title = navigation.find((item) => item.key === page)?.label ?? 'Mi panel';
   return (
     <div className="min-h-dvh overflow-x-clip bg-canvas text-navy lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
       <aside className="on-dark relative hidden h-dvh flex-col gap-5 overflow-hidden bg-navy p-6 text-white lg:flex">
@@ -138,21 +146,19 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
           </div>
           {error && <AlertMessage message={error} />}
           {page === 'account' ? <>
+            <DashboardWorkspace user={user} request={request} onNavigate={goTo} />
             <PanelCard title={`Hola, ${user.fullName}`} action={<Button variant="secondary" onClick={onRefresh}>Actualizar cuenta</Button>}>
               <dl className="grid gap-6 sm:grid-cols-2">
                 <div className="min-w-0"><dt className="text-sm text-navy/70">Correo electrónico</dt><dd className="mt-1 break-all font-semibold text-navy">{user.email}</dd></div>
                 <div className="min-w-0"><dt className="text-sm text-navy/70">Roles asignados</dt><dd className="mt-1 font-semibold text-navy">{user.roles.map(roleLabel).join(' · ') || 'Sin roles asignados'}</dd></div>
               </dl>
-              <p className="mt-6 max-w-2xl text-sm leading-relaxed text-navy/70">Los accesos corresponden a los roles de tu cuenta. El servidor comprueba los permisos y el alcance de cada operación.</p>
             </PanelCard>
-            <PanelCard title="Funciones disponibles">
-              <div className="grid gap-3 sm:grid-cols-2">{navigation.filter((item) => item.key !== 'account').map(({ key, label, icon: Icon }) => <button key={key} type="button" onClick={() => navigate(key)} className="flex min-h-20 min-w-0 items-center gap-4 rounded-xl border border-navy/15 bg-white p-4 text-left font-semibold text-navy transition hover:-translate-y-0.5 hover:border-navy/40 hover:shadow-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy motion-reduce:transform-none motion-reduce:shadow-none"><span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-full bg-gold/20 text-navy"><Icon aria-hidden="true" className="size-5" strokeWidth={1.75} /></span><span className="min-w-0">{label}</span></button>)}</div>
-            </PanelCard>
-            <EmptyState title="Módulos pendientes" description="La gestión de áreas y facultades, documentos, recordatorios y métricas todavía no dispone de API. No se muestran operaciones ficticias para esos módulos." />
           </> : page === 'academic'
             ? <AcademicWorkspace user={user} request={request} />
             : page === 'meetings'
             ? <MeetingsWorkspace user={user} request={request} />
+            : page === 'institution'
+            ? <InstitutionWorkspace user={user} request={request} />
             : <InstitutionalWorkspace user={user} request={request} section={page} />}
         </main>
       </div>

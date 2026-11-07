@@ -12,7 +12,8 @@ export function AnnouncementsSection({ user, request }: { user: CurrentUser; req
   const [items, setItems] = useState<Announcement[] | null>(null);
   const [loadError, setLoadError] = useState<unknown>();
   const [reloadToken, setReloadToken] = useState(0);
-  const canPublish = hasRole(user, 'ADMIN', 'AREA_MANAGER', 'DEAN');
+  // ADR 0010 sec. 8: cada rol publica dentro de su alcance; el formulario decide las audiencias.
+  const canPublish = hasRole(user, 'ADMIN', 'AREA_MANAGER', 'DEAN', 'TUTOR');
 
   useEffect(() => {
     // Cada ejecución del efecto tiene su propia bandera: con StrictMode la limpieza de la

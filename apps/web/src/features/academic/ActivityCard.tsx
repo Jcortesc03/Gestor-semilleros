@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Archive, Link as LinkIcon, X } from 'lucide-react';
 import { Button, Field, inputClassName } from '../../components/WorkspaceUi.tsx';
@@ -35,6 +35,8 @@ export function ActivityCard({ activity, students, currentUserId, canManage, can
   const canLinks = canManage || isAssignee;
   const assignedIds = new Set(activity.assignees.map((item) => item.user.id));
   const candidates = students.filter((item) => !assignedIds.has(item.user.id));
+  const canDecide = activity.progressStatus === 'DONE';
+  const approvalHintId = useId();
 
   const assign = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -71,10 +73,18 @@ export function ActivityCard({ activity, students, currentUserId, canManage, can
           )}
           {canReview && (
             <>
-              <select aria-label={`Aprobación de ${activity.title}`} className={selectClassName} disabled={busy} value={activity.approvalStatus}
+              <select aria-label={`Aprobación de ${activity.title}`} aria-describedby={canDecide ? undefined : approvalHintId} className={selectClassName} disabled={busy} value={activity.approvalStatus}
                 onChange={(event) => actions.onApproval(activity, event.target.value as ApprovalStatus)}>
-                {(Object.keys(APPROVAL_LABELS) as ApprovalStatus[]).map((value) => <option key={value} value={value}>{APPROVAL_LABELS[value]}</option>)}
+                {(Object.keys(APPROVAL_LABELS) as ApprovalStatus[]).map((value) => (
+                  // ADR 0010 sec. 5: aprobar o rechazar exige progreso DONE; reiniciar a PENDING siempre es posible.
+                  <option key={value} value={value} disabled={value !== 'PENDING' && !canDecide}>{APPROVAL_LABELS[value]}</option>
+                ))}
               </select>
+              {!canDecide && (
+                <p id={approvalHintId} className="w-full text-xs font-semibold text-navy/70">
+                  Solo se puede aprobar o rechazar una actividad terminada (progreso Terminada).
+                </p>
+              )}
               <select aria-label={`Resultado de ${activity.title}`} className={selectClassName} disabled={busy} value={activity.result ?? ''}
                 onChange={(event) => actions.onResult(activity, event.target.value === '' ? null : event.target.value as ResultStatus)}>
                 <option value="">Sin resultado</option>

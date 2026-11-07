@@ -2,16 +2,19 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Plus } from 'lucide-react';
 import { Button, Field, PanelCard } from '../../components/WorkspaceUi.tsx';
+import type { ApiRequest } from '../../types/api.ts';
+import type { CurrentUser } from '../../types/auth.ts';
+import { AreaSelect, FacultyMultiSelect, areaScopeFor, facultyScopeFor } from '../directory/index.ts';
 
-export interface NewProjectValues { title: string; description: string; areaId: string; facultyId: string }
+export interface NewProjectValues { title: string; description: string; areaId: string; facultyIds: string[] }
 
-interface CreateProjectFormProps { busy: boolean; onCreate: (values: NewProjectValues) => Promise<boolean> }
+interface CreateProjectFormProps { request: ApiRequest; user: CurrentUser; busy: boolean; onCreate: (values: NewProjectValues) => Promise<boolean> }
 
-const EMPTY: NewProjectValues = { title: '', description: '', areaId: '', facultyId: '' };
+const EMPTY: NewProjectValues = { title: '', description: '', areaId: '', facultyIds: [] };
 
-export function CreateProjectForm({ busy, onCreate }: CreateProjectFormProps) {
+export function CreateProjectForm({ request, user, busy, onCreate }: CreateProjectFormProps) {
   const [values, setValues] = useState<NewProjectValues>(EMPTY);
-  const set = (key: keyof NewProjectValues) => (value: string) => setValues((current) => ({ ...current, [key]: value }));
+  const set = <K extends keyof NewProjectValues>(key: K) => (value: NewProjectValues[K]) => setValues((current) => ({ ...current, [key]: value }));
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -23,9 +26,9 @@ export function CreateProjectForm({ busy, onCreate }: CreateProjectFormProps) {
       <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event)}>
         <Field label="Título del nuevo proyecto" value={values.title} maxLength={200} onChange={(event) => set('title')(event.target.value)} required />
         <Field label="Descripción del nuevo proyecto" value={values.description} onChange={(event) => set('description')(event.target.value)} />
-        <Field label="UUID del área" hint="Aún no hay catálogo de áreas disponible." value={values.areaId} onChange={(event) => set('areaId')(event.target.value)} required />
-        <Field label="UUID de la facultad" hint="Aún no hay catálogo de facultades disponible." value={values.facultyId} onChange={(event) => set('facultyId')(event.target.value)} required />
-        <div className="md:col-span-2"><Button type="submit" disabled={busy}>Crear proyecto</Button></div>
+        <AreaSelect request={request} label="Área del nuevo proyecto" value={values.areaId} onChange={set('areaId')} required scope={areaScopeFor(user.roles)} />
+        <FacultyMultiSelect request={request} label="Facultades del nuevo proyecto" value={values.facultyIds} onChange={set('facultyIds')} scope={facultyScopeFor(user.roles)} />
+        <div className="md:col-span-2"><Button type="submit" disabled={busy || !values.areaId || values.facultyIds.length === 0}>Crear proyecto</Button></div>
       </form>
     </PanelCard>
   );

@@ -2,12 +2,17 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Archive, Pencil } from 'lucide-react';
 import { Button, Field, PanelCard, formatDate, inputClassName } from '../../components/WorkspaceUi.tsx';
+import type { ApiRequest } from '../../types/api.ts';
+import type { CurrentUser } from '../../types/auth.ts';
+import { AreaSelect, FacultyMultiSelect, areaScopeFor, facultyScopeFor } from '../directory/index.ts';
 import type { Project, ProjectStatus } from './api.ts';
 import { PROJECT_STATUS_LABELS } from './labels.ts';
 
-export interface ProjectChanges { title: string; description: string | null; status: ProjectStatus }
+export interface ProjectChanges { title: string; description: string | null; status: ProjectStatus; areaId: string; facultyIds: string[] }
 
 interface ProjectDetailProps {
+  request: ApiRequest;
+  user: CurrentUser;
   project: Project;
   canManage: boolean;
   busy: boolean;
@@ -15,22 +20,26 @@ interface ProjectDetailProps {
   onDelete: () => void;
 }
 
-export function ProjectDetail({ project, canManage, busy, onSave, onDelete }: ProjectDetailProps) {
+export function ProjectDetail({ request, user, project, canManage, busy, onSave, onDelete }: ProjectDetailProps) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(project.title);
   const [description, setDescription] = useState(project.description ?? '');
   const [status, setStatus] = useState<ProjectStatus>(project.status);
+  const [areaId, setAreaId] = useState(project.area.id);
+  const [facultyIds, setFacultyIds] = useState(project.faculties.map((item) => item.id));
 
   const startEditing = () => {
     setTitle(project.title);
     setDescription(project.description ?? '');
     setStatus(project.status);
+    setAreaId(project.area.id);
+    setFacultyIds(project.faculties.map((item) => item.id));
     setEditing((current) => !current);
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const saved = await onSave({ title: title.trim(), description: description.trim() || null, status });
+    const saved = await onSave({ title: title.trim(), description: description.trim() || null, status, areaId, facultyIds });
     if (saved) setEditing(false);
   };
 
@@ -59,8 +68,10 @@ export function ProjectDetail({ project, canManage, busy, onSave, onDelete }: Pr
               {(Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[]).map((value) => <option key={value} value={value}>{PROJECT_STATUS_LABELS[value]}</option>)}
             </select>
           </label>
-          <div className="flex flex-wrap items-end gap-3">
-            <Button type="submit" disabled={busy}>Guardar cambios</Button>
+          <AreaSelect request={request} label="Área del proyecto" value={areaId} onChange={setAreaId} required scope={areaScopeFor(user.roles)} />
+          <FacultyMultiSelect request={request} label="Facultades del proyecto" value={facultyIds} onChange={setFacultyIds} scope={facultyScopeFor(user.roles)} />
+          <div className="flex flex-wrap items-end gap-3 md:col-span-2">
+            <Button type="submit" disabled={busy || !areaId || facultyIds.length === 0}>Guardar cambios</Button>
             <Button type="button" variant="danger" disabled={busy} onClick={onDelete}><Archive aria-hidden="true" className="size-4" />Archivar proyecto</Button>
           </div>
         </form>
