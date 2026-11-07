@@ -7,6 +7,7 @@ import { FORBIDDEN_MESSAGE, PROJECT_NOT_FOUND, ProjectAccessService } from './pr
 type ProyectoSimulado = {
   id: string;
   faculties: Array<{ facultyId: string }>;
+  areaId?: string;
   members: Array<{ projectRole: 'TUTOR' | 'STUDENT' | 'STUDENT_LEADER' }>;
 };
 
@@ -19,17 +20,19 @@ const usuario = (roles: Role[], id = 'usuario-1'): AuthUser => ({
   roles,
 });
 
-function setup({ proyecto = null as ProyectoSimulado | null, decanoCount = 0 } = {}) {
+function setup({ proyecto = null as ProyectoSimulado | null, decanoCount = 0, encargadoCount = 0 } = {}) {
   const findFirst = jest.fn(async () => proyecto);
   const count = jest.fn(async () => decanoCount);
-  const prisma = { project: { findFirst }, facultyDean: { count } };
+  const areaCount = jest.fn(async () => encargadoCount);
+  const prisma = { project: { findFirst }, facultyDean: { count }, areaManager: { count: areaCount } };
   const service = new ProjectAccessService(prisma as unknown as PrismaService);
-  return { service, findFirst, count };
+  return { service, findFirst, count, areaCount };
 }
 
 const proyectoDe = (overrides: Partial<ProyectoSimulado> = {}): ProyectoSimulado => ({
   id: PROYECTO_ID,
   faculties: [{ facultyId: 'facultad-1' }],
+  areaId: 'area-1',
   members: [],
   ...overrides,
 });
@@ -60,6 +63,7 @@ describe('ProjectAccessService.resolve', () => {
       userId: 'usuario-1',
       isAdmin: true,
       isDean: false,
+      isAreaManager: false,
       role: null,
     });
   });
@@ -72,6 +76,7 @@ describe('ProjectAccessService.resolve', () => {
       userId: 'usuario-1',
       isAdmin: false,
       isDean: true,
+      isAreaManager: false,
       role: null,
     });
     expect(count).toHaveBeenCalledWith({
@@ -98,6 +103,7 @@ describe('ProjectAccessService.resolve', () => {
       userId: 'usuario-1',
       isAdmin: false,
       isDean: false,
+      isAreaManager: false,
       role: 'TUTOR',
     });
   });
@@ -110,6 +116,7 @@ describe('ProjectAccessService.resolve', () => {
       userId: 'usuario-1',
       isAdmin: false,
       isDean: false,
+      isAreaManager: false,
       role: 'STUDENT_LEADER',
     });
   });
@@ -120,6 +127,43 @@ describe('ProjectAccessService.resolve', () => {
     await service.resolve(usuario(['TUTOR']), PROYECTO_ID);
 
     expect(count).not.toHaveBeenCalled();
+  });
+});
+
+describe('ProjectAccessService.resolve (encargado de área)', () => {
+  it('marca isAreaManager si el área del proyecto está asignada al usuario', async () => {
+    const { service, areaCount } = setup({ proyecto: proyectoDe(), encargadoCount: 1 });
+
+    await expect(service.resolve(usuario(['AREA_MANAGER']), PROYECTO_ID)).resolves.toEqual({
+      projectId: PROYECTO_ID,
+      userId: 'usuario-1',
+      isAdmin: false,
+      isDean: false,
+      isAreaManager: true,
+      role: null,
+    });
+    expect(areaCount).toHaveBeenCalledWith({ where: { userId: 'usuario-1', areaId: 'area-1' } });
+  });
+
+  it('responde no encontrado si el área no es del encargado', async () => {
+    const { service } = setup({ proyecto: proyectoDe(), encargadoCount: 0 });
+
+    await expect(service.resolve(usuario(['AREA_MANAGER']), PROYECTO_ID)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('suma permisos: decano y encargado del mismo proyecto', async () => {
+    const { service } = setup({ proyecto: proyectoDe(), decanoCount: 1, encargadoCount: 1 });
+
+    const acceso = await service.resolve(usuario(['DEAN', 'AREA_MANAGER']), PROYECTO_ID);
+    expect(acceso).toMatchObject({ isDean: true, isAreaManager: true });
+  });
+
+  it('no consulta areaManager.count si el usuario no tiene el rol AREA_MANAGER', async () => {
+    const { service, areaCount } = setup({ proyecto: proyectoDe({ members: [{ projectRole: 'TUTOR' }] }) });
+
+    await service.resolve(usuario(['TUTOR']), PROYECTO_ID);
+
+    expect(areaCount).not.toHaveBeenCalled();
   });
 });
 

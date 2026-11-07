@@ -9,7 +9,7 @@ Un **tablero** pertenece a un proyecto y tiene un tutor responsable y un estudia
 
 ## Acceso
 
-El acceso al proyecto se resuelve con las mismas reglas que en [`projects.md`](projects.md#acceso-y-visibilidad) (Administrador, Decano vigente de una facultad del proyecto o participante activo).
+El acceso al proyecto se resuelve con las mismas reglas que en [`projects.md`](projects.md#acceso-y-visibilidad) (Administrador, Decano vigente de una facultad del proyecto, Encargado de área del área del proyecto o participante activo).
 
 Si el tablero no existe, está eliminado lógicamente, su proyecto está eliminado o el usuario no puede ver el proyecto, la respuesta es **`404 { message: "Tablero no encontrado." }`**. Para actividades es **`404 { message: "Actividad no encontrada." }`**. Los endpoints que reciben `projectId` (`/api/projects/:projectId/boards`) responden **`404 { message: "Proyecto no encontrado." }`**. Los permisos insuficientes sobre un recurso visible responden **`403 { message: "No tienes permisos para realizar esta acción." }`**.
 
@@ -63,7 +63,7 @@ Solo `manageBoards` (Administrador o Tutor del proyecto).
 | `title` | string | Sí | Se recortan los espacios; entre 1 y 200 caracteres. |
 | `dueDate` | string (`YYYY-MM-DD`) | Sí | Fecha válida. |
 | `responsibleTutorId` | string (UUID) | Sí | Debe ser participante `ACTIVE` con rol de proyecto `TUTOR`. |
-| `responsibleStudentId` | string (UUID) | Sí | Debe ser participante `ACTIVE` con rol `STUDENT` o `STUDENT_LEADER`. |
+| `responsibleStudentId` | string (UUID) | Sí | Debe ser participante `ACTIVE` con rol `STUDENT` o `STUDENT_LEADER`. No tiene que ser el líder. |
 
 El tablero se crea con `progressStatus: PENDING` y `result: null`.
 
@@ -262,7 +262,7 @@ Actualización parcial con permisos **por campo**:
 | `progressStatus` | string | `manageActivities` **o** encargado | `PENDING`, `IN_PROGRESS`, `DONE` o `CANCELLED`. El encargado solo puede usar las tres primeras. |
 | `result` | string \| null | `review` | `SUCCESS`, `FAILURE` o `null` para borrarlo. |
 
-Debe indicarse al menos un campo. Si se envían varios, se exige el permiso de **todos**. Si un encargado envía `progressStatus: CANCELLED` junto con un campo que no puede editar, la petición falla con `403`.
+Si `progressStatus` cambia a un valor distinto de `DONE` y la aprobación era `APPROVED` o `REJECTED`, la aprobación vuelve a `PENDING` y se limpian `approvedBy` y `approvedAt`. Debe indicarse al menos un campo. Si se envían varios, se exige el permiso de **todos**. Si un encargado envía `progressStatus: CANCELLED` junto con un campo que no puede editar, la petición falla con `403`.
 
 | Código | Cuándo | Cuerpo |
 | --- | --- | --- |
@@ -276,7 +276,7 @@ Mensajes de validación adicionales: `progressStatus no es válido. Valores perm
 
 ### `POST /api/activities/:activityId/approval`
 
-Registra la aprobación del tutor (RN-49, P-12). Solo `review` (Administrador o Tutor del proyecto).
+Registra la aprobación del tutor (RN-49, P-12). Solo `review`: Administrador o **cualquier tutor activo** del proyecto.
 
 #### Cuerpo (`application/json`)
 
@@ -287,7 +287,7 @@ Registra la aprobación del tutor (RN-49, P-12). Solo `review` (Administrador o 
 - `PENDING`: reinicia la aprobación; deja `approvedBy` y `approvedAt` en `null`.
 - `APPROVED` o `REJECTED`: guarda el usuario actual en `approvedBy` y la fecha actual en `approvedAt`.
 
-Solo se conserva el estado actual: **no hay historial ni observaciones**. La aprobación es independiente del progreso; no se exige que la actividad esté `DONE`.
+Solo se conserva el estado actual: **no hay historial ni observaciones**. **Aprobar o rechazar exige que la actividad tenga `progressStatus: DONE`** (ADR 0010, sec. 5). Si una actividad `APPROVED` o `REJECTED` cambia a un progreso distinto de `DONE` (por `PATCH /api/activities/:activityId`), su aprobación vuelve a `PENDING` y se limpian `approvedBy` y `approvedAt` en la misma escritura. Reiniciar a `PENDING` siempre es posible.
 
 ```json
 { "status": "APPROVED" }
@@ -300,6 +300,7 @@ Solo se conserva el estado actual: **no hay historial ni observaciones**. La apr
 | `401` | Sin sesión o sesión expirada | `{ message: "Sesión no válida o expirada." }` |
 | `403` | No es Administrador ni Tutor del proyecto | `{ message: "No tienes permisos para realizar esta acción." }` |
 | `404` | Actividad no visible | `{ message: "Actividad no encontrada." }` |
+| `409` | `APPROVED`/`REJECTED` con progreso distinto de `DONE` | `{ message: "Solo se puede aprobar o rechazar una actividad con progreso Terminada (DONE)." }` |
 
 Mensajes de validación exactos: `status es obligatorio.`, `status no es válido. Valores permitidos: PENDING, APPROVED, REJECTED.`
 

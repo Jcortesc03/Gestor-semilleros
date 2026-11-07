@@ -4,7 +4,7 @@
 > Autenticación: [`auth.md`](auth.md). Tableros y actividades: [`boards.md`](boards.md). Roles y permisos: [`roles-permissions.md`](../domain/roles-permissions.md).
 
 Todas las rutas requieren una sesión válida (cookie de Auth.js). El prefijo global es `/api`.
-El acceso se resuelve **por proyecto** en cada petición (`ProjectAccessService`): no basta con tener un rol global, hay que ser Administrador, Decano vigente de una facultad del proyecto o participante activo.
+El acceso se resuelve **por proyecto** en cada petición (`ProjectAccessService`): no basta con tener un rol global, hay que ser Administrador, Decano vigente de una facultad del proyecto, Encargado de área del área del proyecto o participante activo.
 
 ## Acceso y visibilidad
 
@@ -14,6 +14,7 @@ El acceso se resuelve **por proyecto** en cada petición (`ProjectAccessService`
 | --- | --- |
 | `isAdmin` | El usuario tiene el rol global `ADMIN`. |
 | `isDean` | El usuario tiene el rol global `DEAN` y es decano **vigente** (`endsAt = null`) de al menos una facultad del proyecto. |
+| `isAreaManager` | El usuario tiene el rol global `AREA_MANAGER` y el área del proyecto está entre sus áreas asignadas (`area_managers`). Tiene los mismos permisos que `isDean`; ninguno prevalece sobre el otro (ADR 0010, sec. 2-3). |
 | `role` | Rol de proyecto (`TUTOR`, `STUDENT`, `STUDENT_LEADER`) si es participante `ACTIVE`; si no, `null`. |
 
 Si el proyecto no existe, está eliminado lógicamente (`deletedAt`) o el usuario no puede verlo, la respuesta es **`404 { message: "Proyecto no encontrado." }`**. Así no se revela la existencia de proyectos ajenos. Los permisos insuficientes sobre un proyecto visible responden **`403 { message: "No tienes permisos para realizar esta acción." }`**.
@@ -22,9 +23,9 @@ Si el proyecto no existe, está eliminado lógicamente (`deletedAt`) o el usuari
 
 | Regla | Quién puede | Se usa en |
 | --- | --- | --- |
-| `manageProject` | Administrador o Decano del proyecto | Editar y eliminar el proyecto. |
-| `manageTutors` | Administrador o Decano del proyecto | Asignar, retirar o marcar como principal a los tutores. |
-| `manageStudents` | Administrador, Decano o Tutor del proyecto | Añadir o retirar estudiantes y elegir al líder. |
+| `manageProject` | Administrador, Decano o Encargado de área del proyecto | Editar y eliminar el proyecto. |
+| `manageTutors` | Administrador, Decano o Encargado de área del proyecto | Asignar, retirar o marcar como principal a los tutores. |
+| `manageStudents` | Administrador, Decano, Encargado de área o Tutor del proyecto | Añadir o retirar estudiantes y elegir al líder. |
 | `manageBoards` | Administrador o Tutor del proyecto | Crear, editar y eliminar tableros (ver [`boards.md`](boards.md)). |
 | `manageActivities` | Administrador, Tutor o Estudiante líder | Crear, editar y eliminar actividades y gestionar encargados. |
 | `review` | Administrador o Tutor del proyecto | Aprobar o rechazar actividades y fijar su resultado. |
@@ -37,6 +38,7 @@ Si el proyecto no existe, está eliminado lógicamente (`deletedAt`) o el usuari
 | --- | --- |
 | `ADMIN` | Todos los no eliminados. |
 | `DEAN` | Los de las facultades donde es decano vigente **y** aquellos donde participa activamente. |
+| `AREA_MANAGER` | Los de sus áreas asignadas **y** aquellos donde participa activamente. |
 | Resto | Solo aquellos donde es participante `ACTIVE`. Un `TUTOR` global que no participa en el proyecto no lo ve. |
 
 Los proyectos se devuelven ordenados por `createdAt` descendente. No hay paginación ni filtros.
@@ -59,9 +61,9 @@ Los cuerpos de error de validación son `{ message: "Datos inválidos.", errors:
 
 ## `POST /api/projects`
 
-Crea un proyecto. Exige el rol global `DEAN` o `ADMIN` (`RolesGuard`).
+Crea un proyecto. Exige el rol global `DEAN`, `AREA_MANAGER` o `ADMIN` (`RolesGuard`).
 
-**Regla adicional para decanos:** debe ser decano vigente de **al menos una** de las facultades indicadas. Un Administrador no tiene esa restricción.
+**Reglas adicionales (se suman):** el decano debe ser vigente de **al menos una** de las facultades indicadas; el encargado de área solo puede crear con un `areaId` de un área que tenga asignada (puede elegir cualquier facultad existente). Quien cumpla cualquiera de las dos reglas puede crear. Un Administrador no tiene restricción.
 
 ### Cuerpo (`application/json`)
 
@@ -94,7 +96,7 @@ Cualquier otro campo se rechaza. El proyecto se crea con `status: ACTIVE`.
 | `201` | Proyecto creado | `ProjectResponseDto` (ver abajo). |
 | `400` | Datos inválidos, área inexistente o facultad inexistente | `{ message: "Datos inválidos.", errors: string[] }` con todos los errores. |
 | `401` | Sin sesión o sesión expirada | `{ message: "Sesión no válida o expirada." }` |
-| `403` | El usuario no es `DEAN`/`ADMIN`, o el decano no dirige ninguna de las facultades indicadas | `{ message: "No tienes permisos para realizar esta acción." }` |
+| `403` | El usuario no es `DEAN`/`AREA_MANAGER`/`ADMIN`, el decano no dirige ninguna de las facultades indicadas o el encargado de área no tiene asignada el área indicada | `{ message: "No tienes permisos para realizar esta acción." }` |
 
 Mensajes de validación exactos:
 
@@ -149,7 +151,7 @@ Devuelve los proyectos visibles para el usuario (ver [visibilidad](#visibilidad-
 
 ## `PATCH /api/projects/:projectId`
 
-Actualización parcial. Solo `manageProject` (Administrador o Decano del proyecto).
+Actualización parcial. Solo `manageProject` (Administrador, Decano o Encargado de área del proyecto). Si cambia `facultyIds` o `areaId`, el proyecto resultante debe seguir bajo la autoridad del usuario (decano de al menos una facultad o encargado del área resultante); si no, `403`.
 
 ### Cuerpo (`application/json`)
 
@@ -176,7 +178,7 @@ Debe indicarse al menos un campo. El orden de las fechas se valida también cont
 | `200` | Actualizado | `ProjectResponseDto`. |
 | `400` | Datos inválidos, sin campos, área/facultad inexistente o fechas invertidas | `{ message: "Datos inválidos.", errors: string[] }` |
 | `401` | Sin sesión o sesión expirada | `{ message: "Sesión no válida o expirada." }` |
-| `403` | No es Administrador ni Decano del proyecto; o el decano no dirige ninguna facultad nueva | `{ message: "No tienes permisos para realizar esta acción." }` |
+| `403` | No es Administrador, Decano ni Encargado de área del proyecto; o el cambio de facultades/área deja el proyecto fuera de su autoridad | `{ message: "No tienes permisos para realizar esta acción." }` |
 | `404` | No existe, está eliminado o no puede verlo | `{ message: "Proyecto no encontrado." }` |
 
 Mensajes de validación adicionales: `Debe indicar al menos un campo para actualizar.` y `status debe ser uno de: ACTIVE, FINISHED, CANCELLED.`
@@ -190,7 +192,7 @@ Eliminación **lógica** (P-20): guarda `deletedAt`. No borra tableros, activida
 | `204` | Eliminado | Sin cuerpo. |
 | `400` | `projectId` no es UUID | `Validation failed (uuid is expected)` |
 | `401` | Sin sesión o sesión expirada | `{ message: "Sesión no válida o expirada." }` |
-| `403` | No es Administrador ni Decano del proyecto | `{ message: "No tienes permisos para realizar esta acción." }` |
+| `403` | No es Administrador, Decano ni Encargado de área del proyecto | `{ message: "No tienes permisos para realizar esta acción." }` |
 | `404` | No existe, ya está eliminado o no puede verlo | `{ message: "Proyecto no encontrado." }` |
 
 ## Participantes
@@ -238,8 +240,8 @@ Da de alta a un participante. El permiso depende del rol solicitado:
 
 | Rol solicitado | Permiso exigido |
 | --- | --- |
-| `TUTOR` | `manageTutors` (Administrador o Decano). |
-| `STUDENT` o `STUDENT_LEADER` con `isPrimary: false` | `manageStudents` (Administrador, Decano o Tutor). |
+| `TUTOR` | `manageTutors` (Administrador, Decano o Encargado de área). **El tutor no puede añadir tutores (`403`).** |
+| `STUDENT` o `STUDENT_LEADER` con `isPrimary: false` | `manageStudents` (Administrador, Decano, Encargado de área o Tutor). |
 | Cualquiera con `isPrimary: true` | `manageTutors`. |
 
 ### Cuerpo (`application/json`)
@@ -295,7 +297,7 @@ Solo modifica participantes `ACTIVE`; un participante inactivo responde `404 { m
 
 | Campo | Tipo | Permiso | Reglas |
 | --- | --- | --- | --- |
-| `projectRole` | string | `manageStudents` | Solo `STUDENT` ↔ `STUDENT_LEADER`. El rol de un `TUTOR` no se puede cambiar (`400`). Si pasa a `STUDENT_LEADER`, no debe existir otro líder activo (`409`). |
+| `projectRole` | string | `manageStudents` | Solo `STUDENT` ↔ `STUDENT_LEADER`. El rol de un `TUTOR` no se puede cambiar (`400`; `403` si quien lo intenta no tiene `manageTutors`, p. ej. otro tutor). Un tutor sí cambia `STUDENT` ↔ `STUDENT_LEADER` (máximo un líder). Si pasa a `STUDENT_LEADER`, no debe existir otro líder activo (`409`). |
 | `isPrimary` | boolean | `manageTutors` | Solo sobre un `TUTOR` (`400` en otro caso). Si es `true`, no debe existir otro tutor principal activo (`409`). |
 
 Debe indicarse al menos un campo. Se pueden enviar ambos. No se puede cambiar `userId`, reactivar ni editar `status`/`leftAt`.
@@ -344,3 +346,19 @@ El permiso depende del rol del participante objetivo: `manageTutors` si es `TUTO
 - **Permisos de `AREA_MANAGER`**: no participan en la resolución de acceso a proyectos.
 - **Transiciones de estado del proyecto**: el código acepta cualquier cambio entre `ACTIVE`, `FINISHED` y `CANCELLED`; las reglas de negocio no están definidas.
 - **Documentación desactualizada**: `AGENTS.md` §2 y el encabezado de `docs/domain/roles-permissions.md` siguen diciendo que la autorización por proyecto no está implementada.
+
+## `GET /api/projects/tutored`
+
+> Contrato aprobado ([ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md) §9). **Estado:** implementado (`projects.controller.ts`, `ProjectsService.tutored`), cubierto por pruebas unitarias (`services/projects.service.spec.ts`) y e2e (`test/projects.e2e-spec.ts`).
+
+Proyectos **no eliminados** en los que el usuario actual es participante `ACTIVE` con rol de proyecto `TUTOR`, ordenados por título. Requiere sesión válida; un usuario sin tutorías recibe `[]`.
+
+`200`:
+
+```json
+[{ "id": "uuid", "title": "Proyecto demo de semillero", "status": "ACTIVE", "isPrimaryTutor": true }]
+```
+
+| Código | Cuándo |
+| --- | --- |
+| `401` | Sin sesión |

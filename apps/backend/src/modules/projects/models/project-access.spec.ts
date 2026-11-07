@@ -6,6 +6,7 @@ const acceso = (overrides: Partial<ProjectAccess> = {}): ProjectAccess => ({
   userId: 'usuario-1',
   isAdmin: false,
   isDean: false,
+  isAreaManager: false,
   role: null,
   ...overrides,
 });
@@ -33,6 +34,30 @@ const MATRIZ: Caso[] = [
   {
     caso: 'decano sin rol de proyecto',
     acceso: acceso({ isDean: true }),
+    esperado: {
+      manageProject: true,
+      manageTutors: true,
+      manageStudents: true,
+      manageBoards: false,
+      manageActivities: false,
+      review: false,
+    },
+  },
+  {
+    caso: 'encargado de área sin rol de proyecto',
+    acceso: acceso({ isAreaManager: true }),
+    esperado: {
+      manageProject: true,
+      manageTutors: true,
+      manageStudents: true,
+      manageBoards: false,
+      manageActivities: false,
+      review: false,
+    },
+  },
+  {
+    caso: 'decano y encargado de área a la vez',
+    acceso: acceso({ isDean: true, isAreaManager: true }),
     esperado: {
       manageProject: true,
       manageTutors: true,
@@ -115,7 +140,7 @@ describe('permisos por proyecto', () => {
   PERMISOS.forEach(definirPermiso);
 
   it('cubre la matriz completa de casos esperados', () => {
-    expect(MATRIZ).toHaveLength(6);
+    expect(MATRIZ).toHaveLength(8);
     for (const { esperado } of MATRIZ) {
       expect(Object.keys(esperado).sort()).toEqual([...PERMISOS].sort());
     }

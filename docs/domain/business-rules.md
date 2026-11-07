@@ -22,8 +22,8 @@
 | --- | --- | --- |
 | RN-10 | Solo el Administrador crea usuarios, y lo hace con roles preestablecidos. | ✅ |
 | RN-14 | Un usuario puede tener **varios roles globales**; sus permisos se suman (P-02, DB-01). | ✅ |
-| RN-11 | Solo el Administrador modifica roles globales. | 🟡 (el tutor cambia roles de proyecto de estudiantes, P-21) |
-| RN-12 | El tutor solo puede cambiar el rol de estudiantes de sus proyectos y dentro de los límites definidos. | ✅ (límites ❓) |
+| RN-11 | Solo el Administrador modifica roles globales. El tutor solo cambia roles de proyecto de estudiantes (P-21). | ✅ ([ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) |
+| RN-12 | El tutor, en sus proyectos, añade y retira estudiantes y cambia su rol entre `STUDENT` y `STUDENT_LEADER` (máx. un líder). No gestiona tutores ni roles globales. | ✅ ([ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) |
 | RN-13 | Un usuario desactivado conserva su historial: autoría, participaciones y aprobaciones. | 🟡 |
 
 ## 3. Facultades, áreas y proyectos
@@ -33,9 +33,9 @@
 | RN-20 | Un decano tiene una o varias facultades a su cargo. | ✅ |
 | RN-21 | Un proyecto pertenece a **una o varias facultades** (mínimo una). El mínimo se valida en el servicio (P-04). | ✅ |
 | RN-22 | Cada proyecto pertenece a exactamente un área (su tipo). El semillero es un tipo de proyecto (P-01). | ✅ |
-| RN-23 | El decano solo crea, modifica o elimina proyectos de sus facultades. | 🟡 |
+| RN-23 | El decano solo crea, modifica o elimina proyectos de sus facultades; el encargado de área, los de sus áreas asignadas. Si ambos alcanzan el mismo proyecto, ninguno prevalece. | ✅ ([ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) |
 | RN-24 | Una facultad tiene, como máximo, un decano vigente. Se conserva el historial de decanos con vigencia (P-06, DB-03). | ✅ |
-| RN-25 | El encargado de área solo administra las áreas que tiene asignadas. | ❓ (P-08) |
+| RN-25 | El encargado de área solo actúa sobre sus áreas asignadas: edita su nombre y descripción y gestiona sus proyectos como el decano los de sus facultades. El administrador crea, elimina y asigna áreas, facultades, encargados y decanos. | ✅ ([ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) |
 
 ## 4. Pertenencia a proyectos y asignación de tutores
 
@@ -59,15 +59,15 @@
 | --- | --- | --- |
 | RN-40 | Un tablero pertenece a un proyecto y agrupa actividades con una meta común. | ✅ (pertenencia 🟡) |
 | RN-41 | Un tablero tiene título, fecha de entrega, estado de progreso, resultado opcional, **un** tutor responsable y **un** estudiante encargado (P-11, P-24). | ✅ |
-| RN-42 | El tutor responsable de un tablero debe ser tutor activo del proyecto del tablero. Validación en el servicio (DB-05). | 🟡 (P-24) |
-| RN-43 | El estudiante encargado de un tablero debe ser estudiante activo del mismo proyecto. Validación en el servicio (DB-05). Si es o no el líder sigue sin definirse. | 🟡 (P-24) |
+| RN-42 | El tutor responsable de un tablero debe ser tutor activo del proyecto del tablero. Validación en el servicio (DB-05). | ✅ ([ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) |
+| RN-43 | El estudiante encargado de un tablero debe ser participante activo del mismo proyecto como estudiante o líder; no tiene que ser el líder. Validación en el servicio (DB-05). | ✅ ([ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) |
 | RN-44 | Una actividad pertenece a un único tablero. | ✅ |
 | RN-45 | Una actividad tiene autor, progreso, resultado opcional, información, estado de aprobación del tutor y cero o más adjuntos (enlace o documento). | ✅ (P-11, P-14) |
 | RN-46 | Una actividad puede tener **varios encargados** (P-10), que deben ser participantes activos del proyecto. Validación en el servicio (DB-05). | ✅ (cantidad) / 🟡 (validación) |
-| RN-47 | El estudiante líder crea, modifica y elimina encargados de actividades según los permisos establecidos. | ✅ (alcance sobre "otras actividades" ❓) |
+| RN-47 | El estudiante líder crea, modifica y elimina encargados de actividades según los permisos establecidos. | ✅ (cualquier actividad de su proyecto, [ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) |
 | RN-48 | Los estudiantes solo interactúan con las actividades que tienen asignadas. | ✅ (P-13, ver RN-85) |
-| RN-49 | La aprobación de una actividad la registra un tutor del proyecto. El estado de aprobación (`pendiente`, `aprobada`, `rechazada`) es independiente del estado de la actividad. Solo se guarda el estado actual, con quién aprobó y cuándo; sin historial ni observaciones (P-12). | ✅ (qué tutor ❓) |
-| RN-49a | Una actividad solo puede aprobarse cuando su progreso está en `finalizado`. | ❓ (no definido; no implementar) |
+| RN-49 | La aprobación de una actividad la registra un tutor del proyecto. El estado de aprobación (`pendiente`, `aprobada`, `rechazada`) es independiente del estado de la actividad. Solo se guarda el estado actual, con quién aprobó y cuándo; sin historial ni observaciones (P-12). | ✅ (cualquier tutor activo del proyecto, [ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) |
+| RN-49a | Una actividad solo puede aprobarse o rechazarse cuando su progreso es `DONE`; si sale de `DONE`, la aprobación vuelve a `PENDING`. | ✅ ([ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) |
 | RN-49b | Cada adjunto de una actividad es **o** un enlace **o** un documento, nunca ambos. Una actividad puede tener varios adjuntos (P-14, DB-07). | ✅ |
 
 ## 6. Distribución de novedades
@@ -75,8 +75,8 @@
 | ID | Regla | Estado |
 | --- | --- | --- |
 | RN-50 | Una novedad puede dirigirse a todos los usuarios, a determinados roles, a una facultad, a un área o a un proyecto. | ✅ |
-| RN-51 | El encargado de área publica novedades para todos los usuarios o para determinados roles. | ✅ |
-| RN-52 | El decano publica novedades para sus facultades o para proyectos específicos. | ✅ (proyectos de sus facultades 🟡) |
+| RN-51 | El encargado de área publica novedades para sus áreas asignadas (audiencia `AREA`) y para roles (`ROLE`); no para todos (`ALL`). El tutor publica para los proyectos donde es tutor activo (`PROJECT`). | ✅ ([ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) |
+| RN-52 | El decano publica novedades para sus facultades o para proyectos específicos. | ✅ (proyectos de sus facultades, [ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) |
 | RN-53 | Una novedad puede tener varias audiencias. Un usuario la recibe si pertenece a **al menos una** (unión). | 🟡 |
 | RN-54 | La audiencia se calcula al consultar; no hay registro de lectura (P-16, DB-06). Un usuario que se une después a un proyecto ve las novedades previas del proyecto. | ✅ (cálculo) / 🟡 (novedades previas) |
 | RN-55 | La información institucional de áreas y facultades se publica mediante novedades. | ✅ |
@@ -178,7 +178,7 @@ Reglas confirmadas por el usuario o tomadas como decisión técnica ([ADR 0005](
 | RN-90 | Cada usuario elige, por tipo de novedad y por canal (correo, WhatsApp), si recibe copia. Por defecto el correo está activado y WhatsApp desactivado. | ✅ (valores por defecto: decisión técnica) |
 | RN-91 | Para recibir copias por WhatsApp el usuario debe registrar un teléfono en formato E.164. | ✅ |
 | RN-92 | La copia es complementaria: la novedad sigue visible en la plataforma aunque el usuario no reciba copias. | ✅ |
-| RN-93 | Solo el decano (y el administrador) envían novedades del tipo `NOTIFICATION`; el administrador puede publicar en cualquier audiencia. | ✅ (decano) / 🟡 (administrador, supuesto) |
+| RN-93 | Solo el decano (y el administrador) envían novedades del tipo `NOTIFICATION`; el administrador puede publicar en cualquier audiencia. | ✅ ([ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) |
 
 ## Preguntas pendientes
 
@@ -213,9 +213,9 @@ Se conservan las preguntas resueltas, con su respuesta, para trazabilidad.
 
 | ID | Pregunta | Afecta a |
 | --- | --- | --- |
-| P-08 | ¿El **encargado de área** actúa sobre áreas asignadas o sobre todas? ¿Puede crear o modificar proyectos? ¿Qué es "administrar información de áreas"? (Modelo provisional: `area_managers`.) | Área, permisos |
-| P-17 | ¿El administrador o el tutor pueden publicar novedades? ¿A qué audiencias? | Permisos |
+| P-08 | ✅ Encargado de área: solo sus áreas asignadas; edita su nombre y descripción y gestiona sus proyectos como el decano; sin precedencia frente al decano. ([ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) | Área, permisos |
+| P-17 | ✅ Administrador: cualquier audiencia; encargado de área: sus áreas y roles; decano: sus facultades y sus proyectos; tutor: sus proyectos. `NOTIFICATION` solo decano y administrador. ([ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) | Permisos |
 | P-19 | ¿Qué atributos y destinatarios tiene un **recordatorio**? ¿Por qué canal se envía? (Modelo mínimo provisional: `reminders`.) | Recordatorio |
-| P-21 | ¿Cuáles son los **límites del tutor** al cambiar roles de estudiantes? | Permisos |
+| P-21 | ✅ El tutor añade y retira estudiantes y cambia `STUDENT` ↔ `STUDENT_LEADER`; no gestiona tutores ni roles globales. ([ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) | Permisos |
 | P-23 | ¿Cómo se corresponden los módulos del backend (`semilleros`, `tasks`, `notifications`…) con las nuevas entidades (Proyecto, Tablero, Actividad, Novedad)? | Arquitectura |
-| P-24 | **Parcial.** Confirmado: el tablero tiene exactamente un tutor responsable y un estudiante encargado. Pendiente (🟡, validación en servicio): ¿deben ser participantes activos del proyecto? ¿El estudiante encargado es el líder? | Tablero |
+| P-24 | ✅ Tutor responsable: tutor activo del proyecto. Estudiante encargado: participante activo como estudiante o líder (no tiene que ser el líder). ([ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) | Tablero |

@@ -76,6 +76,29 @@ describe('Tableros y actividades (e2e)', () => {
         .expect(400);
     });
 
+    it('el tutor responsable debe ser tutor activo y el estudiante, STUDENT o STUDENT_LEADER activo', async () => {
+      const tutor = await world.as('tutor');
+      const post = (over: Record<string, unknown>) => tutor.post(`/api/projects/${projectId}/boards`).send(boardBody(over));
+
+      // Tutor global que no participa en el proyecto.
+      const notTutor = await post({ responsibleTutorId: world.ids.tutor2 }).expect(400);
+      expect(notTutor.body.errors[0]).toMatch(/responsibleTutorId/);
+      // El estudiante encargado no tiene que ser el líder.
+      await post({ responsibleStudentId: world.ids.student }).expect(201);
+      // Un tutor no puede ser estudiante responsable.
+      await post({ responsibleStudentId: world.ids.tutor }).expect(400);
+
+      // Participante retirado (inactivo) deja de ser válido.
+      const members = (await tutor.get(`/api/projects/${projectId}/members`).expect(200)).body as { id: string; user: { id: string } }[];
+      await tutor.delete(`/api/projects/${projectId}/members/${members.find((m) => m.user.id === world.ids.student2)!.id}`).expect(204);
+      await post({ responsibleStudentId: world.ids.student2 }).expect(400);
+    });
+
+    it('al editar un tablero también se validan los responsables', async () => {
+      const boardId = await createBoard();
+      await (await world.as('tutor')).patch(`/api/boards/${boardId}`).send({ responsibleTutorId: world.ids.tutor2 }).expect(400);
+    });
+
     it('los participantes ven los tableros; los ajenos reciben 404', async () => {
       const boardId = await createBoard();
       const list = await (await world.as('student')).get(`/api/projects/${projectId}/boards`).expect(200);
@@ -200,6 +223,7 @@ describe('Tableros y actividades (e2e)', () => {
     it('el tutor aprueba o rechaza; PENDING reinicia la aprobación (P-12)', async () => {
       const activityId = await createActivity(await createBoard());
       const tutor = await world.as('tutor');
+      await tutor.patch(`/api/activities/${activityId}`).send({ progressStatus: 'DONE' }).expect(200);
 
       await (await world.as('leader')).post(`/api/activities/${activityId}/approval`).send({ status: 'APPROVED' }).expect(403);
 
@@ -236,6 +260,55 @@ describe('Tableros y actividades (e2e)', () => {
       expect(board.body.activityCount).toBe(0);
     });
 
+    it('rechaza aprobar o rechazar una actividad que no está en DONE (409)', async () => {
+      const activityId = await createActivity(await createBoard());
+      const tutor = await world.as('tutor');
+      for (const status of ['APPROVED', 'REJECTED']) {
+        const res = await tutor.post(`/api/activities/${activityId}/approval`).send({ status }).expect(409);
+        expect(res.body.message).toBe('Solo se puede aprobar o rechazar una actividad con progreso Terminada (DONE).');
+      }
+      await (await world.as('admin')).post(`/api/activities/${activityId}/approval`).send({ status: 'APPROVED' }).expect(409);
+      await tutor.patch(`/api/activities/${activityId}`).send({ progressStatus: 'IN_PROGRESS' }).expect(200);
+      await tutor.post(`/api/activities/${activityId}/approval`).send({ status: 'APPROVED' }).expect(409);
+      // Reiniciar a PENDING siempre es posible.
+      await tutor.post(`/api/activities/${activityId}/approval`).send({ status: 'PENDING' }).expect(200);
+    });
+
+    it('cualquier tutor activo del proyecto aprueba; uno ajeno no', async () => {
+      const activityId = await createActivity(await createBoard());
+      await (await world.as('tutor')).patch(`/api/activities/${activityId}`).send({ progressStatus: 'DONE' }).expect(200);
+      await (await world.as('dean')).post(`/api/projects/${projectId}/members`).send({ userId: world.ids.tutor2, projectRole: 'TUTOR' }).expect(201);
+      const res = await (await world.as('tutor2')).post(`/api/activities/${activityId}/approval`).send({ status: 'APPROVED' }).expect(200);
+      expect(res.body.approvedBy).toMatchObject({ id: world.ids.tutor2 });
+    });
+
+    it.each(['IN_PROGRESS', 'PENDING', 'CANCELLED'] as const)(
+      'al salir de DONE (%s) la aprobación vuelve a PENDING y se limpia el aprobador',
+      async (progressStatus) => {
+        const activityId = await createActivity(await createBoard());
+        const tutor = await world.as('tutor');
+        await tutor.patch(`/api/activities/${activityId}`).send({ progressStatus: 'DONE' }).expect(200);
+        await tutor.post(`/api/activities/${activityId}/approval`).send({ status: 'REJECTED' }).expect(200);
+
+        const res = await tutor.patch(`/api/activities/${activityId}`).send({ progressStatus }).expect(200);
+        expect(res.body).toMatchObject({ progressStatus, approvalStatus: 'PENDING', approvedBy: null, approvedAt: null });
+      },
+    );
+
+    it('mantener DONE conserva la aprobación', async () => {
+      const activityId = await createActivity(await createBoard());
+      const tutor = await world.as('tutor');
+      await tutor.patch(`/api/activities/${activityId}`).send({ progressStatus: 'DONE' }).expect(200);
+      await tutor.post(`/api/activities/${activityId}/approval`).send({ status: 'APPROVED' }).expect(200);
+      const res = await tutor.patch(`/api/activities/${activityId}`).send({ progressStatus: 'DONE', result: 'SUCCESS' }).expect(200);
+      expect(res.body).toMatchObject({ approvalStatus: 'APPROVED', approvedBy: { id: world.ids.tutor } });
+    });
+
+    it('el líder gestiona encargados en cualquier actividad del proyecto', async () => {
+      const activityId = await createActivity(await createBoard(), 'tutor');
+      await (await world.as('leader')).post(`/api/activities/${activityId}/assignees`).send({ userId: world.ids.student2 }).expect(201);
+    });
+
     it('el decano ve el proyecto pero no gestiona actividades', async () => {
       const boardId = await createBoard();
       await (await world.as('dean')).get(`/api/boards/${boardId}/activities`).expect(200);
@@ -245,6 +318,7 @@ describe('Tableros y actividades (e2e)', () => {
     it('el administrador tiene acceso total', async () => {
       const boardId = await createBoard();
       const activityId = await createActivity(boardId, 'tutor');
+      await (await world.as('tutor')).patch(`/api/activities/${activityId}`).send({ progressStatus: 'DONE' }).expect(200);
       await (await world.as('admin')).post(`/api/activities/${activityId}/approval`).send({ status: 'APPROVED' }).expect(200);
     });
   });

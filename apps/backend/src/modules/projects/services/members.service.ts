@@ -85,6 +85,8 @@ export class MembersService {
 
     if (dto.projectRole !== undefined) {
       if (member.projectRole === 'TUTOR') {
+        // Los tutores no pueden tocar a otros tutores (ADR 0010, sec. 6): 403 antes que 400.
+        this.access.assert(can.manageTutors(access));
         throw new BadRequestException({ message: 'Datos inválidos.', errors: ['El rol de un tutor no puede cambiarse.'] });
       }
       this.access.assert(can.manageStudents(access));

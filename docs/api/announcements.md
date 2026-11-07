@@ -13,22 +13,22 @@ La definición de la audiencia se guarda con la novedad, pero la **pertenencia**
 
 ### Quién puede publicar
 
-`POST /api/announcements` exige, con `RolesGuard`, uno de los roles globales `ADMIN`, `AREA_MANAGER` o `DEAN`. Después, `AnnouncementsService` aplica `models/publish-scope.ts` con los cargos **vigentes** del usuario:
+`POST /api/announcements` exige, con `RolesGuard`, uno de los roles globales `ADMIN`, `AREA_MANAGER`, `DEAN` o `TUTOR`. Después, `AnnouncementsService` aplica `models/publish-scope.ts` con los cargos **vigentes** del usuario (ADR 0010, sección 8):
 
 | Audiencia | Quién puede usarla |
 | --- | --- |
-| `ALL` | Administrador o encargado de área. |
-| `ROLE` | Administrador o encargado de área. |
+| `ALL` | Solo administrador. |
+| `ROLE` | Administrador, o encargado de área (cualquier rol global; ADR 0010, sección 9). |
 | `AREA` | Administrador, o encargado de área **de esa área** (`area_managers`). |
 | `FACULTY` | Administrador, o decano **vigente** de esa facultad (`faculty_deans` con `endsAt = null`). |
-| `PROJECT` | Administrador, o decano de alguna facultad del proyecto, siempre que el proyecto no esté eliminado. |
+| `PROJECT` | Administrador; decano de alguna facultad del proyecto; o tutor **activo** del proyecto (membresía `ACTIVE` con rol de proyecto `TUTOR`). Siempre que el proyecto no esté eliminado. |
 
 | Tipo (`kind`) | Quién puede usarlo |
 | --- | --- |
-| `NEWS`, `COMMUNICATION`, `CHANGE` | Administrador, decano o encargado de área. |
-| `NOTIFICATION` | Administrador o decano (P-16). |
+| `NOTIFICATION` | Administrador o decano (P-16, RN-93). |
+| `NEWS`, `COMMUNICATION`, `CHANGE` | Administrador, decano, encargado de área o tutor. |
 
-Los roles se suman (P-02): un usuario que sea `DEAN` y `AREA_MANAGER` acumula los permisos de ambos. Un encargado de área que **no** sea decano no puede publicar para `FACULTY` ni para `PROJECT`, aunque el proyecto pertenezca a un área que gestiona.
+Los roles se suman (P-02): un usuario que sea, por ejemplo, `DEAN` y `AREA_MANAGER` acumula los permisos de ambos. Un encargado de área publica para `AREA` de sus áreas y para `ROLE`, pero **no** para `ALL`, `FACULTY` ni `PROJECT`. Un tutor solo publica `PROJECT` de sus proyectos: no puede publicar para `FACULTY`, `AREA`, `ALL` ni `ROLE`, ni el tipo `NOTIFICATION`. Tampoco puede publicar en `PROJECT` de proyectos donde no es tutor activo, aunque sean de su misma área.
 
 Antes de comprobar los permisos, el servicio valida que existan las facultades, áreas y proyectos que quedan tras normalizar las audiencias. Por eso, si el destino no existe, la respuesta es `400` aunque el usuario tampoco tuviera permiso para usarlo.
 
@@ -64,7 +64,7 @@ La pertenencia es una **unión**: basta con cumplir una audiencia de la novedad.
 
 | Método y ruta | Permiso | Código de éxito |
 | --- | --- | --- |
-| `POST /api/announcements` | Rol global `ADMIN`, `AREA_MANAGER` o `DEAN`, y audiencia/tipo permitidos | `201` |
+| `POST /api/announcements` | Rol global `ADMIN`, `AREA_MANAGER`, `DEAN` o `TUTOR`, y audiencia/tipo permitidos | `201` |
 | `GET /api/announcements` | Cualquier sesión válida (filtrado por visibilidad) | `200` |
 | `GET /api/announcements/:id` | Ver la novedad | `200` |
 | `GET /api/announcements/:id/deliveries` | Autor o administrador | `200` |
@@ -113,6 +113,8 @@ Cualquier campo desconocido en el cuerpo o dentro de una audiencia se rechaza. L
 ```
 
 Ese ejemplo solo es válido para un administrador o para un decano de la facultad indicada que además sea decano de alguna facultad del proyecto. El tipo `NOTIFICATION` exige ser decano o administrador.
+
+Un tutor activo del proyecto puede publicar ese mismo cuerpo siempre que el `kind` no sea `NOTIFICATION` y la audiencia sea `{ "type": "PROJECT", "projectId": "…" }` de un proyecto suyo.
 
 ### Copias encoladas
 
@@ -284,7 +286,7 @@ No hay endpoint para ver el detalle por destinatario. El significado de cada est
 
 Eliminación **lógica**: guarda `deletedAt`, la novedad desaparece del feed y de `GET /api/announcements/:id`, y sus envíos `PENDING` pasan a `SKIPPED` con `lastError: "Novedad eliminada."`. No se borran filas.
 
-Solo el autor o un administrador, y solo si la novedad es visible para el usuario.
+Solo el autor o un administrador, y solo si la novedad es visible para el usuario. Un tutor, decano o encargado de área elimina sus propias novedades; no puede eliminar las de otros (`403`, o `404` si no las ve).
 
 | Código | Cuándo | Cuerpo |
 | --- | --- | --- |
@@ -309,5 +311,5 @@ Solo el autor o un administrador, y solo si la novedad es visible para el usuari
 - **Publicación programada**: no se puede fijar `publishedAt`; siempre es la hora de creación, aunque el feed ya filtra por `publishedAt <= ahora`.
 - **Notificaciones automáticas por eventos** de proyectos y tableros (asignaciones, aprobaciones): no implementadas.
 - **Consentimiento explícito de WhatsApp** desde la aplicación y verificación del teléfono: pendientes (ADR 0005).
-- **Permisos del encargado de área**: dependen de P-08; la parte de publicar para sus áreas es un supuesto 🟡.
+- **Permisos para publicar**: según ADR 0010 (sección 8), que resuelve P-17 para administrador, encargado de área, decano y tutor.
 - **Detalle de envíos**: solo hay conteos por canal y estado, no el listado de destinatarios ni sus errores.

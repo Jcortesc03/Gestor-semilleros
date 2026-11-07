@@ -18,9 +18,14 @@ const activeProject = { deletedAt: null } as const;
 export class AudienceService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Alcance para publicar (ADR 0010): cargos vigentes del usuario. Los proyectos
+   * eliminados (`deletedAt`) no cuentan ni para el decano ni para el tutor.
+   */
   async publishScope(user: AuthUser): Promise<PublishScope> {
     const isDean = user.roles.includes('DEAN');
     const isAreaManager = user.roles.includes('AREA_MANAGER');
+    const isTutor = user.roles.includes('TUTOR');
     const deanFacultyIds = isDean
       ? (await this.prisma.facultyDean.findMany({ where: { userId: user.id, endsAt: null }, select: { facultyId: true } })).map(
           (d) => d.facultyId,
@@ -38,13 +43,23 @@ export class AudienceService {
             })
           ).map((p) => p.id)
         : [];
+    const tutorProjectIds = isTutor
+      ? (
+          await this.prisma.projectMember.findMany({
+            where: { userId: user.id, status: 'ACTIVE', projectRole: 'TUTOR', project: activeProject },
+            select: { projectId: true },
+          })
+        ).map((m) => m.projectId)
+      : [];
     return {
       isAdmin: user.roles.includes('ADMIN'),
       isAreaManager,
       isDean,
+      isTutor,
       managedAreaIds,
       deanFacultyIds,
       deanProjectIds,
+      tutorProjectIds,
     };
   }
 

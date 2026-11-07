@@ -15,7 +15,7 @@ export class AnnouncementsController {
   constructor(private readonly announcements: AnnouncementsService) {}
 
   @Post()
-  @Roles('ADMIN', 'AREA_MANAGER', 'DEAN')
+  @Roles('ADMIN', 'AREA_MANAGER', 'DEAN', 'TUTOR')
   create(@CurrentUser() user: AuthUser, @Body() body: unknown) {
     return this.announcements.create(user, validated(parseCreateAnnouncement(body)));
   }

@@ -1,6 +1,6 @@
 # Roles y permisos
 
-> **Estado:** definición funcional. Es una **matriz conceptual**. Los roles globales y de proyecto existen en el modelo de datos (`user_roles`, `project_members`). **Implementado hoy** en el backend: `SessionGuard` (autenticación), `RolesGuard` + `@Roles` (rol global), **crear usuarios (solo `ADMIN`)** y la **autorización por proyecto** de proyectos, participantes, tableros y actividades (`can.*` en `apps/backend/src/modules/projects/models/project-access.ts`, [ADR 0004](../decisions/0004-proyectos-tableros-actividades.md)). Las celdas marcadas ✅ en la matriz de proyectos, tableros y actividades están implementadas. También están implementadas la **publicación de novedades y notificaciones** y las preferencias de copias (`notifications/models/publish-scope.ts`, [ADR 0005](../decisions/0005-notificaciones-y-copias-externas.md)). También las **reuniones con Microsoft Teams** ([ADR 0007](../decisions/0007-reuniones-con-microsoft-teams.md)). No están implementados los permisos de áreas, documentos, recordatorios ni dashboards.
+> **Estado:** definición funcional. Es una **matriz conceptual**. Los roles globales y de proyecto existen en el modelo de datos (`user_roles`, `project_members`). **Implementado hoy** en el backend: `SessionGuard` (autenticación), `RolesGuard` + `@Roles` (rol global), **crear usuarios (solo `ADMIN`)**, el **directorio de usuarios** para seleccionar personas (`GET /api/users`, solo `ADMIN`, `DEAN` y `TUTOR`) y los **catálogos de áreas y facultades** (`GET /api/areas`, `GET /api/faculties`, cualquier sesión), según el [ADR 0009](../decisions/0009-directorio-catalogos-y-paneles.md), y la **autorización por proyecto** de proyectos, participantes, tableros y actividades (`can.*` en `apps/backend/src/modules/projects/models/project-access.ts`, [ADR 0004](../decisions/0004-proyectos-tableros-actividades.md)). Las celdas marcadas ✅ en la matriz de proyectos, tableros y actividades están implementadas. También están implementadas la **publicación de novedades y notificaciones** y las preferencias de copias (`notifications/models/publish-scope.ts`, [ADR 0005](../decisions/0005-notificaciones-y-copias-externas.md)). También las **reuniones con Microsoft Teams** ([ADR 0007](../decisions/0007-reuniones-con-microsoft-teams.md)). También están implementados (ADR 0009 y 0010) el directorio de usuarios, los catálogos, el panel por rol, la administración de áreas, facultades, encargados y decanos, los permisos del encargado de área sobre los proyectos de sus áreas, la aprobación solo con la actividad en `DONE` y la publicación de novedades por rol. No están implementados los permisos de documentos ni de recordatorios.
 > **No inventes permisos.** Lo que no aparece como ✅ requiere confirmación antes de implementarse.
 > Marcas: ✅ confirmado · 🟡 hipótesis · ❓ pendiente · `—` no definido. Los códigos `P-xx` remiten a las [preguntas pendientes](business-rules.md#preguntas-pendientes).
 
@@ -56,31 +56,32 @@ flowchart TB
 - ❓ No está definido si tiene acceso operativo sobre proyectos, tableros o novedades (P-22).
 
 ### Encargado de área
-- **Alcance:** áreas como investigación, semilleros o proyectos de grado. Falta definir si son solo las asignadas o todas (P-08).
-- ✅ Administrar la información relacionada con las áreas.
-- ✅ Crear anuncios generales (novedades) dirigidos a determinados roles o a todos los usuarios.
-- ✅ Consultar métricas mediante dashboards. El alcance de las métricas está pendiente.
-- 🟡 Publicar novedades dirigidas a su área.
+- **Alcance:** solo sus áreas asignadas (`area_managers`) ✅ (ADR 0010).
+- ✅ Editar el nombre y la descripción de sus áreas.
+- ✅ Crear, modificar y eliminar los proyectos de sus áreas y gestionar sus tutores y estudiantes, como el decano en sus facultades; si ambos alcanzan un proyecto, ninguno prevalece.
+- ✅ Publicar novedades dirigidas a sus áreas o a roles.
+- ✅ Consultar métricas de sus áreas mediante el panel.
 
 ### Decano
 - **Alcance:** una o varias facultades a su cargo ✅.
-- ✅ Crear, modificar y eliminar proyectos. 🟡 Se supone que solo en sus facultades.
+- ✅ Crear, modificar y eliminar proyectos de sus facultades.
 - ✅ Asignar tutores responsables a los proyectos.
 - ✅ Enviar notificaciones (P-16).
-- ✅ Publicar información general dirigida a sus facultades o a proyectos específicos. 🟡 Se supone que solo proyectos de sus facultades.
+- ✅ Publicar información general dirigida a sus facultades o a proyectos de sus facultades.
 - ✅ Consultar información y métricas de sus facultades.
 
 ### Tutor
 - **Alcance:** uno o varios proyectos a su cargo ✅.
 - ✅ Crear tareas, reuniones y recordatorios. Falta confirmar si "tarea" es una actividad o un tablero (P-09).
-- ✅ Cambiar el rol de los estudiantes **dentro de los límites de sus permisos** (P-21).
-- ✅ Aprobar actividades. Se deduce del atributo "estado de aprobación por parte del tutor".
+- ✅ Añadir y retirar estudiantes y cambiar su rol entre Estudiante y Líder (P-21); no gestiona tutores.
+- ✅ Publicar novedades para sus proyectos (no del tipo notificación).
+- ✅ Aprobar o rechazar actividades finalizadas (`DONE`) de sus proyectos; cualquier tutor activo del proyecto puede hacerlo.
 - ✅ Consultar información y métricas de sus proyectos.
 
 ### Estudiante líder de grupo
 - **Alcance:** su proyecto (rol de proyecto, máximo uno por proyecto) y las actividades que tiene asignadas.
 - ✅ Interactuar con las actividades que tiene asignadas (P-13).
-- ✅ Crear, modificar y eliminar **encargados** de otras actividades, según los permisos establecidos (P-10).
+- ✅ Crear, modificar y eliminar **encargados** en cualquier actividad de su proyecto (P-10, ADR 0010).
 - ✅ Consultar la información de su proyecto mediante un dashboard.
 
 ### Estudiante
@@ -95,25 +96,25 @@ Una celda sin marca de estado está ✅ confirmada. Las celdas `—` no tienen p
 
 | Recurso | Administrador | Encargado de área | Decano | Tutor | Estudiante líder | Estudiante |
 | --- | --- | --- | --- | --- | --- | --- |
-| Usuarios | C (implementado) | — | — | — | — | — |
+| Usuarios | C (implementado) · R (directorio, ADR 0009) | — | R (directorio, ADR 0009) | R (directorio, ADR 0009) | — | — |
 | Roles globales | U (solo se asignan al crear el usuario; modificarlos no está implementado) | — | — | — | — | — |
-| Rol de estudiante en proyecto (incluye líder, máx. uno) | U ❓ | — | — | U (limitado, P-21) | — | — |
-| Áreas | — ❓ | R U (C D ❓) | — | — | — | — |
-| Facultades | — ❓ | — | R (sus facultades) | — | — | — |
-| Proyectos | C R U D (todos) ✅ | — ❓ | C R U D (sus facultades) ✅ | R (sus proyectos) | R (su proyecto) | R (su proyecto) |
-| Asignación de tutor a proyecto | C U D ✅ | — | C U D ✅ | — | — | — |
-| Estudiantes y líder del proyecto | C U D ✅ | — | C U D ✅ | C U D ✅ | — | — |
+| Rol de estudiante en proyecto (incluye líder, máx. uno) | U ✅ | U (sus áreas) ✅ | U (sus facultades) ✅ | U (`STUDENT` ↔ `STUDENT_LEADER`, ADR 0010) ✅ | — | — |
+| Áreas | C R U D · asignar encargados (ADR 0010) ✅ | R · U (nombre y descripción de sus áreas, ADR 0010) ✅ | R (catálogo, ADR 0009) | R (catálogo, ADR 0009) | R (catálogo, ADR 0009) | R (catálogo, ADR 0009) |
+| Facultades | C R U D · asignar decano vigente (ADR 0010) ✅ | — · R (catálogo, ADR 0009) | R (sus facultades) · R (catálogo, ADR 0009) | R (catálogo, ADR 0009) | R (catálogo, ADR 0009) | R (catálogo, ADR 0009) |
+| Proyectos | C R U D (todos) ✅ | C R U D (sus áreas, ADR 0010) ✅ | C R U D (sus facultades) ✅ | R (sus proyectos) | R (su proyecto) | R (su proyecto) |
+| Asignación de tutor a proyecto | C U D ✅ | C U D (sus áreas) ✅ | C U D ✅ | — | — | — |
+| Estudiantes y líder del proyecto | C U D ✅ | C U D (sus áreas) ✅ | C U D ✅ | C U D ✅ | — | — |
 | Tableros | C R U D ✅ | — | R ✅ | C R U D ✅ | R | R |
 | Actividades | C R U D A ✅ | — | R ✅ | C R U D A ✅ | C R U D ✅ · I | R · I (asignadas: progreso y enlaces) ✅ |
 | Encargados de actividad | C U D ✅ | — | — | C U D ✅ | C U D ✅ | — |
 | Reuniones | C R U (todas; supuesto 🟡) ✅ | — | — | C (sus proyectos o sin proyecto) · R U (las que organiza) ✅ | R (si es participante) ✅ | R (si es participante) ✅ |
 | Recordatorios | — | — | — | C | — | — |
 | Documentos | — | — | — | — ❓ | — ❓ | — ❓ |
-| Novedades | C R D (todas; supuesto 🟡) ✅ | C (todos / roles; sus áreas 🟡) · D (propias) ✅ | C (sus facultades / proyectos de ellas) · D (propias) ✅ | — | — | — |
+| Novedades | C R D (todas) ✅ | C (sus áreas / roles) · D (propias) ✅ | C (sus facultades / proyectos de ellas) · D (propias) ✅ | C (sus proyectos; no `NOTIFICATION`) · D (propias) ✅ | — | — |
 | Notificaciones | C (supuesto 🟡) ✅ | — | C (P-16) ✅ | — | — | — |
 | Lectura de novedades | R (todas) ✅ | R (audiencia) ✅ | R (audiencia) ✅ | R (audiencia) ✅ | R (audiencia) ✅ | R (audiencia) ✅ |
 | Preferencias de copias (propias) | U ✅ | U ✅ | U ✅ | U ✅ | U ✅ | U ✅ |
-| Dashboard | R (general) | R (alcance ❓) | R (sus facultades) | R (sus proyectos) | R (su proyecto) | R (su proyecto) |
+| Dashboard | R (general) | R (sus áreas asignadas; métricas, ADR 0009) | R (sus facultades) | R (sus proyectos) | R (su proyecto) | R (su proyecto) |
 
 ## 4. Restricciones conocidas
 
@@ -128,15 +129,15 @@ Una celda sin marca de estado está ✅ confirmada. Las celdas `—` no tienen p
 
 | # | Conflicto o ambigüedad | Impacto |
 | --- | --- | --- |
-| 1 | **Administrador y Tutor modifican roles.** Hay que delimitar si el tutor cambia solo roles de proyecto (Estudiante ↔ Líder) y el administrador solo roles globales. | Alto: riesgo de escalada de privilegios. |
-| 2 | **Encargado de área y Decano** pueden administrar proyectos que coinciden (un proyecto pertenece a un área y a una o varias facultades; en proyectos interfacultad actúan varios decanos). Falta definir quién tiene precedencia. | Alto |
-| 3 | **Estudiante líder: "encargados de otras actividades".** No está claro si son actividades distintas a las suyas, cualquier actividad del proyecto o solo las de su tablero. | Medio |
-| 4 | **Tablero con "estudiante encargado"** frente al **estudiante líder**: no está claro si son la misma figura (P-24 parcial: el tablero tiene un solo estudiante encargado; el líder es un rol de proyecto único). | Medio |
+| 1 | ✅ Resuelto (ADR 0010): el tutor solo cambia `STUDENT` ↔ `STUDENT_LEADER`; el administrador, los roles globales. | Alto: riesgo de escalada de privilegios. |
+| 2 | ✅ Resuelto (ADR 0010): ninguno prevalece; ambos tienen los mismos permisos y vale el último cambio. | Alto |
+| 3 | ✅ Resuelto (ADR 0010): cualquier actividad del proyecto. | Medio |
+| 4 | ✅ Resuelto (ADR 0010): el encargado del tablero es cualquier participante activo como estudiante o líder. | Medio |
 | 5 | **Quién crea tableros y actividades.** Actividad tiene "autor", así que podría crearla cualquier participante. El texto solo dice "Tutor: crear tareas". | Alto para el diseño de permisos |
-| 6 | **Qué tutor aprueba:** el tutor responsable del tablero o cualquier tutor del proyecto. | Medio |
+| 6 | ✅ Resuelto (ADR 0010): cualquier tutor activo del proyecto, solo con la actividad en `DONE`. | Medio |
 | 7 | **Decano enviando notificaciones** frente a **novedades**: puede ser el mismo concepto. | Medio |
 | 8 | **Permisos sobre documentos:** no hay ninguno definido. | Alto: bloquea el módulo de documentos |
-| 9 | **Usuario con varios roles.** ✅ Parcialmente resuelto (P-02): se permiten varios roles globales y los permisos se suman. Falta definir qué ocurre cuando los alcances se cruzan (p. ej. un decano que además es tutor de un proyecto de su facultad) y si hay incompatibilidades entre roles. | Medio |
+| 9 | ✅ Resuelto (ADR 0010): los permisos se suman y no hay incompatibilidades. | Medio |
 | 10 | **Eliminación de proyectos** por el decano: la eliminación es lógica (P-20). Falta definir quién puede restaurar y la visibilidad de los dependientes. | Medio |
 
 El detalle de cada pregunta está en [`business-rules.md`](business-rules.md#preguntas-pendientes).

@@ -48,35 +48,47 @@ describe('Novedades, notificaciones y copias por correo/WhatsApp (e2e)', () => {
   const emailOf = (person: Person) => `${person.toLowerCase()}@example.test`;
 
   describe('publicación y audiencias', () => {
-    it('el encargado de área publica para todos y cada usuario recibe copia por correo', async () => {
-      const created = await publish('areaManager', { kind: 'NEWS', audiences: [{ type: 'ALL' }] });
+    it('el administrador publica para todos y cada usuario recibe copia por correo', async () => {
+      const created = await publish('admin', { kind: 'NEWS', audiences: [{ type: 'ALL' }] });
       expect(created).toMatchObject({
         kind: 'NEWS',
         title: 'Convocatoria',
-        author: { id: world.ids.areaManager },
+        author: { id: world.ids.admin },
         audiences: [{ type: 'ALL' }],
         queuedDeliveries: 9, // todos menos el autor; WhatsApp está desactivado por defecto
       });
 
       expect(await feedTitles('outsider')).toEqual(['Convocatoria']);
       expect(await dispatch()).toEqual({ sent: 9, retrying: 0, failed: 0, skipped: 0, deferred: 0 });
-      expect(email.sent.map((s) => s.address).sort()).not.toContain(emailOf('areaManager'));
+      expect(email.sent.map((s) => s.address).sort()).not.toContain(emailOf('admin'));
       expect(email.sent[0].message).toEqual({ kind: 'NEWS', subject: '[Noticia] Convocatoria', body: expect.stringContaining('Detalles') });
       expect(whatsapp.sent).toEqual([]);
       expect(await dispatch()).toEqual({ sent: 0, retrying: 0, failed: 0, skipped: 0, deferred: 0 });
     });
 
+    it('el encargado de área publica para su área: llega a los participantes de sus proyectos', async () => {
+      const created = await publish('areaManager', { kind: 'NEWS', audiences: [{ type: 'AREA', areaId: world.area.id }] });
+      expect(created.queuedDeliveries).toBe(4); // tutor, líder y dos estudiantes; el autor no cuenta
+      for (const p of ['areaManager', 'tutor', 'leader', 'student', 'student2'] as const) expect(await feedTitles(p)).toEqual(['Convocatoria']);
+      for (const p of ['outsider', 'dean', 'tutor2'] as const) expect(await feedTitles(p)).toEqual([]);
+    });
+
     it('una audiencia por rol solo llega a ese rol', async () => {
-      await publish('areaManager', { audiences: [{ type: 'ROLE', role: 'TUTOR' }] });
+      await publish('admin', { audiences: [{ type: 'ROLE', role: 'TUTOR' }] });
       expect(await feedTitles('tutor')).toEqual(['Convocatoria']);
       expect(await feedTitles('tutor2')).toEqual(['Convocatoria']);
       expect(await feedTitles('student')).toEqual([]);
     });
 
-    it('el encargado de área no envía notificaciones ni publica para facultades (RN-51, P-16)', async () => {
-      await publish('areaManager', { kind: 'NOTIFICATION', audiences: [{ type: 'ALL' }] }, 403);
+    it('el encargado de área publica AREA de sus áreas y ROLE, pero no ALL, FACULTY ni PROJECT (ADR 0010, sección 9)', async () => {
+      const otherArea = await world.prisma.area.create({ data: { name: 'Otra área' } });
+      await publish('areaManager', { kind: 'NOTIFICATION', audiences: [{ type: 'AREA', areaId: world.area.id }] }, 403);
+      await publish('areaManager', { audiences: [{ type: 'ALL' }] }, 403);
       await publish('areaManager', { audiences: [{ type: 'FACULTY', facultyId: world.facultyA.id }] }, 403);
+      await publish('areaManager', { audiences: [{ type: 'PROJECT', projectId }] }, 403);
+      await publish('areaManager', { audiences: [{ type: 'AREA', areaId: otherArea.id }] }, 403);
       await publish('areaManager', { audiences: [{ type: 'AREA', areaId: world.area.id }] }, 201);
+      await publish('areaManager', { audiences: [{ type: 'ROLE', role: 'TUTOR' }] }, 201);
     });
 
     it('el decano notifica a su facultad: llega a los participantes de sus proyectos (RN-52)', async () => {
@@ -96,9 +108,51 @@ describe('Novedades, notificaciones y copias por correo/WhatsApp (e2e)', () => {
       await publish('otherDean', { audiences: [{ type: 'PROJECT', projectId }] }, 403);
     });
 
-    it('tutores y estudiantes no publican', async () => {
+    it('el tutor publica solo a sus proyectos; no a facultades, áreas, todos, roles ni notificaciones (ADR 0010)', async () => {
+      const otherProjectId = (
+        await (await world.as('admin'))
+          .post('/api/projects')
+          .send({ title: 'Otro proyecto', areaId: world.area.id, facultyIds: [world.facultyB.id] })
+          .expect(201)
+      ).body.id as string;
+      await publish('tutor', { audiences: [{ type: 'PROJECT', projectId }] }, 201);
+      await publish('tutor', { kind: 'CHANGE', audiences: [{ type: 'PROJECT', projectId }] }, 201);
+      await publish('tutor', { audiences: [{ type: 'PROJECT', projectId: otherProjectId }] }, 403);
+      await publish('tutor2', { audiences: [{ type: 'PROJECT', projectId }] }, 403);
+      await publish('tutor', { audiences: [{ type: 'FACULTY', facultyId: world.facultyA.id }] }, 403);
+      await publish('tutor', { audiences: [{ type: 'AREA', areaId: world.area.id }] }, 403);
+      await publish('tutor', { audiences: [{ type: 'ROLE', role: 'STUDENT' }] }, 403);
+      await publish('tutor', { audiences: [{ type: 'ALL' }] }, 403);
+      await publish('tutor', { kind: 'NOTIFICATION', audiences: [{ type: 'PROJECT', projectId }] }, 403);
+
+      // Un tutor con membresía inactiva deja de publicar en ese proyecto.
+      await world.prisma.projectMember.updateMany({ where: { userId: world.ids.tutor, projectId }, data: { status: 'INACTIVE', leftAt: new Date() } });
       await publish('tutor', { audiences: [{ type: 'PROJECT', projectId }] }, 403);
-      await publish('student', { audiences: [{ type: 'ALL' }] }, 403);
+    });
+
+    it('el estudiante no publica', async () => {
+      await publish('student', { audiences: [{ type: 'PROJECT', projectId }] }, 403);
+      await publish('leader', { audiences: [{ type: 'PROJECT', projectId }] }, 403);
+    });
+
+    it('los roles se suman: el decano que también es encargado de área publica en ambos alcances', async () => {
+      const otherArea = await world.prisma.area.create({ data: { name: 'Otra área' } });
+      await world.prisma.userRole.create({ data: { userId: world.ids.dean, role: 'AREA_MANAGER' } });
+      await world.prisma.areaManager.create({ data: { areaId: otherArea.id, userId: world.ids.dean } });
+      await publish('dean', { audiences: [{ type: 'AREA', areaId: otherArea.id }] }, 201);
+      await publish('dean', { audiences: [{ type: 'FACULTY', facultyId: world.facultyA.id }] }, 201);
+      await publish('dean', { kind: 'NOTIFICATION', audiences: [{ type: 'AREA', areaId: otherArea.id }] }, 201);
+      await publish('dean', { audiences: [{ type: 'ALL' }] }, 403);
+    });
+
+    it('los roles se suman: el tutor que también es encargado de área publica para su área y su proyecto', async () => {
+      const otherArea = await world.prisma.area.create({ data: { name: 'Otra área' } });
+      await world.prisma.userRole.create({ data: { userId: world.ids.tutor, role: 'AREA_MANAGER' } });
+      await world.prisma.areaManager.create({ data: { areaId: otherArea.id, userId: world.ids.tutor } });
+      await publish('tutor', { audiences: [{ type: 'AREA', areaId: otherArea.id }] }, 201);
+      await publish('tutor', { audiences: [{ type: 'PROJECT', projectId }] }, 201);
+      await publish('tutor', { kind: 'NOTIFICATION', audiences: [{ type: 'PROJECT', projectId }] }, 403);
+      await publish('tutor', { audiences: [{ type: 'FACULTY', facultyId: world.facultyA.id }] }, 403);
     });
 
     it('valida el cuerpo y que existan los destinos', async () => {
@@ -109,7 +163,7 @@ describe('Novedades, notificaciones y copias por correo/WhatsApp (e2e)', () => {
     });
 
     it('filtra el feed por tipo y limita la cantidad', async () => {
-      await publish('areaManager', { title: 'Uno', kind: 'NEWS', audiences: [{ type: 'ALL' }] });
+      await publish('admin', { title: 'Uno', kind: 'NEWS', audiences: [{ type: 'ALL' }] });
       await publish('admin', { title: 'Dos', kind: 'NOTIFICATION', audiences: [{ type: 'ALL' }] });
       const student = await world.as('student');
       expect((await student.get('/api/announcements?kind=NOTIFICATION').expect(200)).body.map((a: { title: string }) => a.title)).toEqual(['Dos']);
@@ -164,7 +218,7 @@ describe('Novedades, notificaciones y copias por correo/WhatsApp (e2e)', () => {
 
       // Las novedades de otro tipo siguen llegando por correo.
       email.sent = [];
-      await publish('areaManager', { kind: 'NEWS', audiences: [{ type: 'ROLE', role: 'STUDENT' }] });
+      await publish('admin', { kind: 'NEWS', audiences: [{ type: 'ROLE', role: 'STUDENT' }] });
       await dispatch();
       expect(email.sent.map((s) => s.address)).toContain(emailOf('student'));
     });
@@ -257,6 +311,14 @@ describe('Novedades, notificaciones y copias por correo/WhatsApp (e2e)', () => {
       await publish('dean', { audiences: [{ type: 'PROJECT', projectId }] });
       await world.prisma.user.update({ where: { id: world.ids.student }, data: { status: 'INACTIVE' } });
       expect(await dispatch()).toEqual({ sent: 3, retrying: 0, failed: 0, skipped: 1, deferred: 0 });
+    });
+
+    it('el tutor elimina sus propias novedades, no las ajenas', async () => {
+      const created = await publish('tutor', { audiences: [{ type: 'PROJECT', projectId }] });
+      await (await world.as('tutor2')).delete(`/api/announcements/${created.id}`).expect(404);
+      await (await world.as('student')).delete(`/api/announcements/${created.id}`).expect(403);
+      await (await world.as('tutor')).delete(`/api/announcements/${created.id}`).expect(204);
+      expect(await feedTitles('student')).toEqual([]);
     });
 
     it('al eliminar la novedad se cancelan las copias pendientes', async () => {

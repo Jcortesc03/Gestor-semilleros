@@ -53,7 +53,7 @@ const ASSIGNEE_PROGRESS = new Set(['PENDING', 'IN_PROGRESS', 'DONE']);
  * Actividades de un tablero.
  * - Tutores, líder y admin: crear, editar, eliminar y gestionar encargados (P-09, RN-47).
  * - Encargados: cambiar el progreso (sin cancelar) y gestionar enlaces adjuntos (P-13).
- * - Tutores y admin: aprobar y fijar el resultado (RN-49).
+ * - Tutores y admin: aprobar y fijar el resultado (RN-49); solo con progreso DONE (ADR 0010, sec. 5).
  */
 @Injectable()
 export class ActivitiesService {
@@ -98,7 +98,20 @@ export class ActivitiesService {
       this.assert(manager || allowedForAssignee);
     }
 
-    await this.prisma.activity.update({ where: { id: activityId }, data: dto });
+    const data: Prisma.ActivityUncheckedUpdateInput = { ...dto };
+    if (dto.progressStatus !== undefined && dto.progressStatus !== 'DONE') {
+      // Salir de DONE reinicia la aprobación en la misma escritura (ADR 0010, sec. 5).
+      const current = await this.prisma.activity.findUniqueOrThrow({
+        where: { id: activityId },
+        select: { approvalStatus: true },
+      });
+      if (current.approvalStatus !== 'PENDING') {
+        data.approvalStatus = 'PENDING';
+        data.approvedById = null;
+        data.approvedAt = null;
+      }
+    }
+    await this.prisma.activity.update({ where: { id: activityId }, data });
     return this.load(activityId);
   }
 
@@ -107,6 +120,15 @@ export class ActivitiesService {
     const { access } = await this.work.activity(user, activityId);
     this.assert(can.review(access));
     const pending = dto.status === 'PENDING';
+    if (!pending) {
+      const current = await this.prisma.activity.findUniqueOrThrow({
+        where: { id: activityId },
+        select: { progressStatus: true },
+      });
+      if (current.progressStatus !== 'DONE') {
+        throw new ConflictException('Solo se puede aprobar o rechazar una actividad con progreso Terminada (DONE).');
+      }
+    }
     await this.prisma.activity.update({
       where: { id: activityId },
       data: {

@@ -33,7 +33,7 @@ export class ProjectsController {
   ) {}
 
   @Post()
-  @Roles('DEAN', 'ADMIN')
+  @Roles('DEAN', 'AREA_MANAGER', 'ADMIN')
   create(@CurrentUser() user: AuthUser, @Body() body: unknown) {
     return this.projects.create(user, validated(parseCreateProject(body)));
   }
@@ -41,6 +41,11 @@ export class ProjectsController {
   @Get()
   list(@CurrentUser() user: AuthUser) {
     return this.projects.list(user);
+  }
+
+  @Get('tutored')
+  tutored(@CurrentUser() user: AuthUser) {
+    return this.projects.tutored(user);
   }
 
   @Get(':projectId')

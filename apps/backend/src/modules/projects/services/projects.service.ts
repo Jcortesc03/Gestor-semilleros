@@ -4,7 +4,7 @@ import { PrismaService } from '../../../database/prisma.service';
 import type { AuthUser } from '../../auth';
 import { can } from '../models/project-access';
 import type { CreateProjectDto, UpdateProjectDto } from '../dtos/project.dto';
-import { toDateOnly, type ProjectResponseDto } from '../dtos/project-response.dto';
+import { toDateOnly, type ProjectResponseDto, type TutoredProjectDto } from '../dtos/project-response.dto';
 import { ProjectAccessService } from './project-access.service';
 
 const projectInclude = {
@@ -35,10 +35,14 @@ export class ProjectsService {
     private readonly access: ProjectAccessService,
   ) {}
 
-  /** Crea un proyecto. Decano (en al menos una de sus facultades) o Administrador. */
+  /**
+   * Crea un proyecto. Administrador; decano (en al menos una de sus facultades) o
+   * encargado de área (con `areaId` de un área asignada). Los permisos se suman (ADR 0010).
+   */
   async create(user: AuthUser, dto: CreateProjectDto): Promise<ProjectResponseDto> {
-    await this.assertCanUseFaculties(user, dto.facultyIds);
+    await this.assertFacultiesExist(dto.facultyIds);
     await this.assertAreaExists(dto.areaId);
+    await this.assertCanPlace(user, dto.facultyIds, dto.areaId);
 
     const project = await this.prisma.project.create({
       data: {
@@ -55,12 +59,16 @@ export class ProjectsService {
     return toResponse(project);
   }
 
-  /** Proyectos visibles: todos (admin), los de sus facultades (decano) y aquellos donde participa. */
+  /** Proyectos visibles: todos (admin), los de sus facultades (decano), los de sus áreas (encargado de área) y aquellos donde participa. */
   async list(user: AuthUser): Promise<ProjectResponseDto[]> {
     const visibility: Prisma.ProjectWhereInput[] = [{ members: { some: { userId: user.id, status: 'ACTIVE' } } }];
     if (user.roles.includes('DEAN')) {
       const facultyIds = await this.access.currentDeanFacultyIds(user.id);
       if (facultyIds.length > 0) visibility.push({ faculties: { some: { facultyId: { in: facultyIds } } } });
+    }
+    if (user.roles.includes('AREA_MANAGER')) {
+      const areaIds = await this.access.managedAreaIds(user.id);
+      if (areaIds.length > 0) visibility.push({ areaId: { in: areaIds } });
     }
     const projects = await this.prisma.project.findMany({
       where: { deletedAt: null, ...(user.roles.includes('ADMIN') ? {} : { OR: visibility }) },
@@ -68,6 +76,21 @@ export class ProjectsService {
       orderBy: { createdAt: 'desc' },
     });
     return projects.map(toResponse);
+  }
+
+  /** Proyectos no eliminados donde el usuario es tutor activo (contrato en docs/api/projects.md). */
+  async tutored(user: AuthUser): Promise<TutoredProjectDto[]> {
+    const memberships = await this.prisma.projectMember.findMany({
+      where: { userId: user.id, status: 'ACTIVE', projectRole: 'TUTOR', project: { deletedAt: null } },
+      select: { isPrimary: true, project: { select: { id: true, title: true, status: true } } },
+      orderBy: { project: { title: 'asc' } },
+    });
+    return memberships.map((m) => ({
+      id: m.project.id,
+      title: m.project.title,
+      status: m.project.status,
+      isPrimaryTutor: m.isPrimary,
+    }));
   }
 
   async get(user: AuthUser, projectId: string): Promise<ProjectResponseDto> {
@@ -79,14 +102,24 @@ export class ProjectsService {
     const access = await this.access.resolve(user, projectId);
     this.access.assert(can.manageProject(access));
 
-    const current = await this.prisma.project.findUniqueOrThrow({ where: { id: projectId } });
+    const current = await this.prisma.project.findUniqueOrThrow({
+      where: { id: projectId },
+      include: { faculties: { select: { facultyId: true } } },
+    });
     const startsOn = dto.startsOn !== undefined ? dto.startsOn : current.startsOn;
     const endsOn = dto.endsOn !== undefined ? dto.endsOn : current.endsOn;
     if (startsOn && endsOn && endsOn < startsOn) {
       throw new BadRequestException({ message: 'Datos inválidos.', errors: ['endsOn no puede ser anterior a startsOn.'] });
     }
     if (dto.areaId) await this.assertAreaExists(dto.areaId);
-    if (dto.facultyIds) await this.assertCanUseFaculties(user, dto.facultyIds);
+    if (dto.facultyIds) await this.assertFacultiesExist(dto.facultyIds);
+    if (dto.facultyIds || dto.areaId) {
+      await this.assertCanPlace(
+        user,
+        dto.facultyIds ?? current.faculties.map((f) => f.facultyId),
+        dto.areaId ?? current.areaId,
+      );
+    }
 
     const { facultyIds, ...fields } = dto;
     const project = await this.prisma.$transaction(async (tx) => {
@@ -112,14 +145,21 @@ export class ProjectsService {
     }
   }
 
-  /** Las facultades deben existir y un decano debe dirigir al menos una de ellas. */
-  private async assertCanUseFaculties(user: AuthUser, facultyIds: string[]): Promise<void> {
+  private async assertFacultiesExist(facultyIds: string[]): Promise<void> {
     const found = await this.prisma.faculty.count({ where: { id: { in: facultyIds } } });
     if (found !== facultyIds.length) {
       throw new BadRequestException({ message: 'Datos inválidos.', errors: ['Alguna de las facultades indicadas no existe.'] });
     }
+  }
+
+  /**
+   * El proyecto resultante debe quedar bajo la autoridad del usuario: administrador, decano de al menos
+   * una de las facultades o encargado del área (ADR 0010, sec. 2). Si no, 403.
+   */
+  private async assertCanPlace(user: AuthUser, facultyIds: string[], areaId: string): Promise<void> {
     if (user.roles.includes('ADMIN')) return;
-    const own = user.roles.includes('DEAN') ? await this.access.currentDeanFacultyIds(user.id) : [];
-    this.access.assert(facultyIds.some((id) => own.includes(id)));
+    const ownFaculties = user.roles.includes('DEAN') ? await this.access.currentDeanFacultyIds(user.id) : [];
+    const ownAreas = user.roles.includes('AREA_MANAGER') ? await this.access.managedAreaIds(user.id) : [];
+    this.access.assert(facultyIds.some((id) => ownFaculties.includes(id)) || ownAreas.includes(areaId));
   }
 }

@@ -12,6 +12,13 @@ export interface ProjectResponseDto {
   createdAt: string;
 }
 
+export interface TutoredProjectDto {
+  id: string;
+  title: string;
+  status: ProjectStatus;
+  isPrimaryTutor: boolean;
+}
+
 export interface MemberResponseDto {
   id: string;
   user: { id: string; fullName: string; email: string };

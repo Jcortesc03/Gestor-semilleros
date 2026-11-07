@@ -77,6 +77,108 @@ describe('Proyectos y participantes (e2e)', () => {
     });
   });
 
+  describe('encargado de área', () => {
+    const otherArea = () => world.prisma.area.create({ data: { name: 'Otra área' } });
+
+    it('crea proyectos solo con un área asignada (cualquier facultad)', async () => {
+      const manager = await world.as('areaManager');
+      const created = await manager.post('/api/projects').send(body({ facultyIds: [world.facultyB.id] })).expect(201);
+      expect(created.body.area.id).toBe(world.area.id);
+      const other = await otherArea();
+      await manager.post('/api/projects').send(body({ areaId: other.id })).expect(403);
+    });
+
+    it('edita y elimina proyectos de su área, no de otra', async () => {
+      const project = await buildProject(world);
+      const other = await otherArea();
+      const foreign = (
+        await (await world.as('admin')).post('/api/projects').send(body({ title: 'Ajeno', areaId: other.id })).expect(201)
+      ).body as { id: string };
+      const manager = await world.as('areaManager');
+
+      const res = await manager.patch(`/api/projects/${project.id}`).send({ title: 'Del encargado', status: 'FINISHED' }).expect(200);
+      expect(res.body).toMatchObject({ title: 'Del encargado', status: 'FINISHED' });
+      await manager.patch(`/api/projects/${foreign.id}`).send({ title: 'X' }).expect(404);
+      await manager.delete(`/api/projects/${foreign.id}`).expect(404);
+      // No puede mover su proyecto a un área que no le pertenece.
+      await manager.patch(`/api/projects/${project.id}`).send({ areaId: other.id }).expect(403);
+      await manager.delete(`/api/projects/${project.id}`).expect(204);
+      await manager.get(`/api/projects/${project.id}`).expect(404);
+    });
+
+    it('lista los proyectos de sus áreas', async () => {
+      await buildProject(world);
+      const other = await otherArea();
+      await (await world.as('admin')).post('/api/projects').send(body({ title: 'Ajeno', areaId: other.id })).expect(201);
+      const list = (await (await world.as('areaManager')).get('/api/projects').expect(200)).body as { title: string }[];
+      expect(list.map((p) => p.title)).toEqual(['Proyecto de prueba']);
+    });
+
+    it('gestiona tutores y estudiantes de los proyectos de su área', async () => {
+      const project = await buildProject(world);
+      const manager = await world.as('areaManager');
+      const add = (userId: string, projectRole: string) =>
+        manager.post(`/api/projects/${project.id}/members`).send({ userId, projectRole });
+      const tutor2 = (await add(world.ids.tutor2, 'TUTOR').expect(201)).body as { id: string };
+      await add(world.ids.outsider, 'STUDENT').expect(201);
+      await manager.delete(`/api/projects/${project.id}/members/${tutor2.id}`).expect(204);
+    });
+
+    it('no gestiona participantes de proyectos de otra área', async () => {
+      const other = await otherArea();
+      const foreign = (
+        await (await world.as('admin')).post('/api/projects').send(body({ areaId: other.id })).expect(201)
+      ).body as { id: string };
+      await (await world.as('areaManager'))
+        .post(`/api/projects/${foreign.id}/members`)
+        .send({ userId: world.ids.outsider, projectRole: 'STUDENT' })
+        .expect(404);
+    });
+
+    it('decano y encargado tienen los mismos permisos sobre el mismo proyecto (sin precedencia)', async () => {
+      const project = await buildProject(world);
+      const dean = await world.as('dean');
+      const manager = await world.as('areaManager');
+      await dean.patch(`/api/projects/${project.id}`).send({ title: 'Del decano' }).expect(200);
+      const res = await manager.patch(`/api/projects/${project.id}`).send({ title: 'Del encargado' }).expect(200);
+      expect(res.body.title).toBe('Del encargado');
+      const final = await dean.get(`/api/projects/${project.id}`).expect(200);
+      expect(final.body.title).toBe('Del encargado');
+      await dean.post(`/api/projects/${project.id}/members`).send({ userId: world.ids.tutor2, projectRole: 'TUTOR' }).expect(201);
+    });
+  });
+
+  describe('límites del tutor (ADR 0010, sec. 6)', () => {
+    async function memberIds(projectId: string) {
+      const members = (await (await world.as('tutor')).get(`/api/projects/${projectId}/members`).expect(200)).body as {
+        id: string;
+        user: { id: string };
+      }[];
+      return (userId: string) => members.find((m) => m.user.id === userId)!.id;
+    }
+
+    it('no añade ni cambia tutores, pero sí estudiantes', async () => {
+      const project = await buildProject(world);
+      const tutor = await world.as('tutor');
+      await tutor.post(`/api/projects/${project.id}/members`).send({ userId: world.ids.tutor2, projectRole: 'TUTOR' }).expect(403);
+      await tutor
+        .post(`/api/projects/${project.id}/members`)
+        .send({ userId: world.ids.tutor2, projectRole: 'TUTOR', isPrimary: true })
+        .expect(403);
+      const idOf = await memberIds(project.id);
+      await tutor.patch(`/api/projects/${project.id}/members/${idOf(world.ids.tutor)}`).send({ projectRole: 'STUDENT' }).expect(403);
+      await tutor.delete(`/api/projects/${project.id}/members/${idOf(world.ids.tutor)}`).expect(403);
+      await tutor.delete(`/api/projects/${project.id}/members/${idOf(world.ids.student)}`).expect(204);
+    });
+
+    it('no cambia sus roles globales ni gestiona el proyecto', async () => {
+      const project = await buildProject(world);
+      const tutor = await world.as('tutor');
+      await tutor.patch(`/api/projects/${project.id}`).send({ title: 'X' }).expect(403);
+      await tutor.delete(`/api/projects/${project.id}`).expect(403);
+    });
+  });
+
   describe('visibilidad', () => {
     it('cada usuario solo ve los proyectos que le corresponden', async () => {
       const project = await buildProject(world);
@@ -266,6 +368,47 @@ describe('Proyectos y participantes (e2e)', () => {
       }[];
       const tutor2 = members.find((m) => m.user.id === world.ids.tutor2)!.id;
       await tutor.delete(`/api/projects/${project.id}/members/${tutor2}`).expect(403);
+    });
+  });
+
+  describe('GET /api/projects/tutored', () => {
+    it('responde 401 sin sesión', async () => {
+      await request(app.getHttpServer()).get('/api/projects/tutored').expect(401);
+    });
+
+    it('el tutor ve sus proyectos activos ordenados por título, sin los eliminados ni sus membresías inactivas', async () => {
+      const principal = await buildProject(world);
+      const dean = await world.as('dean');
+      const alfa = (await dean.post('/api/projects').send(body({ title: 'Alfa' })).expect(201)).body as { id: string };
+      await dean.post(`/api/projects/${alfa.id}/members`).send({ userId: world.ids.tutor, projectRole: 'TUTOR' }).expect(201);
+
+      const eliminado = (await dean.post('/api/projects').send(body({ title: 'Eliminado' })).expect(201)).body as { id: string };
+      await dean.post(`/api/projects/${eliminado.id}/members`).send({ userId: world.ids.tutor, projectRole: 'TUTOR' }).expect(201);
+      await dean.delete(`/api/projects/${eliminado.id}`).expect(204);
+
+      const inactivo = (await dean.post('/api/projects').send(body({ title: 'Inactivo' })).expect(201)).body as { id: string };
+      const membresia = (
+        await dean.post(`/api/projects/${inactivo.id}/members`).send({ userId: world.ids.tutor, projectRole: 'TUTOR' }).expect(201)
+      ).body as { id: string };
+      await dean.delete(`/api/projects/${inactivo.id}/members/${membresia.id}`).expect(204);
+
+      const res = await (await world.as('tutor')).get('/api/projects/tutored').expect(200);
+      expect(res.body).toEqual([
+        { id: alfa.id, title: 'Alfa', status: 'ACTIVE', isPrimaryTutor: false },
+        { id: principal.id, title: 'Proyecto de prueba', status: 'ACTIVE', isPrimaryTutor: true },
+      ]);
+    });
+
+    it('un estudiante recibe una lista vacía', async () => {
+      await buildProject(world);
+      const res = await (await world.as('student')).get('/api/projects/tutored').expect(200);
+      expect(res.body).toEqual([]);
+    });
+
+    it('GET /api/projects/:id sigue resolviendo un UUID y no captura "tutored"', async () => {
+      const project = await buildProject(world);
+      await (await world.as('tutor')).get(`/api/projects/${project.id}`).expect(200);
+      await (await world.as('tutor')).get('/api/projects/no-es-uuid').expect(400);
     });
   });
 });
