@@ -2,7 +2,6 @@ import { EnvValidationError } from './env';
 import { loadNotificationsConfig } from './notifications.config';
 
 const SMTP_SECRET = 'contraseña-smtp-super-secreta';
-const WHATSAPP_SECRET = 'token-whatsapp-super-secreto';
 
 const smtpSource = {
   NOTIFICATIONS_EMAIL_TRANSPORT: 'smtp',
@@ -14,13 +13,11 @@ const smtpSource = {
   EMAIL_FROM: '"Semilleros" <no-responder@example.test>',
 };
 
-const cloudSource = {
-  NOTIFICATIONS_WHATSAPP_TRANSPORT: 'cloud-api',
-  WHATSAPP_API_VERSION: 'v21.0',
-  WHATSAPP_PHONE_NUMBER_ID: '1234567890',
-  WHATSAPP_ACCESS_TOKEN: WHATSAPP_SECRET,
-  WHATSAPP_TEMPLATE_NAME: 'novedad_semillero',
-  WHATSAPP_TEMPLATE_LANGUAGE: 'es_CO',
+const builderBotSource = {
+  NOTIFICATIONS_WHATSAPP_TRANSPORT: 'builderbot',
+  WHATSAPP_PROVIDER: 'baileys',
+  WHATSAPP_SESSION_NAME: 'semilleros',
+  WHATSAPP_PAIRING_PHONE: '+57 300 000 0001',
 };
 
 /** Ejecuta la carga y devuelve el error de validación lanzado. */
@@ -101,35 +98,89 @@ describe('loadNotificationsConfig', () => {
     });
   });
 
-  it('carga una configuración de WhatsApp Cloud API completa', () => {
-    const config = loadNotificationsConfig({ ...cloudSource });
+  it('carga una configuración de WhatsApp BuilderBot completa', () => {
+    const config = loadNotificationsConfig({
+      ...builderBotSource,
+      WHATSAPP_SESSION_NAME: '  semilleros  ',
+      WHATSAPP_PAIRING_PHONE: '  +57 (300) 000-0001. ',
+    });
 
     expect(config.whatsapp).toEqual({
-      transport: 'cloud-api',
-      cloud: {
-        apiVersion: 'v21.0',
-        phoneNumberId: '1234567890',
-        accessToken: WHATSAPP_SECRET,
-        templateName: 'novedad_semillero',
-        templateLanguage: 'es_CO',
+      transport: 'builderbot',
+      builderbot: {
+        provider: 'baileys',
+        sessionName: 'semilleros',
+        pairingPhone: '+573000000001',
       },
     });
   });
 
-  it('usa "es" como idioma de plantilla por defecto', () => {
-    const { WHATSAPP_TEMPLATE_LANGUAGE: _omitido, ...resto } = cloudSource;
-    const config = loadNotificationsConfig(resto);
+  it('aplica los valores por defecto de BuilderBot (baileys, sesión "whatsapp" y sin teléfono)', () => {
+    const config = loadNotificationsConfig({
+      NOTIFICATIONS_WHATSAPP_TRANSPORT: 'builderbot',
+    });
 
     expect(config.whatsapp).toEqual({
-      transport: 'cloud-api',
-      cloud: {
-        apiVersion: 'v21.0',
-        phoneNumberId: '1234567890',
-        accessToken: WHATSAPP_SECRET,
-        templateName: 'novedad_semillero',
-        templateLanguage: 'es',
+      transport: 'builderbot',
+      builderbot: {
+        provider: 'baileys',
+        sessionName: 'whatsapp',
+        pairingPhone: null,
       },
     });
+  });
+
+  it('normaliza WHATSAPP_PAIRING_PHONE quitando espacios, guiones, puntos y paréntesis', () => {
+    const variantes = [
+      '+57 300 000 0001',
+      '+57-300-000-0001',
+      '+57.300.000.0001',
+      ' +57 (300) 000 0001 ',
+      '+57(300)000-0001.',
+    ];
+
+    for (const variante of variantes) {
+      const config = loadNotificationsConfig({
+        NOTIFICATIONS_WHATSAPP_TRANSPORT: 'builderbot',
+        WHATSAPP_PAIRING_PHONE: variante,
+      });
+
+      expect(config.whatsapp).toEqual({
+        transport: 'builderbot',
+        builderbot: {
+          provider: 'baileys',
+          sessionName: 'whatsapp',
+          pairingPhone: '+573000000001',
+        },
+      });
+    }
+  });
+
+  it('deja WHATSAPP_PAIRING_PHONE en null cuando está vacío', () => {
+    const config = loadNotificationsConfig({
+      NOTIFICATIONS_WHATSAPP_TRANSPORT: 'builderbot',
+      WHATSAPP_PAIRING_PHONE: '   ',
+    });
+
+    expect(config.whatsapp).toEqual({
+      transport: 'builderbot',
+      builderbot: {
+        provider: 'baileys',
+        sessionName: 'whatsapp',
+        pairingPhone: null,
+      },
+    });
+  });
+
+  it('ignora los ajustes de BuilderBot cuando el transporte no es builderbot', () => {
+    const config = loadNotificationsConfig({
+      NOTIFICATIONS_WHATSAPP_TRANSPORT: 'log',
+      WHATSAPP_PROVIDER: 'desconocido',
+      WHATSAPP_SESSION_NAME: 'Sesión Inválida',
+      WHATSAPP_PAIRING_PHONE: 'sin-formato',
+    });
+
+    expect(config.whatsapp).toEqual({ transport: 'log' });
   });
 
   it('carga los ajustes generales del despachador', () => {
@@ -157,9 +208,66 @@ describe('loadNotificationsConfig', () => {
     const error = loadError({ NOTIFICATIONS_WHATSAPP_TRANSPORT: 'sms' });
 
     expect(error.message).toContain('NOTIFICATIONS_WHATSAPP_TRANSPORT');
-    expect(error.message).toContain('cloud-api');
+    expect(error.message).toContain('builderbot');
     expect(error.message).toContain('log');
     expect(error.message).toContain('disabled');
+  });
+
+  it('rechaza un WHATSAPP_PROVIDER desconocido y lista los permitidos', () => {
+    const error = loadError({
+      NOTIFICATIONS_WHATSAPP_TRANSPORT: 'builderbot',
+      WHATSAPP_PROVIDER: 'cloud-api',
+    });
+
+    expect(error.message).toContain('WHATSAPP_PROVIDER');
+    expect(error.message).toContain('baileys');
+  });
+
+  it('valida el formato de WHATSAPP_SESSION_NAME', () => {
+    for (const sessionName of ['Semilleros', 'semilleros bot', 'semilleros/bot', 'a'.repeat(41)]) {
+      const error = loadError({
+        NOTIFICATIONS_WHATSAPP_TRANSPORT: 'builderbot',
+        WHATSAPP_SESSION_NAME: sessionName,
+      });
+
+      expect(error.message).toContain('WHATSAPP_SESSION_NAME');
+    }
+  });
+
+  it('acepta WHATSAPP_SESSION_NAME con minúsculas, dígitos, guiones y guiones bajos', () => {
+    const config = loadNotificationsConfig({
+      NOTIFICATIONS_WHATSAPP_TRANSPORT: 'builderbot',
+      WHATSAPP_SESSION_NAME: 'semilleros_2026-01',
+    });
+
+    expect(config.whatsapp).toEqual({
+      transport: 'builderbot',
+      builderbot: {
+        provider: 'baileys',
+        sessionName: 'semilleros_2026-01',
+        pairingPhone: null,
+      },
+    });
+  });
+
+  it('exige que WHATSAPP_PAIRING_PHONE sea un número E.164', () => {
+    const invalidos = [
+      '573000000001', // sin «+»
+      '+0573000000001', // empieza por 0
+      '+573000', // demasiado corto
+      '+5730000000000000', // demasiado largo
+      '+57 300 abc 0001', // caracteres no numéricos
+      '+', // solo el prefijo
+    ];
+
+    for (const pairingPhone of invalidos) {
+      const error = loadError({
+        NOTIFICATIONS_WHATSAPP_TRANSPORT: 'builderbot',
+        WHATSAPP_PAIRING_PHONE: pairingPhone,
+      });
+
+      expect(error.message).toContain('WHATSAPP_PAIRING_PHONE');
+    }
   });
 
   it('exige SMTP_HOST y EMAIL_FROM cuando el transporte es smtp', () => {
@@ -212,48 +320,6 @@ describe('loadNotificationsConfig', () => {
     );
   });
 
-  it('exige WHATSAPP_API_VERSION con el formato v<mayor>.<menor>', () => {
-    expect(() => loadNotificationsConfig({ ...cloudSource, WHATSAPP_API_VERSION: '21.0' })).toThrow(
-      /WHATSAPP_API_VERSION/,
-    );
-    expect(() => loadNotificationsConfig({ ...cloudSource, WHATSAPP_API_VERSION: 'v21' })).toThrow(
-      /WHATSAPP_API_VERSION/,
-    );
-  });
-
-  it('exige WHATSAPP_PHONE_NUMBER_ID solo con dígitos', () => {
-    expect(() =>
-      loadNotificationsConfig({ ...cloudSource, WHATSAPP_PHONE_NUMBER_ID: '+573000000001' }),
-    ).toThrow(/WHATSAPP_PHONE_NUMBER_ID/);
-    expect(() =>
-      loadNotificationsConfig({ ...cloudSource, WHATSAPP_PHONE_NUMBER_ID: 'abc123' }),
-    ).toThrow(/WHATSAPP_PHONE_NUMBER_ID/);
-  });
-
-  it('exige WHATSAPP_ACCESS_TOKEN', () => {
-    expect(() =>
-      loadNotificationsConfig({ ...cloudSource, WHATSAPP_ACCESS_TOKEN: '   ' }),
-    ).toThrow(/WHATSAPP_ACCESS_TOKEN/);
-  });
-
-  it('exige WHATSAPP_TEMPLATE_NAME con minúsculas, dígitos y guiones bajos', () => {
-    expect(() =>
-      loadNotificationsConfig({ ...cloudSource, WHATSAPP_TEMPLATE_NAME: 'Novedad Semillero' }),
-    ).toThrow(/WHATSAPP_TEMPLATE_NAME/);
-    expect(() =>
-      loadNotificationsConfig({ ...cloudSource, WHATSAPP_TEMPLATE_NAME: 'novedad-semillero' }),
-    ).toThrow(/WHATSAPP_TEMPLATE_NAME/);
-  });
-
-  it('valida WHATSAPP_TEMPLATE_LANGUAGE', () => {
-    expect(() =>
-      loadNotificationsConfig({ ...cloudSource, WHATSAPP_TEMPLATE_LANGUAGE: 'español' }),
-    ).toThrow(/WHATSAPP_TEMPLATE_LANGUAGE/);
-    expect(() =>
-      loadNotificationsConfig({ ...cloudSource, WHATSAPP_TEMPLATE_LANGUAGE: 'es_co' }),
-    ).toThrow(/WHATSAPP_TEMPLATE_LANGUAGE/);
-  });
-
   it('valida NOTIFICATIONS_AUTO_DISPATCH', () => {
     expect(() => loadNotificationsConfig({ NOTIFICATIONS_AUTO_DISPATCH: 'yes' })).toThrow(
       /NOTIFICATIONS_AUTO_DISPATCH/,
@@ -288,11 +354,5 @@ describe('loadNotificationsConfig', () => {
     const error = loadError({ ...smtpSource, EMAIL_FROM: 'sin-arroba' });
 
     expect(error.message).not.toContain(SMTP_SECRET);
-  });
-
-  it('no incluye WHATSAPP_ACCESS_TOKEN en los mensajes de error', () => {
-    const error = loadError({ ...cloudSource, WHATSAPP_TEMPLATE_NAME: 'Nombre Inválido' });
-
-    expect(error.message).not.toContain(WHATSAPP_SECRET);
   });
 });

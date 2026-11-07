@@ -3,21 +3,24 @@
  * Los valores se recortan y una cadena vacía se considera no definida.
  */
 import { EnvValidationError } from './env';
+import { WHATSAPP_PROVIDERS } from './notifications.config.types';
 import type {
+  BuilderBotWhatsAppConfig,
   EmailConfig,
   NotificationsConfig,
   SmtpConfig,
-  WhatsAppCloudConfig,
   WhatsAppConfig,
+  WhatsAppProviderName,
 } from './notifications.config.types';
 
 const EMAIL_TRANSPORTS = ['smtp', 'log', 'disabled'] as const;
-const WHATSAPP_TRANSPORTS = ['cloud-api', 'log', 'disabled'] as const;
+const WHATSAPP_TRANSPORTS = ['builderbot', 'log', 'disabled'] as const;
 
 const DEFAULT_EMAIL_TRANSPORT = 'log';
 const DEFAULT_WHATSAPP_TRANSPORT = 'log';
+const DEFAULT_WHATSAPP_PROVIDER: WhatsAppProviderName = 'baileys';
+const DEFAULT_WHATSAPP_SESSION_NAME = 'whatsapp';
 const DEFAULT_SMTP_PORT = 587;
-const DEFAULT_TEMPLATE_LANGUAGE = 'es';
 const DEFAULT_AUTO_DISPATCH = true;
 const DEFAULT_DISPATCH_INTERVAL = 60;
 const DEFAULT_MAX_ATTEMPTS = 5;
@@ -29,10 +32,10 @@ const MAX_DISPATCH_INTERVAL = 3600;
 const MIN_MAX_ATTEMPTS = 1;
 const MAX_MAX_ATTEMPTS = 20;
 
-const API_VERSION_PATTERN = /^v\d+\.\d+$/;
-const PHONE_NUMBER_ID_PATTERN = /^\d+$/;
-const TEMPLATE_NAME_PATTERN = /^[a-z0-9_]+$/;
-const TEMPLATE_LANGUAGE_PATTERN = /^[a-z]{2,3}(_[A-Z]{2})?$/;
+const SESSION_NAME_PATTERN = /^[a-z0-9_-]{1,40}$/;
+const PAIRING_PHONE_PATTERN = /^\+[1-9]\d{7,14}$/;
+/** Separadores que se descartan del teléfono antes de validarlo. */
+const PAIRING_PHONE_SEPARATORS = /[\s\-.()]/g;
 
 /** Devuelve el valor recortado o `undefined` si no está definido o está vacío. */
 function optional(source: NodeJS.ProcessEnv, key: string): string | undefined {
@@ -124,6 +127,20 @@ function loadEmailConfig(source: NodeJS.ProcessEnv): EmailConfig {
   return { transport: 'smtp', smtp };
 }
 
+function loadPairingPhone(source: NodeJS.ProcessEnv): string | null {
+  const raw = optional(source, 'WHATSAPP_PAIRING_PHONE');
+  if (raw === undefined) return null;
+
+  const normalized = raw.replace(PAIRING_PHONE_SEPARATORS, '');
+  if (!PAIRING_PHONE_PATTERN.test(normalized)) {
+    throw new EnvValidationError(
+      'WHATSAPP_PAIRING_PHONE debe ser un número E.164 con prefijo «+», por ejemplo +573000000001.',
+    );
+  }
+
+  return normalized;
+}
+
 function loadWhatsAppConfig(source: NodeJS.ProcessEnv): WhatsAppConfig {
   const transport = oneOf(
     optional(source, 'NOTIFICATIONS_WHATSAPP_TRANSPORT'),
@@ -132,46 +149,29 @@ function loadWhatsAppConfig(source: NodeJS.ProcessEnv): WhatsAppConfig {
     DEFAULT_WHATSAPP_TRANSPORT,
   );
 
-  if (transport !== 'cloud-api') return { transport };
+  if (transport !== 'builderbot') return { transport };
 
-  const apiVersion = required(source, 'WHATSAPP_API_VERSION');
-  if (!API_VERSION_PATTERN.test(apiVersion)) {
+  const provider = oneOf(
+    optional(source, 'WHATSAPP_PROVIDER'),
+    'WHATSAPP_PROVIDER',
+    WHATSAPP_PROVIDERS,
+    DEFAULT_WHATSAPP_PROVIDER,
+  );
+
+  const sessionName = optional(source, 'WHATSAPP_SESSION_NAME') ?? DEFAULT_WHATSAPP_SESSION_NAME;
+  if (!SESSION_NAME_PATTERN.test(sessionName)) {
     throw new EnvValidationError(
-      'WHATSAPP_API_VERSION debe tener el formato v<mayor>.<menor>, por ejemplo v21.0.',
+      'WHATSAPP_SESSION_NAME debe tener entre 1 y 40 caracteres: minúsculas, dígitos, guiones y guiones bajos.',
     );
   }
 
-  const phoneNumberId = required(source, 'WHATSAPP_PHONE_NUMBER_ID');
-  if (!PHONE_NUMBER_ID_PATTERN.test(phoneNumberId)) {
-    throw new EnvValidationError('WHATSAPP_PHONE_NUMBER_ID debe contener solo dígitos.');
-  }
-
-  const accessToken = required(source, 'WHATSAPP_ACCESS_TOKEN');
-
-  const templateName = required(source, 'WHATSAPP_TEMPLATE_NAME');
-  if (!TEMPLATE_NAME_PATTERN.test(templateName)) {
-    throw new EnvValidationError(
-      'WHATSAPP_TEMPLATE_NAME debe contener solo minúsculas, dígitos y guiones bajos.',
-    );
-  }
-
-  const templateLanguage =
-    optional(source, 'WHATSAPP_TEMPLATE_LANGUAGE') ?? DEFAULT_TEMPLATE_LANGUAGE;
-  if (!TEMPLATE_LANGUAGE_PATTERN.test(templateLanguage)) {
-    throw new EnvValidationError(
-      'WHATSAPP_TEMPLATE_LANGUAGE debe tener el formato "es" o "es_CO".',
-    );
-  }
-
-  const cloud: WhatsAppCloudConfig = {
-    apiVersion,
-    phoneNumberId,
-    accessToken,
-    templateName,
-    templateLanguage,
+  const builderbot: BuilderBotWhatsAppConfig = {
+    provider,
+    sessionName,
+    pairingPhone: loadPairingPhone(source),
   };
 
-  return { transport: 'cloud-api', cloud };
+  return { transport: 'builderbot', builderbot };
 }
 
 export function loadNotificationsConfig(source: NodeJS.ProcessEnv): NotificationsConfig {

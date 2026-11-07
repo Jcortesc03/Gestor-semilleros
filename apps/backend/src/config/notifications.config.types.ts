@@ -11,18 +11,24 @@ export interface SmtpConfig {
   from: string;
 }
 
-export interface WhatsAppCloudConfig {
-  /** Versión de la Graph API de Meta, p. ej. `v21.0`. */
-  apiVersion: string;
-  phoneNumberId: string;
-  accessToken: string;
-  /** Plantilla aprobada en Meta con dos parámetros de cuerpo: {{1}} asunto, {{2}} texto. */
-  templateName: string;
-  templateLanguage: string;
+/** Providers de BuilderBot disponibles. Para añadir uno, ver `WHATSAPP_PROVIDER_FACTORIES`. */
+export const WHATSAPP_PROVIDERS = ['baileys'] as const;
+export type WhatsAppProviderName = (typeof WHATSAPP_PROVIDERS)[number];
+
+/** WhatsApp mediante BuilderBot (ADR 0006). */
+export interface BuilderBotWhatsAppConfig {
+  provider: WhatsAppProviderName;
+  /** Nombre de la sesión: Baileys guarda las credenciales en `<cwd>/<sessionName>_sessions/`. */
+  sessionName: string;
+  /**
+   * Número E.164 del teléfono emisor. Si se define, Baileys se vincula con un código de
+   * emparejamiento en lugar del QR (útil en servidores sin pantalla).
+   */
+  pairingPhone: string | null;
 }
 
 export type EmailConfig = { transport: 'smtp'; smtp: SmtpConfig } | { transport: 'log' | 'disabled' };
-export type WhatsAppConfig = { transport: 'cloud-api'; cloud: WhatsAppCloudConfig } | { transport: 'log' | 'disabled' };
+export type WhatsAppConfig = { transport: 'builderbot'; builderbot: BuilderBotWhatsAppConfig } | { transport: 'log' | 'disabled' };
 
 export interface NotificationsConfig {
   email: EmailConfig;

@@ -175,6 +175,20 @@ describe('Novedades, notificaciones y copias por correo/WhatsApp (e2e)', () => {
     });
   });
 
+  describe('conexión de WhatsApp (BuilderBot)', () => {
+    it('el administrador consulta el estado; con transporte log no hay conexión ni QR', async () => {
+      const admin = await world.as('admin');
+      expect((await admin.get('/api/integrations/whatsapp/status').expect(200)).body).toEqual({ transport: 'log' });
+      const qr = await admin.get('/api/integrations/whatsapp/qr').expect(404);
+      expect(qr.body.message).toBe('No hay un QR pendiente de escanear.');
+    });
+
+    it('solo el administrador accede', async () => {
+      await (await world.as('dean')).get('/api/integrations/whatsapp/status').expect(403);
+      await (await world.as('student')).get('/api/integrations/whatsapp/qr').expect(403);
+    });
+  });
+
   describe('envíos', () => {
     it('reintenta los fallos transitorios y marca como fallidos los definitivos', async () => {
       const created = await publish('dean', { audiences: [{ type: 'PROJECT', projectId }] });

@@ -23,6 +23,8 @@
   "dependencies": {
     "@auth/core": "0.41.3",
     "@auth/express": "0.12.3",
+    "@builderbot/bot": "1.4.4",
+    "@builderbot/provider-baileys": "1.4.4",
     "@nestjs/common": "12.3.3",
     "@nestjs/core": "12.3.3",
     "@nestjs/platform-express": "12.3.3",

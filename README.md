@@ -205,7 +205,7 @@ Las variables se configuran por entorno y **nunca** se versionan. Las plantillas
 - [`apps/backend/.env.example`](apps/backend/.env.example): `DATABASE_URL`, `PORT`, `AUTH_SECRET` (obligatoria, mínimo 32 caracteres), `AUTH_TRUST_HOST`, `AUTH_SESSION_MAX_AGE`, Google OAuth opcional (`AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`), `TEST_DATABASE_URL`, `SEED_PASSWORD` (seed de desarrollo) y `ADMIN_*` (script `admin:create`).
 - [`docker/.env.example`](docker/.env.example): `POSTGRES_*` del contenedor local (opcional).
 
-Las copias de notificaciones por correo (SMTP) y WhatsApp (Cloud API de Meta) se configuran con las variables `NOTIFICATIONS_*`, `SMTP_*`, `EMAIL_FROM` y `WHATSAPP_*` de `apps/backend/.env.example`; por defecto solo se registran en el log. Las variables de AWS S3, Microsoft Teams e inteligencia artificial se añadirán cuando se integren esos servicios.
+Las copias de notificaciones por correo (SMTP) y WhatsApp (BuilderBot con el provider Baileys; se vincula escaneando un QR) se configuran con las variables `NOTIFICATIONS_*`, `SMTP_*`, `EMAIL_FROM` y `WHATSAPP_*` de `apps/backend/.env.example`; por defecto solo se registran en el log. Las variables de AWS S3, Microsoft Teams e inteligencia artificial se añadirán cuando se integren esos servicios.
 
 <a id="ejecucion"></a>
 

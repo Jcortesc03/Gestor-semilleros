@@ -1,6 +1,6 @@
 # ADR 0005 · Novedades, notificaciones y copias por correo y WhatsApp
 
-- **Estado:** Aceptada
+- **Estado:** Aceptada. El canal de WhatsApp (punto 5) lo reemplaza el [ADR 0006](0006-whatsapp-con-builderbot.md): BuilderBot con Baileys.
 - **Fecha:** 2026-11-06
 
 ## Contexto

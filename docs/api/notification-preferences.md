@@ -1,6 +1,6 @@
 # API de preferencias de notificación y envío de copias
 
-> **Estado:** implementado en `apps/backend/src/modules/integrations/` y cubierto por `apps/backend/test/notifications.e2e-spec.ts`. Los parsers y los canales tienen pruebas unitarias (`dtos/preferences.dto.spec.ts`, `models/preferences.spec.ts`, `services/channels/*.spec.ts`, `config/notifications.config.spec.ts`). Decisión: [ADR 0005](../decisions/0005-notificaciones-y-copias-externas.md).
+> **Estado:** implementado en `apps/backend/src/modules/integrations/` y cubierto por `apps/backend/test/notifications.e2e-spec.ts`. Los parsers y los canales tienen pruebas unitarias (`dtos/preferences.dto.spec.ts`, `models/preferences.spec.ts`, `services/channels/*.spec.ts`, `config/notifications.config.spec.ts`). Decisiones: [ADR 0005](../decisions/0005-notificaciones-y-copias-externas.md) y, para WhatsApp, [ADR 0006](../decisions/0006-whatsapp-con-builderbot.md).
 > Novedades y audiencias: [`announcements.md`](announcements.md). Autenticación: [`auth.md`](auth.md). Variables de entorno: [`apps/backend/.env.example`](../../apps/backend/.env.example).
 
 Todas las rutas requieren una sesión válida (cookie de Auth.js). El prefijo global es `/api`.
@@ -249,14 +249,13 @@ El ciclo se lanza justo después de encolar (`kick`) y cada `NOTIFICATIONS_DISPA
 - Errores **no reintentables**: respuesta SMTP `5xx`, destinatario rechazado (`EENVELOPE`) y credenciales rechazadas (`EAUTH`).
 - El resto de fallos (red, timeouts, `4xx`) se reintentan.
 
-#### `WHATSAPP`: WhatsApp Cloud API de Meta
+#### `WHATSAPP`: BuilderBot con provider intercambiable (Baileys)
 
-- Hace `POST https://graph.facebook.com/{WHATSAPP_API_VERSION}/{WHATSAPP_PHONE_NUMBER_ID}/messages` con `Authorization: Bearer {WHATSAPP_ACCESS_TOKEN}` y un tiempo límite de 10 segundos.
-- Usa una **plantilla** (`WHATSAPP_TEMPLATE_NAME`, idioma `WHATSAPP_TEMPLATE_LANGUAGE`) con dos parámetros de cuerpo: `{{1}}` recibe el asunto y `{{2}}` el texto. Meta exige plantillas para los mensajes que inicia la empresa.
-- La plantilla debe estar **aprobada en Meta** y el usuario debe haber **aceptado recibir mensajes** por WhatsApp. Ese consentimiento es un requisito de Meta: el backend no lo comprueba.
+- Envía el texto a través de la conexión de WhatsApp que mantiene el backend con BuilderBot ([ADR 0006](../decisions/0006-whatsapp-con-builderbot.md)). El provider se elige con `WHATSAPP_PROVIDER`; hoy solo existe Baileys, que usa WhatsApp Web.
+- No hay plantillas: el mensaje es texto libre con el asunto en negrita (`*…*`), una línea en blanco y el cuerpo. Se trunca a 4000 caracteres (con `…` al final si sobra texto).
 - El teléfono debe estar registrado en E.164. El destinatario se envía sin el `+` inicial.
-- Los parámetros se sanean: los saltos de línea y tabulaciones se convierten en espacios y se recortan a 1000 caracteres (con `…` al final si sobra texto).
-- Son reintentables los errores de red y las respuestas `429` y `5xx`; el resto de rechazos quedan `FAILED`. Si la respuesta de Meta incluye el token, se sustituye por `[token]` en el mensaje guardado.
+- Si WhatsApp no está conectado (estado distinto de `connected`), el envío falla con un error **reintentable** y el despachador lo vuelve a intentar según la espera exponencial. Si sigue sin conexión al agotar `NOTIFICATIONS_MAX_ATTEMPTS`, el envío queda `FAILED`.
+- Los errores del provider también se consideran reintentables; el motivo se guarda recortado a 300 caracteres.
 
 #### `log`: registro sin envío real
 
@@ -273,12 +272,92 @@ El ciclo se lanza justo después de encolar (`kick`) y cada `NOTIFICATIONS_DISPA
 | Variable | Efecto |
 | --- | --- |
 | `NOTIFICATIONS_EMAIL_TRANSPORT` | `smtp`, `log` o `disabled`. Por defecto `log`. |
-| `NOTIFICATIONS_WHATSAPP_TRANSPORT` | `cloud-api`, `log` o `disabled`. Por defecto `log`. |
+| `NOTIFICATIONS_WHATSAPP_TRANSPORT` | `builderbot`, `log` o `disabled`. Por defecto `log`. |
 | `NOTIFICATIONS_AUTO_DISPATCH` | `true` o `false`. Por defecto `true`. |
 | `NOTIFICATIONS_DISPATCH_INTERVAL` | Segundos entre ciclos. Por defecto 60; rango 5–3600. |
 | `NOTIFICATIONS_MAX_ATTEMPTS` | Intentos máximos por envío. Por defecto 5; rango 1–20. |
 
-El resto de variables de SMTP y WhatsApp Cloud API se describen en [`apps/backend/.env.example`](../../apps/backend/.env.example).
+El resto de variables de SMTP y WhatsApp (`WHATSAPP_PROVIDER`, `WHATSAPP_SESSION_NAME`, `WHATSAPP_PAIRING_PHONE`) se describen en [`apps/backend/.env.example`](../../apps/backend/.env.example).
+
+## Conexión de WhatsApp (administrador)
+
+Solo aplica con `NOTIFICATIONS_WHATSAPP_TRANSPORT=builderbot`. El backend arranca el provider al iniciar el módulo, sin bloquear el arranque de la API, y sigue su estado para poder vincular la cuenta.
+
+| Método y ruta | Permiso | Código de éxito |
+| --- | --- | --- |
+| `GET /api/integrations/whatsapp/status` | Rol `ADMIN` | `200` |
+| `GET /api/integrations/whatsapp/qr` | Rol `ADMIN` | `200` (PNG) |
+
+Ambas rutas exigen una sesión válida (`401` sin ella) y el rol `ADMIN` (`403` con `{ "message": "No tienes permisos para realizar esta acción." }`).
+
+### `GET /api/integrations/whatsapp/status`
+
+Con el transporte `builderbot` devuelve:
+
+```json
+{
+  "transport": "builderbot",
+  "provider": "baileys",
+  "state": "awaiting_qr",
+  "connectedPhone": null,
+  "qr": "2@…",
+  "pairingCode": null,
+  "detail": null,
+  "updatedAt": "2026-11-06T12:00:00.000Z"
+}
+```
+
+| Campo | Contenido |
+| --- | --- |
+| `transport` | Siempre `builderbot` en esta forma. |
+| `provider` | Provider configurado (`WHATSAPP_PROVIDER`). |
+| `state` | Estado de la conexión (ver abajo). |
+| `connectedPhone` | Número vinculado, enmascarado (`+***0001`); `null` si aún no se conoce. |
+| `qr` | Texto del QR a escanear; solo en `awaiting_qr`. |
+| `pairingCode` | Código de emparejamiento; solo en `awaiting_pairing_code`, cuando se definió `WHATSAPP_PAIRING_PHONE`. |
+| `detail` | Último aviso del provider, p. ej. el motivo de `auth_failure`. |
+| `updatedAt` | Momento del último cambio de estado (ISO 8601). |
+
+Estados:
+
+| Estado | Significado |
+| --- | --- |
+| `stopped` | La conexión no está iniciada o se detuvo al apagar la aplicación. |
+| `starting` | El provider se está construyendo e iniciando. |
+| `awaiting_qr` | Espera que se escanee el QR (`qr`). |
+| `awaiting_pairing_code` | Espera que se introduzca el código de emparejamiento (`pairingCode`). |
+| `connected` | Cuenta vinculada: los envíos pueden salir. |
+| `auth_failure` | Fallo de autenticación; `detail` explica el motivo. |
+
+Con transporte `log` o `disabled` no hay conexión y la respuesta es solo `{ "transport": "log" }` o `{ "transport": "disabled" }`.
+
+### `GET /api/integrations/whatsapp/qr`
+
+Devuelve el QR como imagen PNG (`Content-Type: image/png`, `Content-Disposition: inline`) mientras el estado es `awaiting_qr`. Se escanea desde **WhatsApp → Dispositivos vinculados**.
+
+- `404` si no hay un QR pendiente (conectado, con código de emparejamiento, con transporte `log`/`disabled` o sin imagen generada): `{ "message": "No hay un QR pendiente de escanear." }`.
+
+### Cómo vincular la cuenta
+
+1. Define `NOTIFICATIONS_WHATSAPP_TRANSPORT=builderbot` y arranca el backend.
+2. Inicia sesión como administrador y consulta `GET /api/integrations/whatsapp/status`.
+3. Si el estado es `awaiting_qr`, abre `GET /api/integrations/whatsapp/qr` y escanea el QR. Si definiste `WHATSAPP_PAIRING_PHONE`, usa el `pairingCode` del estado.
+4. Cuando el estado pase a `connected`, el canal `WHATSAPP` enviará por esa sesión.
+
+La sesión de Baileys se guarda en `apps/backend/<WHATSAPP_SESSION_NAME>_sessions/` y el QR en `<WHATSAPP_SESSION_NAME>.qr.png`. Están ignorados por git y deben tratarse como secretos: borrar la carpeta de sesión desvincula la cuenta.
+
+> ⚠️ Baileys usa WhatsApp Web, que **no es la API oficial** de Meta. Conviene un número dedicado y existe riesgo de bloqueo si se hacen envíos masivos.
+
+### Añadir otro provider
+
+El backend solo usa la forma común de los providers de BuilderBot (`sendMessage` y los eventos `ready`, `require_action`, `auth_failure` y `host`). Para añadir uno nuevo, por ejemplo `@builderbot/provider-meta`:
+
+1. Instala el paquete `@builderbot/provider-*`.
+2. Añade su nombre a `WHATSAPP_PROVIDERS` en `apps/backend/src/config/notifications.config.types.ts`.
+3. Escribe su fábrica en `WHATSAPP_PROVIDER_FACTORIES` (`apps/backend/src/modules/integrations/services/whatsapp/provider-factories.ts`), cargándolo de forma diferida.
+4. Selecciónalo con `WHATSAPP_PROVIDER`.
+
+No se arranca el servidor HTTP de BuilderBot (`createBot().httpServer()`) porque escucha en todas las interfaces y publicaría el QR de vinculación en un puerto abierto: cualquiera que lo alcanzara podría vincular su cuenta. Solo se inicia la conexión del provider (`initVendor`), y el estado y el QR se consultan por las rutas de administrador de arriba. Un provider que necesite un webhook tendrá que definir en su fábrica cómo exponerlo.
 
 ## Errores comunes
 
@@ -287,7 +366,7 @@ El resto de variables de SMTP y WhatsApp Cloud API se describen en [`apps/backen
 | `400` | Cuerpo inválido o WhatsApp activado sin teléfono | `{ message: "Datos inválidos.", errors: string[] }` |
 | `401` | Sin sesión, sesión expirada o usuario desactivado | `{ message: "Sesión no válida o expirada." }` |
 
-No hay `403` ni `404`: las rutas solo operan sobre el usuario de la sesión.
+En las rutas de preferencias no hay `403` ni `404`: solo operan sobre el usuario de la sesión. Las rutas de conexión de WhatsApp sí pueden responder `403` (sin rol `ADMIN`) y `404` (sin QR pendiente), como se describe arriba.
 
 ## Pendiente
 
