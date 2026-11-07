@@ -244,7 +244,7 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 
 | Vista | Entregable | Estado |
 | --- | --- | --- |
-| Panel de control | Aplicación web | ⏳ Pendiente |
+| Panel de control | Aplicación web | ✅ Panel por rol (`GET /api/dashboard`) |
 | Tablero Kanban de tareas | Aplicación web | ⏳ Pendiente |
 | Seguimiento de semilleros | Aplicación web | ⏳ Pendiente |
 | Consulta y notificaciones | Aplicación móvil | ⏳ Pendiente |
@@ -264,7 +264,7 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 | Stack tecnológico | 🟢 Definido | React, React Native, NestJS, PostgreSQL, Prisma, AWS S3, Auth.js y Docker |
 | Estructura del proyecto | 🟢 Definida | Monorepo con backend y primera entrega web; móvil pendiente |
 | Herramientas del monorepo | 🟢 Definidas | pnpm + Turborepo |
-| Aplicación web | 🟡 En implementación | React + Vite + Tailwind; inicio de sesión y panel personal en verificación |
+| Aplicación web | 🟡 En implementación | React + Vite + Tailwind; login con correo y Google, paneles por rol, proyectos, tableros, reuniones, novedades y preferencias; selección de personas, áreas y facultades sin UUID |
 | Backend | 🟡 En desarrollo | NestJS con inicio de sesión (Auth.js: correo + contraseña y Google), alta de usuarios por el administrador, proyectos, tableros y actividades con permisos por proyecto, novedades y notificaciones con copias por correo y WhatsApp, reuniones con Microsoft Teams, seed de desarrollo, esquema Prisma y pruebas |
 | Aplicación móvil | 🟡 En planificación | Sin código fuente; autenticación móvil pendiente |
 | Documentación | 🟡 En elaboración | Alcance, dominio y modelo de datos definidos |

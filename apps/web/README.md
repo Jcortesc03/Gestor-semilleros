@@ -1,6 +1,6 @@
 # Aplicación web
 
-**En implementación.** Inicio de sesión con correo y contraseña o con Google, y un espacio de trabajo compartido por roles con proyectos, tableros, actividades, reuniones (Microsoft Teams), alta de usuarios, novedades, preferencias y estado de WhatsApp, contra la API real. No hay paneles distintos por rol. Historial: [relevo](../../docs/handoffs/2026-11-07-frontend.md).
+**En implementación.** Inicio de sesión con correo y contraseña o con Google, «Mi panel» con un bloque por cada rol del usuario (`GET /api/dashboard`), y proyectos, tableros, actividades, reuniones (Microsoft Teams), alta de usuarios, novedades, preferencias y estado de WhatsApp, contra la API real. Personas, áreas y facultades se eligen con buscadores y catálogos (`features/directory`), nunca escribiendo UUID. Los errores muestran el `message` y los `errors[]` del backend (4xx); los 5xx y los mensajes por defecto de NestJS usan textos genéricos. Historial: [relevo](../../docs/handoffs/2026-11-07-frontend.md).
 
 ## Desarrollo local
 
@@ -28,6 +28,10 @@ Para arrancar únicamente la web: `pnpm --filter @gestor-semilleros/web dev`. Si
 
 El despliegue deberá resolver el mismo origen para `/api` y el fallback de las rutas `/login` y `/panel`. La configuración de desarrollo no define ni autoriza infraestructura de producción.
 
+## Áreas y facultades
+
+Sección «Áreas y facultades» (`features/institution`), visible para administradores y encargados de área. El administrador crea, renombra (y describe, en las áreas) y elimina áreas y facultades, con confirmación antes de borrar; gestiona los encargados de cada área con el buscador de personas y consulta el historial de decanos de cada facultad, asigna un decano nuevo y cierra el vigente con confirmación. El encargado de área ve todas las áreas (el sistema no ofrece «mis áreas») y solo puede editar nombre y descripción; en las áreas ajenas el backend responde 403 y la web muestra ese mensaje. Los contratos están en [`docs/api/catalogs.md`](../../docs/api/catalogs.md) (sección «Administración»).
+
 ## Diseño
 
 Tailwind CSS 4, Montserrat local y la [guía visual](../../skill/front/habilidades/design-taste-frontend/guia-estilos-proyecto.md). Frontlipe es responsable de las vistas. La [decisión técnica](../../docs/decisions/0008-aplicacion-web-y-sistema-visual.md) documenta versiones y límites.
@@ -51,7 +55,7 @@ pnpm --filter @gestor-semilleros/web exec playwright install chromium   # una ve
 pnpm --filter @gestor-semilleros/web test:e2e
 ```
 
-Playwright compila y levanta el backend en el puerto 3000 y Vite en el 5173 (ambos deben estar libres). Usa la base aislada `semilleros_web_e2e_test`, le aplica migraciones y la seed de desarrollo con la contraseña sintética de `e2e/backend-env.ts`; no toca la base de desarrollo. Cubre: login correcto, recarga con sesión, cierre de sesión, contraseña incorrecta, cuenta inexistente, secciones del administrador, redirección de Google (interceptada, sin contactar a Google) y el mensaje de `AccessDenied` (también pasando por la página de error real de Auth.js). El inicio de sesión completo con una cuenta real de Google solo puede probarse a mano.
+Playwright compila y levanta el backend en el puerto 3000 y Vite en el 5173 (ambos deben estar libres). Usa la base aislada `semilleros_web_e2e_test`, le aplica migraciones y la seed de desarrollo con la contraseña sintética de `e2e/backend-env.ts`; no toca la base de desarrollo. Cubre: login correcto, recarga con sesión, cierre de sesión, contraseña incorrecta, cuenta inexistente, secciones del administrador, redirección de Google (interceptada, sin contactar a Google) y el mensaje de `AccessDenied` (también pasando por la página de error real de Auth.js), el panel de cada rol con los datos sembrados, crear un proyecto con área y facultad del catálogo, añadir participantes con el buscador (incluido el mensaje del backend cuando una regla lo impide), carga sin bloqueos de cada sección, ausencia de scroll horizontal a 390, 768 y 1440 px y las reglas del ADR 0010 (el administrador crea y elimina áreas; el encargado de área ve los proyectos de su área y publica solo para ella; el tutor publica para su proyecto). El inicio de sesión completo con una cuenta real de Google solo puede probarse a mano.
 
 Para una revisión de navegador aislada del backend:
 

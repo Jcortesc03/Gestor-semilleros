@@ -21,8 +21,10 @@ El alcance, los módulos y el estado se documentan en `README.md`; no los repita
 - **Implementado:** esquema de datos y migraciones, PostgreSQL local con Docker Compose ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)), y en el backend `PrismaService`, inicio de sesión con Auth.js (correo + contraseña y Google), `SessionGuard`, `GET /api/me` y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)); alta de usuarios `POST /api/users` con `RolesGuard` ([ADR 0003](docs/decisions/0003-alta-de-usuarios.md)); el script `admin:create` y la seed de desarrollo (`db:seed`).
 - **Instalado:** dependencias de Turborepo y del backend (`pnpm-lock.yaml` versionado).
 - **Implementado también:** proyectos y participantes, tableros y actividades (encargados, aprobación, enlaces adjuntos) con permisos por proyecto ([ADR 0004](docs/decisions/0004-proyectos-tableros-actividades.md); API en `docs/api/projects.md` y `docs/api/boards.md`); novedades y notificaciones con copias por correo (SMTP) y WhatsApp (BuilderBot + Baileys, [ADR 0006](docs/decisions/0006-whatsapp-con-builderbot.md)) según las preferencias de cada usuario ([ADR 0005](docs/decisions/0005-notificaciones-y-copias-externas.md)); reuniones con Microsoft Teams (vinculación de cuentas con OAuth + PKCE, agenda en el calendario, estados y avisos programados; [ADR 0007](docs/decisions/0007-reuniones-con-microsoft-teams.md)).
-- **Web ([ADR 0008](docs/decisions/0008-aplicacion-web-y-sistema-visual.md)):** React + Vite + Tailwind y Montserrat local. Login y vistas compartidas por roles en desarrollo; leer [el relevo](docs/handoffs/2026-11-07-frontend.md). El usuario aclaró que su entrega es frontend: no ampliar el backend; cualquier demo debe identificarse como simulada, sin fingir persistencia real ni inventar permisos.
-- **No implementado:** documentos (S3), recordatorios, dashboards, permisos del encargado de área, resto de la gestión de usuarios, autenticación móvil, Docker de despliegue ni CI/CD.
+- **Web ([ADR 0008](docs/decisions/0008-aplicacion-web-y-sistema-visual.md)):** React + Vite + Tailwind y Montserrat local. Login (correo y Google), paneles por rol, proyectos, tableros, reuniones, novedades y preferencias contra la API real; ver [`apps/web/README.md`](apps/web/README.md) y [el relevo](docs/handoffs/2026-11-07-frontend.md). Sin datos simulados ni permisos inventados.
+- **Directorio, catálogos y panel ([ADR 0009](docs/decisions/0009-directorio-catalogos-y-paneles.md)):** `GET /api/users` (Admin, Decano, Tutor), `GET /api/areas`, `GET /api/faculties` y `GET /api/dashboard` (una sección por rol; el encargado de área ve sus áreas asignadas).
+- **Reglas de dominio resueltas ([ADR 0010](docs/decisions/0010-reglas-pendientes-resueltas.md)):** administración de áreas, facultades, encargados y decanos; encargado de área con los permisos del decano en sus áreas; aprobación solo en `DONE`; límites del tutor; responsables de tablero; publicación de novedades por rol.
+- **No implementado:** documentos (S3), recordatorios, resto de la gestión de usuarios, autenticación móvil, Docker de despliegue ni CI/CD.
 
 Por lo tanto:
 
@@ -252,6 +254,8 @@ Si la decisión ya está aprobada y registrada, procede sin volver a preguntar.
 | [`docs/api/notification-preferences.md`](docs/api/notification-preferences.md) | Preferencias de notificación y envío de copias por correo y WhatsApp |
 | [`docs/api/meetings.md`](docs/api/meetings.md) | Contrato de la API de reuniones con Microsoft Teams |
 | [`docs/api/microsoft.md`](docs/api/microsoft.md) | Contrato de la vinculación de la cuenta de Microsoft |
+| [`docs/api/catalogs.md`](docs/api/catalogs.md) | Catálogos de áreas y facultades |
+| [`docs/api/dashboard.md`](docs/api/dashboard.md) | Panel por rol |
 | `docs/decisions/` | ADRs |
 
 Antes de implementar cualquier funcionalidad del dominio (entidades, permisos, flujos o esquema de datos), consulta `docs/domain/` empezando por su `README.md`, y `docs/database/` si afecta a la persistencia. Lo marcado como 🟡 hipótesis o ❓ pendiente **no** se implementa sin confirmación. **No inventes reglas de negocio ni permisos** que sigan pendientes.
