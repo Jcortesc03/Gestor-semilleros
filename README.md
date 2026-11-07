@@ -11,7 +11,7 @@
 ![Arquitectura](https://img.shields.io/badge/arquitectura-MVC%20%C2%B7%20monorepo-blue)
 
 > [!IMPORTANT]
-> El proyecto está en **desarrollo inicial**. El **backend** (NestJS) ya cuenta con autenticación (Auth.js), alta de usuarios por el administrador, esquema de base de datos (Prisma), PostgreSQL local con Docker y pruebas. La **aplicación web** y la **móvil** aún no se han creado, y los módulos de dominio (proyectos, tableros, documentos, etc.) están pendientes.
+> El proyecto está en **implementación inicial**. El backend incorpora autenticación, alta de usuarios por administradores, proyectos, tableros, actividades y novedades. La web tiene login y vistas compartidas por roles en desarrollo; no son cinco paneles terminados y existen cargas bloqueadas. Consultar el [relevo del frontend](docs/handoffs/2026-11-07-frontend.md) para conocer avances, defectos y pruebas. Móvil, documentos (S3), reuniones y otros módulos siguen pendientes. El workspace usa pnpm + Turborepo.
 
 <a id="contenido"></a>
 
@@ -171,7 +171,7 @@ Versiones registradas en [ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorn
 
 ## 🚀 Instalación y configuración
 
-> El workspace usa **pnpm + Turborepo**. Por ahora solo existe el paquete del backend; la web y la móvil se añadirán más adelante.
+> El workspace usa **pnpm + Turborepo**. El backend está implementado y la aplicación web se está incorporando; la aplicación móvil sigue pendiente. Consultar la [guía web](apps/web/README.md) y la [guía del backend local](docs/database/local-setup.md).
 
 1. **Clonar el repositorio** (URL pendiente de publicación).
 
@@ -186,7 +186,7 @@ Versiones registradas en [ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorn
    pnpm install
    ```
 
-   Instala Turborepo y las dependencias del backend. Si `pnpm` no está disponible, ejecuta antes `corepack enable`.
+   Instala las dependencias de los paquetes del workspace. Si `pnpm` no está disponible, ejecuta antes `corepack enable`.
 
 3. **Configurar las variables de entorno:** `cp apps/backend/.env.example apps/backend/.env`. Ver [Variables de entorno](#variables-entorno).
 
@@ -211,10 +211,14 @@ Las copias de notificaciones por correo (SMTP) y WhatsApp (BuilderBot con el pro
 
 ## ▶️ Ejecución del proyecto
 
-El workspace usa **pnpm + Turborepo**. Hoy `pnpm dev` inicia solo el backend (`http://localhost:3000`, API bajo `/api`); la web y la móvil aún no existen. Requiere `pnpm db:up`, `pnpm db:migrate` y `apps/backend/.env`.
+El workspace usa **pnpm + Turborepo**. `pnpm dev` ejecuta los scripts de los paquetes implementados. El backend requiere su `.env` y PostgreSQL; la web usa un proxy local para `/api` y no necesita secretos en el navegador.
 
 ```bash
+# Backend y web:
 pnpm dev
+
+# Solo la web, en http://127.0.0.1:5173:
+pnpm --filter @gestor-semilleros/web dev
 ```
 
 | Comando | Descripción |
@@ -225,9 +229,9 @@ pnpm dev
 | `pnpm db:seed` | Siembra datos de **desarrollo** (usuarios, área, facultad y proyecto demo). Requiere `SEED_PASSWORD`; no corre en producción |
 | `pnpm db:studio` | Abre Prisma Studio |
 | `pnpm --filter @gestor-semilleros/backend admin:create` | Crea un administrador (`ADMIN_EMAIL`, `ADMIN_FULL_NAME`, `ADMIN_PASSWORD`) |
-| `pnpm dev` | Inicia el backend en modo desarrollo |
-| `pnpm build` | Compila el backend |
-| `pnpm lint` | Configurado, pero ningún paquete lo implementa todavía |
+| `pnpm dev` | Inicia los entregables en modo desarrollo |
+| `pnpm build` | Compila los entregables |
+| `pnpm lint` | Tarea configurada; herramienta de linting pendiente |
 | `pnpm test` | Ejecuta las pruebas unitarias |
 | `pnpm test:e2e` | Ejecuta las pruebas de la API (requiere `pnpm db:up`) |
 | `pnpm typecheck` | Verifica los tipos |
@@ -258,11 +262,11 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 | Entregable | Estado | Notas |
 | --- | --- | --- |
 | Stack tecnológico | 🟢 Definido | React, React Native, NestJS, PostgreSQL, Prisma, AWS S3, Auth.js y Docker |
-| Estructura del proyecto | 🟢 Definida | Carpetas base del monorepo; solo el backend tiene código |
+| Estructura del proyecto | 🟢 Definida | Monorepo con backend y primera entrega web; móvil pendiente |
 | Herramientas del monorepo | 🟢 Definidas | pnpm + Turborepo |
-| Aplicación web | 🟡 En planificación | Aún no creada (sin código fuente) |
+| Aplicación web | 🟡 En implementación | React + Vite + Tailwind; inicio de sesión y panel personal en verificación |
 | Backend | 🟡 En desarrollo | NestJS con inicio de sesión (Auth.js: correo + contraseña y Google), alta de usuarios por el administrador, proyectos, tableros y actividades con permisos por proyecto, novedades y notificaciones con copias por correo y WhatsApp, reuniones con Microsoft Teams, seed de desarrollo, esquema Prisma y pruebas |
-| Aplicación móvil | 🟡 En planificación | Aún no creada (sin código fuente); la autenticación móvil está pendiente |
+| Aplicación móvil | 🟡 En planificación | Sin código fuente; autenticación móvil pendiente |
 | Documentación | 🟡 En elaboración | Alcance, dominio y modelo de datos definidos |
 
 > Versiones fijadas: Node.js 24 LTS, pnpm 12.18.0, Prisma 7.10.1 y PostgreSQL 18.6.

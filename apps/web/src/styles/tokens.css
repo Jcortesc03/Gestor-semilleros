@@ -1,0 +1,29 @@
+/**
+ * Tokens del sistema de diseño — Gestor de Semilleros Universitarios.
+ *
+ * Valores exactos de la guía de estilos del proyecto
+ * (`skill/front/habilidades/design-taste-frontend/guia-estilos-proyecto.md`).
+ * La guía del proyecto prevalece sobre la skill `design-taste-frontend`
+ * en caso de conflicto específico de componente.
+ */
+:root {
+  /* Paleta exacta (seis colores) */
+  --color-navy: #151b40; /* Primario: azul oscuro */
+  --color-navy-soft: #2a2c41; /* Secundario: gris azulado oscuro */
+  --color-gold: #f3b92f; /* Acento: amarillo dorado */
+  --color-alert: #c1272d; /* Alerta/énfasis: rojo */
+  --color-canvas: #f5f2eb; /* Fondo claro: beige claro */
+  --color-paper: #ffffff; /* Base: blanco */
+
+  /* Tipografía: una sola familia, pesos 400/600/700/800 */
+  --font-sans: "Montserrat", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Radios: 8–12 px en contenedores, botones e inputs */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+
+  /* Profundidad sutil: separación por contraste, nunca sombras pesadas */
+  --shadow-card: 0 1px 2px rgb(21 27 64 / 0.05), 0 10px 28px rgb(21 27 64 / 0.07);
+  --shadow-raised: 0 2px 4px rgb(21 27 64 / 0.06), 0 16px 36px rgb(21 27 64 / 0.10);
+}

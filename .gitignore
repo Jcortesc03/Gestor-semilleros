@@ -25,3 +25,11 @@ pnpm-debug.log*
 
 # Cliente de Prisma generado
 apps/backend/src/generated/
+
+# Enlaces locales de agentes y skills (skill/install.sh)
+.opencode/
+.agents/
+
+# Resultados de Playwright
+apps/web/test-results/
+apps/web/playwright-report/

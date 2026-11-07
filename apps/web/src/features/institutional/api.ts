@@ -1,0 +1,196 @@
+import type { ApiRequest } from '../../types/api.ts';
+import { ApiError, isRecord, parseArray } from '../../lib/api.ts';
+
+/** Contratos: `docs/api/users.md`, `announcements.md` y `notification-preferences.md`. */
+
+export const GLOBAL_ROLES = ['ADMIN', 'AREA_MANAGER', 'DEAN', 'TUTOR', 'STUDENT'] as const;
+export const ANNOUNCEMENT_KINDS = ['NEWS', 'COMMUNICATION', 'CHANGE', 'NOTIFICATION'] as const;
+/** Las preferencias añaden `MEETING` (avisos de reuniones) a los tipos de novedad. */
+export const NOTIFICATION_KINDS = [...ANNOUNCEMENT_KINDS, 'MEETING'] as const;
+export const NOTIFICATION_CHANNELS = ['EMAIL', 'WHATSAPP'] as const;
+const AUDIENCE_TYPES = ['ALL', 'ROLE', 'FACULTY', 'AREA', 'PROJECT'] as const;
+const DELIVERY_STATUSES = ['PENDING', 'SENT', 'FAILED', 'SKIPPED'] as const;
+
+export type GlobalRole = (typeof GLOBAL_ROLES)[number];
+export type AnnouncementKind = (typeof ANNOUNCEMENT_KINDS)[number];
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
+export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
+
+export interface CreateUserInput { email: string; fullName: string; roles: GlobalRole[]; password?: string }
+export interface CreatedUser { id: string; email: string; fullName: string; status: string; roles: string[]; hasPassword: boolean; createdAt: string }
+
+export interface AnnouncementAudience {
+  type: (typeof AUDIENCE_TYPES)[number];
+  role?: string;
+  faculty?: { id: string; name: string };
+  area?: { id: string; name: string };
+  project?: { id: string; title: string };
+}
+export type AnnouncementAudienceInput =
+  | { type: 'ALL' }
+  | { type: 'ROLE'; role: GlobalRole }
+  | { type: 'FACULTY'; facultyId: string }
+  | { type: 'AREA'; areaId: string }
+  | { type: 'PROJECT'; projectId: string };
+export interface CreateAnnouncementInput { kind?: AnnouncementKind; title: string; content: string; audiences: AnnouncementAudienceInput[] }
+export interface Announcement { id: string; kind: AnnouncementKind; title: string; content: string; publishedAt: string; author: { id: string; fullName: string }; audiences: AnnouncementAudience[]; queuedDeliveries?: number }
+export interface AnnouncementQuery { kind?: AnnouncementKind; limit?: number; before?: string }
+
+export type DeliveryCounts = Record<DeliveryStatus, number>;
+export type DeliverySummary = Record<NotificationChannel, DeliveryCounts>;
+
+export interface NotificationPreference { kind: NotificationKind; channel: NotificationChannel; enabled: boolean }
+export interface NotificationPreferences { phone: string | null; preferences: NotificationPreference[] }
+/** Actualización parcial: solo se envían los campos que cambian. */
+export interface NotificationPreferencesUpdate { phone?: string | null; preferences?: NotificationPreference[] }
+
+export type WhatsAppStatus =
+  | { transport: 'log' }
+  | { transport: 'disabled' }
+  | {
+      transport: 'builderbot';
+      provider: string;
+      state: string;
+      connectedPhone: string | null;
+      /** Contenido de la credencial de vinculación: la interfaz no lo muestra. */
+      qr: string | null;
+      pairingCode: string | null;
+      detail: string | null;
+      updatedAt: string | undefined;
+    };
+
+export const WHATSAPP_QR_PATH = '/api/integrations/whatsapp/qr';
+
+/**
+ * URL de la imagen PNG del QR (`GET /api/integrations/whatsapp/qr`). Se usa en una etiqueta `img`
+ * del mismo origen, así que el navegador envía la cookie de sesión. `version` evita reutilizar
+ * una imagen anterior tras consultar de nuevo el estado.
+ */
+export function whatsappQrUrl(version = ''): string {
+  return version ? `${WHATSAPP_QR_PATH}?v=${encodeURIComponent(version)}` : WHATSAPP_QR_PATH;
+}
+
+function fail(): never { throw new ApiError(0); }
+function stringValue(value: unknown): string { return typeof value === 'string' ? value : fail(); }
+function record(value: unknown): Record<string, unknown> { return isRecord(value) ? value : fail(); }
+function booleanValue(value: unknown): boolean { return typeof value === 'boolean' ? value : fail(); }
+function countValue(value: unknown): number { return typeof value === 'number' ? value : fail(); }
+function oneOf<T extends string>(allowed: readonly T[], value: unknown): T { return allowed.find((item) => item === value) ?? fail(); }
+function nullableString(value: unknown): string | null { return value === null || value === undefined ? null : stringValue(value); }
+
+function parseUser(value: unknown): CreatedUser {
+  const v = record(value);
+  return {
+    id: stringValue(v.id),
+    email: stringValue(v.email),
+    fullName: stringValue(v.fullName),
+    status: stringValue(v.status),
+    roles: parseArray(v.roles, stringValue),
+    hasPassword: booleanValue(v.hasPassword),
+    createdAt: stringValue(v.createdAt),
+  };
+}
+
+function parseAudience(value: unknown): AnnouncementAudience {
+  const v = record(value);
+  const result: AnnouncementAudience = { type: oneOf(AUDIENCE_TYPES, v.type) };
+  if (typeof v.role === 'string') result.role = v.role;
+  if (isRecord(v.faculty)) result.faculty = { id: stringValue(v.faculty.id), name: stringValue(v.faculty.name) };
+  if (isRecord(v.area)) result.area = { id: stringValue(v.area.id), name: stringValue(v.area.name) };
+  if (isRecord(v.project)) result.project = { id: stringValue(v.project.id), title: stringValue(v.project.title) };
+  return result;
+}
+
+function parseAnnouncement(value: unknown): Announcement {
+  const v = record(value);
+  const author = record(v.author);
+  return {
+    id: stringValue(v.id),
+    kind: oneOf(ANNOUNCEMENT_KINDS, v.kind),
+    title: stringValue(v.title),
+    content: stringValue(v.content),
+    publishedAt: stringValue(v.publishedAt),
+    author: { id: stringValue(author.id), fullName: stringValue(author.fullName) },
+    audiences: parseArray(v.audiences, parseAudience),
+    ...(typeof v.queuedDeliveries === 'number' ? { queuedDeliveries: v.queuedDeliveries } : {}),
+  };
+}
+
+function parseCounts(value: unknown): DeliveryCounts {
+  const c = record(value);
+  return { PENDING: countValue(c.PENDING), SENT: countValue(c.SENT), FAILED: countValue(c.FAILED), SKIPPED: countValue(c.SKIPPED) };
+}
+
+function parseDeliveries(value: unknown): DeliverySummary {
+  const v = record(value);
+  return { EMAIL: parseCounts(v.EMAIL), WHATSAPP: parseCounts(v.WHATSAPP) };
+}
+
+function parsePreference(value: unknown): NotificationPreference {
+  const p = record(value);
+  return { kind: oneOf(NOTIFICATION_KINDS, p.kind), channel: oneOf(NOTIFICATION_CHANNELS, p.channel), enabled: booleanValue(p.enabled) };
+}
+
+function parsePreferences(value: unknown): NotificationPreferences {
+  const v = record(value);
+  return { phone: nullableString(v.phone), preferences: parseArray(v.preferences, parsePreference) };
+}
+
+function parseWhatsAppStatus(value: unknown): WhatsAppStatus {
+  const v = record(value);
+  if (v.transport === 'log') return { transport: 'log' };
+  if (v.transport === 'disabled') return { transport: 'disabled' };
+  if (v.transport !== 'builderbot') return fail();
+  return {
+    transport: 'builderbot',
+    provider: stringValue(v.provider),
+    state: stringValue(v.state),
+    connectedPhone: nullableString(v.connectedPhone),
+    qr: nullableString(v.qr),
+    pairingCode: nullableString(v.pairingCode),
+    detail: nullableString(v.detail),
+    updatedAt: v.updatedAt === undefined ? undefined : stringValue(v.updatedAt),
+  };
+}
+
+export async function createInstitutionalUser(request: ApiRequest, body: CreateUserInput): Promise<CreatedUser> {
+  return parseUser(await request('/api/users', { method: 'POST', body }));
+}
+
+export async function getAnnouncements(request: ApiRequest, query: AnnouncementQuery = {}): Promise<Announcement[]> {
+  const params = new URLSearchParams();
+  if (query.kind) params.set('kind', query.kind);
+  if (query.limit !== undefined) params.set('limit', String(query.limit));
+  if (query.before) params.set('before', query.before);
+  const suffix = params.toString();
+  return parseArray(await request(`/api/announcements${suffix ? `?${suffix}` : ''}`), parseAnnouncement);
+}
+
+export async function getAnnouncement(request: ApiRequest, id: string): Promise<Announcement> {
+  return parseAnnouncement(await request(`/api/announcements/${encodeURIComponent(id)}`));
+}
+
+export async function createAnnouncement(request: ApiRequest, body: CreateAnnouncementInput): Promise<Announcement> {
+  return parseAnnouncement(await request('/api/announcements', { method: 'POST', body }));
+}
+
+export async function getAnnouncementDeliveries(request: ApiRequest, id: string): Promise<DeliverySummary> {
+  return parseDeliveries(await request(`/api/announcements/${encodeURIComponent(id)}/deliveries`));
+}
+
+export async function removeAnnouncement(request: ApiRequest, id: string): Promise<void> {
+  await request(`/api/announcements/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export async function getNotificationPreferences(request: ApiRequest): Promise<NotificationPreferences> {
+  return parsePreferences(await request('/api/me/notification-preferences'));
+}
+
+export async function updateNotificationPreferences(request: ApiRequest, body: NotificationPreferencesUpdate): Promise<NotificationPreferences> {
+  return parsePreferences(await request('/api/me/notification-preferences', { method: 'PUT', body }));
+}
+
+export async function getWhatsAppStatus(request: ApiRequest): Promise<WhatsAppStatus> {
+  return parseWhatsAppStatus(await request('/api/integrations/whatsapp/status'));
+}
