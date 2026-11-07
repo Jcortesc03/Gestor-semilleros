@@ -4,7 +4,7 @@ import { effectivePreferences, wantsCopy } from './preferences';
 describe('preferencias de copias', () => {
   it('aplica los valores por defecto: correo sí, WhatsApp no', () => {
     const all = effectivePreferences([]);
-    expect(all).toHaveLength(8);
+    expect(all).toHaveLength(10);
     expect(all.every((p) => p.enabled === (p.channel === 'EMAIL'))).toBe(true);
   });
 

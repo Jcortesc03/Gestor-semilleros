@@ -5,7 +5,7 @@
 
 Todas las rutas requieren una sesión válida (cookie de Auth.js). El prefijo global es `/api`.
 
-Cada usuario decide, para cada **tipo de novedad** y cada **canal**, si quiere recibir copia. El correo y WhatsApp son copias de las novedades publicadas; no sustituyen al feed de [`announcements.md`](announcements.md).
+Cada usuario decide, para cada **tipo de aviso** (`NotificationKind`) y cada **canal**, si quiere recibir copia. El correo y WhatsApp son copias de las novedades publicadas y de los avisos de reuniones ([`meetings.md`](meetings.md#avisos)); no sustituyen al feed de [`announcements.md`](announcements.md).
 
 ## Endpoints
 
@@ -18,16 +18,16 @@ Ambas rutas operan siempre sobre el usuario de la sesión: no reciben identifica
 
 ## Modelo de preferencias
 
-Hay 4 tipos × 2 canales = **8 combinaciones**. Si el usuario no tiene fila guardada para una combinación, se aplica el valor por defecto:
+Hay 5 tipos × 2 canales = **10 combinaciones**. Si el usuario no tiene fila guardada para una combinación, se aplica el valor por defecto:
 
 | Canal | Valor por defecto | Motivo |
 | --- | --- | --- |
 | `EMAIL` | Activado (`true`) | — |
 | `WHATSAPP` | Desactivado (`false`) | Exige teléfono y consentimiento expreso (ADR 0005). |
 
-Tipos: `NEWS`, `COMMUNICATION`, `CHANGE`, `NOTIFICATION`. Canales: `EMAIL`, `WHATSAPP`.
+Tipos: `NEWS`, `COMMUNICATION`, `CHANGE`, `NOTIFICATION` (los cuatro tipos de novedad) y `MEETING` (avisos de reuniones: invitación, recordatorios y cancelación). Canales: `EMAIL`, `WHATSAPP`.
 
-`GET` devuelve siempre la matriz completa de 8 elementos, aunque no haya filas guardadas, en este orden: por tipo (`NEWS`, `COMMUNICATION`, `CHANGE`, `NOTIFICATION`) y, dentro de cada tipo, `EMAIL` y luego `WHATSAPP`.
+`GET` devuelve siempre la matriz completa de 10 elementos, aunque no haya filas guardadas, en este orden: por tipo (`NEWS`, `COMMUNICATION`, `CHANGE`, `NOTIFICATION`, `MEETING`) y, dentro de cada tipo, `EMAIL` y luego `WHATSAPP`.
 
 ## `GET /api/me/notification-preferences`
 
@@ -47,7 +47,9 @@ Tipos: `NEWS`, `COMMUNICATION`, `CHANGE`, `NOTIFICATION`. Canales: `EMAIL`, `WHA
     { "kind": "CHANGE", "channel": "EMAIL", "enabled": true },
     { "kind": "CHANGE", "channel": "WHATSAPP", "enabled": false },
     { "kind": "NOTIFICATION", "channel": "EMAIL", "enabled": true },
-    { "kind": "NOTIFICATION", "channel": "WHATSAPP", "enabled": false }
+    { "kind": "NOTIFICATION", "channel": "WHATSAPP", "enabled": false },
+    { "kind": "MEETING", "channel": "EMAIL", "enabled": true },
+    { "kind": "MEETING", "channel": "WHATSAPP", "enabled": false }
   ]
 }
 ```
@@ -63,7 +65,7 @@ Actualización **parcial**: lo que no se envía se conserva. No hay que enviar l
 | Campo | Tipo | Obligatorio | Reglas |
 | --- | --- | --- | --- |
 | `phone` | string \| null | No | Teléfono internacional E.164. `null` lo borra. Se normaliza (ver abajo). |
-| `preferences` | array | No | Entre 1 y 8 elementos; cada uno con `kind`, `channel` y `enabled`. |
+| `preferences` | array | No | Entre 1 y 10 elementos; cada uno con `kind`, `channel` y `enabled`. |
 
 Debe indicarse al menos uno de los dos campos. Cualquier campo desconocido en el cuerpo o dentro de un elemento se rechaza.
 
@@ -71,7 +73,7 @@ Cada elemento de `preferences`:
 
 | Campo | Tipo | Obligatorio | Reglas |
 | --- | --- | --- | --- |
-| `kind` | string | Sí | `NEWS`, `COMMUNICATION`, `CHANGE` o `NOTIFICATION`. |
+| `kind` | string | Sí | `NEWS`, `COMMUNICATION`, `CHANGE`, `NOTIFICATION` o `MEETING`. |
 | `channel` | string | Sí | `EMAIL` o `WHATSAPP`. |
 | `enabled` | boolean | Sí | `true` para recibir, `false` para no recibir. |
 
@@ -119,7 +121,9 @@ Respuesta `200` (el resto de combinaciones conserva su valor):
     { "kind": "CHANGE", "channel": "EMAIL", "enabled": true },
     { "kind": "CHANGE", "channel": "WHATSAPP", "enabled": false },
     { "kind": "NOTIFICATION", "channel": "EMAIL", "enabled": false },
-    { "kind": "NOTIFICATION", "channel": "WHATSAPP", "enabled": true }
+    { "kind": "NOTIFICATION", "channel": "WHATSAPP", "enabled": true },
+    { "kind": "MEETING", "channel": "EMAIL", "enabled": true },
+    { "kind": "MEETING", "channel": "WHATSAPP", "enabled": false }
   ]
 }
 ```
@@ -140,12 +144,12 @@ Mensajes de validación exactos:
 - `Campos no permitidos: campo1, campo2.`
 - `Debe indicar al menos un campo para actualizar.`
 - `phone debe estar en formato internacional E.164, p. ej. +573001234567.`
-- `preferences debe ser una lista de 1 a 8 elementos.`
+- `preferences debe ser una lista de 1 a 10 elementos.`
 - `preferences contiene combinaciones repetidas de kind y channel.`
 - `preferences[0] debe ser un objeto.`
 - `preferences[0]: campos no permitidos: foo.`
 - `preferences[0].kind es obligatorio.`
-- `preferences[0].kind no es válido. Valores permitidos: NEWS, COMMUNICATION, CHANGE, NOTIFICATION.`
+- `preferences[0].kind no es válido. Valores permitidos: NEWS, COMMUNICATION, CHANGE, NOTIFICATION, MEETING.`
 - `preferences[0].channel es obligatorio.`
 - `preferences[0].channel no es válido. Valores permitidos: EMAIL, WHATSAPP.`
 - `preferences[0].enabled es obligatorio.`
@@ -163,20 +167,26 @@ Los errores de validación se acumulan en `errors`; el índice `[0]` es el del e
 
 ## Envío de copias
 
-Las copias se deciden **al publicar** la novedad y se envían después, en segundo plano, sin bloquear la petición. Cambiar las preferencias más tarde no altera las copias ya encoladas.
+Las copias se deciden **al encolarlas** (al publicar la novedad, o al crear o cancelar una reunión) y se envían después, en segundo plano, sin bloquear la petición. Cambiar las preferencias más tarde no altera las copias ya encoladas. Los avisos de reuniones se filtran por el tipo `MEETING`.
 
 ### Bandeja de salida
 
-El mensaje se guarda una vez por novedad en `notification_dispatches`; cada destinatario y canal tiene una fila en `notification_deliveries`.
+El mensaje se guarda una vez por origen y aviso en `notification_dispatches`; cada destinatario y canal tiene una fila en `notification_deliveries`.
 
 **`notification_dispatches`**
 
 | Campo | Contenido |
 | --- | --- |
-| `announcement_id` | Novedad de la que es copia. Único: una novedad tiene como máximo una copia guardada. |
-| `kind` | Tipo de la novedad. |
+| `announcement_id` | Novedad de la que es copia; `null` si el origen es una reunión. Una novedad tiene como máximo una copia guardada. |
+| `meeting_id` | Reunión de la que es aviso; `null` si el origen es una novedad. |
+| `purpose` | `ANNOUNCEMENT` (novedad, valor por defecto), `MEETING_INVITATION`, `MEETING_REMINDER` o `MEETING_CANCELLATION`. |
+| `kind` | Tipo de la copia: el de la novedad, o `MEETING` para las reuniones. |
 | `subject` | Asunto redactado, p. ej. `[Noticia] Convocatoria`. |
 | `body` | Cuerpo redactado, con el contenido, el autor y `Gestor de Semilleros`. |
+| `scheduled_for` | Desde cuándo se envía (por defecto, al encolar). Los recordatorios de reunión se programan a futuro. |
+| `expires_at` | Si se define, después de ese momento la copia se descarta sin enviarse; `null` si no vence (novedades). |
+
+Cada copia tiene un único origen: una novedad **o** una reunión. Los envíos de una reunión se crean en `POST /api/meetings` y `PATCH /api/meetings/:id/status` ([`meetings.md`](meetings.md#avisos)). Al encolar, `next_attempt_at` de cada envío es `scheduled_for`.
 
 Si no hay ningún envío que encolar, **no se crea** la fila de `notification_dispatches`. La novedad y su bandeja de salida se crean en la misma transacción.
 
@@ -190,7 +200,7 @@ Si no hay ningún envío que encolar, **no se crea** la fila de `notification_di
 | `status` | `PENDING`, `SENT`, `FAILED` o `SKIPPED`. Por defecto `PENDING`. |
 | `attempts` | Intentos realizados (incluye la reserva del intento en curso). |
 | `last_error` | Último error o motivo de omisión; `null` si no aplica. |
-| `next_attempt_at` | Cuándo toca el próximo intento. Al crear es la hora actual. |
+| `next_attempt_at` | Cuándo toca el próximo intento. Al crear es `scheduled_for` (la hora actual salvo en los recordatorios). |
 | `sent_at` | Cuándo se envió; `null` si no se ha enviado. |
 
 La combinación `dispatch_id` + `user_id` + `channel` es única. Al encolar se descartan los destinatarios inactivos y se excluye al autor; WhatsApp solo se encola si el usuario tiene teléfono.
@@ -210,19 +220,21 @@ Motivos de `SKIPPED` (se guardan en `last_error`):
 - `El usuario no tiene dirección para este canal.`: no hay correo o teléfono.
 - `Canal desactivado.`: el canal dejó de estar registrado después de encolar.
 - `Novedad eliminada.`: la novedad se eliminó antes de enviar la copia.
-- `La copia no pudo enviarse en 24 h (canal no disponible); se descartó para no enviar un aviso vencido.`: la copia superó `NOTIFICATIONS_MAX_DEFER_HOURS` (24 por defecto) desde que se encoló sin enviarse. Así no se envían de golpe avisos viejos cuando el canal vuelve o el backend se reinicia tras mucho tiempo apagado.
+- `Reunión cancelada.`: la reunión se canceló y se anularon sus envíos pendientes (invitación y recordatorios).
+- `El aviso dejó de ser vigente antes de poder enviarse.`: la copia superó su `expires_at` sin enviarse (p. ej. un recordatorio o una invitación cuando la reunión ya empezó).
+- `La copia no pudo enviarse en 24 h (canal no disponible); se descartó para no enviar un aviso vencido.`: la copia superó `NOTIFICATIONS_MAX_DEFER_HOURS` (24 por defecto) desde su `scheduled_for` sin enviarse (es decir, desde que debía salir, no desde que se encoló). Así no se envían de golpe avisos viejos cuando el canal vuelve o el backend se reinicia tras mucho tiempo apagado.
 
-Al eliminar una novedad, todos sus envíos `PENDING` pasan a `SKIPPED` con `Novedad eliminada.`.
+Al eliminar una novedad, todos sus envíos `PENDING` pasan a `SKIPPED` con `Novedad eliminada.`; al cancelar una reunión, los de la reunión pasan a `SKIPPED` con `Reunión cancelada.`.
 
 ### Reintentos
 
-El despachador (`DeliveryDispatcher`) procesa como máximo **100 envíos por ciclo**, ordenados por `next_attempt_at` ascendente, y solo los `PENDING` cuya hora ya llegó.
+El despachador (`DeliveryDispatcher`) procesa como máximo **100 envíos por ciclo**, ordenados por `next_attempt_at` ascendente, y solo los `PENDING` cuya hora ya llegó (los recordatorios programados esperan a su `scheduled_for`).
 
 1. **Reserva de 5 minutos.** Antes de enviar, cada fila se reclama con una actualización condicional: incrementa `attempts` y fija `next_attempt_at = ahora + 5 minutos`. Si otra instancia ya la reclamó, la actualización no afecta filas y se omite. Así dos instancias no envían la misma copia. Si el proceso muere con la reserva tomada, la fila vuelve a estar disponible al vencer esos 5 minutos.
-2. **Envío.** Si la copia lleva más de `NOTIFICATIONS_MAX_DEFER_HOURS` horas encolada, se marca `SKIPPED` por vencida. Si no, se resuelve la dirección (`email` o `phone`) y el canal; si el usuario está inactivo, falta la dirección o el canal no existe, también se marca `SKIPPED`.
+2. **Envío.** Si la copia ya superó su `expires_at`, se marca `SKIPPED` con `El aviso dejó de ser vigente antes de poder enviarse.`. Si lleva más de `NOTIFICATIONS_MAX_DEFER_HOURS` horas desde su `scheduled_for`, se marca `SKIPPED` por vencida. Si no, se resuelve la dirección (`email` o `phone`) y el canal; si el usuario está inactivo, falta la dirección o el canal no existe, también se marca `SKIPPED`.
 3. **Resultado.**
    - Éxito: `SENT`.
-   - **Canal no disponible** (p. ej. WhatsApp desconectado): la copia queda **en espera**. Vuelve a `PENDING`, se **devuelve el intento** reservado (no cuenta para `NOTIFICATIONS_MAX_ATTEMPTS`) y se prueba de nuevo cada minuto hasta que el canal vuelva o la copia venza a las `NOTIFICATIONS_MAX_DEFER_HOURS` horas.
+   - **Canal no disponible** (p. ej. WhatsApp desconectado): la copia queda **en espera**. Vuelve a `PENDING`, se **devuelve el intento** reservado (no cuenta para `NOTIFICATIONS_MAX_ATTEMPTS`) y se prueba de nuevo cada minuto hasta que el canal vuelva o la copia venza a las `NOTIFICATIONS_MAX_DEFER_HOURS` horas de su `scheduled_for` (o supere su `expires_at`).
    - Error reintentable y `attempts < NOTIFICATIONS_MAX_ATTEMPTS`: vuelve a `PENDING` con espera exponencial.
    - Error no reintentable o intentos agotados: `FAILED`. `last_error` se recorta a 500 caracteres.
 
@@ -256,7 +268,7 @@ El ciclo se lanza justo después de encolar (`kick`) y cada `NOTIFICATIONS_DISPA
 - Envía el texto a través de la conexión de WhatsApp que mantiene el backend con BuilderBot ([ADR 0006](../decisions/0006-whatsapp-con-builderbot.md)). El provider se elige con `WHATSAPP_PROVIDER`; hoy solo existe Baileys, que usa WhatsApp Web.
 - No hay plantillas: el mensaje es texto libre con el asunto en negrita (`*…*`), una línea en blanco y el cuerpo. Se trunca a 4000 caracteres (con `…` al final si sobra texto).
 - El teléfono debe estar registrado en E.164. El destinatario se envía sin el `+` inicial.
-- Si WhatsApp no está conectado (estado distinto de `connected`), la copia queda **en espera sin gastar intentos** y se vuelve a probar cada minuto; sale en cuanto la sesión se reconecta. Si pasan más de `NOTIFICATIONS_MAX_DEFER_HOURS` horas (24 por defecto) desde que se encoló, se descarta (`SKIPPED`). Los errores del provider estando conectado sí gastan intentos.
+- Si WhatsApp no está conectado (estado distinto de `connected`), la copia queda **en espera sin gastar intentos** y se vuelve a probar cada minuto; sale en cuanto la sesión se reconecta. Si pasan más de `NOTIFICATIONS_MAX_DEFER_HOURS` horas (24 por defecto) desde su `scheduled_for`, se descarta (`SKIPPED`). Los errores del provider estando conectado sí gastan intentos.
 - Los errores del provider también se consideran reintentables; el motivo se guarda recortado a 300 caracteres.
 
 #### `log`: registro sin envío real
@@ -278,7 +290,7 @@ El ciclo se lanza justo después de encolar (`kick`) y cada `NOTIFICATIONS_DISPA
 | `NOTIFICATIONS_AUTO_DISPATCH` | `true` o `false`. Por defecto `true`. |
 | `NOTIFICATIONS_DISPATCH_INTERVAL` | Segundos entre ciclos. Por defecto 60; rango 5–3600. |
 | `NOTIFICATIONS_MAX_ATTEMPTS` | Intentos máximos por envío. Por defecto 5; rango 1–20. |
-| `NOTIFICATIONS_MAX_DEFER_HOURS` | Horas máximas que una copia puede esperar a enviarse (las esperas por canal no disponible no gastan intentos). Por defecto 24; rango 1–168. |
+| `NOTIFICATIONS_MAX_DEFER_HOURS` | Horas máximas que una copia puede esperar a enviarse, contadas desde su `scheduled_for` (las esperas por canal no disponible no gastan intentos). Por defecto 24; rango 1–168. |
 
 El resto de variables de SMTP y WhatsApp (`WHATSAPP_PROVIDER`, `WHATSAPP_SESSION_NAME`, `WHATSAPP_PAIRING_PHONE`) se describen en [`apps/backend/.env.example`](../../apps/backend/.env.example).
 

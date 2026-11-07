@@ -1,3 +1,5 @@
+import { loadMeetingsTimeZone, loadMicrosoftConfig } from './microsoft.config';
+import type { MicrosoftConfig } from './microsoft.config.types';
 import { loadNotificationsConfig } from './notifications.config';
 import type { NotificationsConfig } from './notifications.config.types';
 
@@ -21,6 +23,10 @@ export interface AppEnv {
   google: GoogleOAuthConfig | null;
   /** Copias de novedades por correo y WhatsApp (ADR 0005). */
   notifications: NotificationsConfig;
+  /** Microsoft Teams (ADR 0007); null si no hay MICROSOFT_CLIENT_ID/SECRET. */
+  microsoft: MicrosoftConfig | null;
+  /** Zona horaria IANA con la que se muestran las fechas de las reuniones. */
+  meetingsTimeZone: string;
 }
 
 export class EnvValidationError extends Error {}
@@ -63,6 +69,8 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     sessionMaxAge: positiveInt(source.AUTH_SESSION_MAX_AGE, 'AUTH_SESSION_MAX_AGE', DEFAULT_SESSION_MAX_AGE),
     google: googleId && googleSecret ? { clientId: googleId, clientSecret: googleSecret } : null,
     notifications: loadNotificationsConfig(source),
+    microsoft: loadMicrosoftConfig(source),
+    meetingsTimeZone: loadMeetingsTimeZone(source),
   };
 }
 

@@ -104,6 +104,11 @@
 | RN-72 | No se replica localmente toda la información de Teams. | ✅ |
 | RN-73 | El tutor crea las reuniones. | ✅ (otros roles ❓) |
 | RN-74 | Los participantes de una reunión son usuarios del sistema. El proyecto de la reunión es **opcional** (P-18). | ✅ |
+| RN-75 | Al crear una reunión se agenda en el calendario de Microsoft Teams de la cuenta vinculada del organizador, con los participantes como invitados. Sin cuenta vinculada, o si Teams falla, no se crea. | ✅ ([ADR 0007](../decisions/0007-reuniones-con-microsoft-teams.md)) |
+| RN-76 | Con proyecto, solo un tutor de ese proyecto (o el administrador) agenda la reunión, y los participantes deben ser miembros activos del proyecto. | ✅ (decisión técnica sobre RN-73) |
+| RN-77 | Estados de la reunión: programada, en proceso, finalizada y cancelada. Pasa sola a en proceso al empezar y a finalizada al acabar; el organizador puede iniciarla, finalizarla o cancelarla antes. Cancelarla también la cancela en Teams. | ✅ |
+| RN-78 | Los participantes reciben la invitación con el enlace al crearse la reunión y recordatorios 24 h y 1 h antes (también el organizador), por correo o WhatsApp según sus preferencias (tipo `MEETING`). | ✅ |
+| RN-79 | El enlace de evidencia de la grabación es opcional y lo registra el organizador. | ✅ |
 
 ## 9. Recordatorios
 

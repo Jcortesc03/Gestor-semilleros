@@ -12,6 +12,8 @@ const env: AppEnv = {
   sessionMaxAge: 3600,
   google: null,
   notifications: loadNotificationsConfig({}),
+  microsoft: null,
+  meetingsTimeZone: 'America/Bogota',
 };
 
 const dbUser: AuthUser = { id: 'interno-1', email: 'ana@example.test', fullName: 'Ana', roles: ['STUDENT'] };

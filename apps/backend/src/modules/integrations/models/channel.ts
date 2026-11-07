@@ -1,8 +1,8 @@
-import type { AnnouncementKind, NotificationChannel } from '../../../generated/prisma/enums';
+import type { NotificationChannel, NotificationKind } from '../../../generated/prisma/enums';
 
 /** Mensaje ya redactado que se envía como copia de una novedad. */
 export interface OutboundMessage {
-  kind: AnnouncementKind;
+  kind: NotificationKind;
   subject: string;
   body: string;
 }

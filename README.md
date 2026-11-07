@@ -88,7 +88,7 @@ flowchart LR
 
 ## ✨ Características principales
 
-> Funcionalidades planificadas. Hoy están disponibles, solo en el backend (API): el inicio de sesión (correo + contraseña y Google), `GET /api/me`, la creación de usuarios por el administrador, proyectos, tableros y actividades, y las novedades y notificaciones con copias por correo y WhatsApp según las preferencias de cada usuario. El resto aún no está disponible.
+> Funcionalidades planificadas. Hoy están disponibles, solo en el backend (API): el inicio de sesión (correo + contraseña y Google), `GET /api/me`, la creación de usuarios por el administrador, proyectos, tableros y actividades, las novedades y notificaciones con copias por correo y WhatsApp según las preferencias de cada usuario, y las reuniones agendadas en Microsoft Teams con recordatorios. El resto aún no está disponible.
 
 **Gestión académica y operativa**
 
@@ -205,7 +205,7 @@ Las variables se configuran por entorno y **nunca** se versionan. Las plantillas
 - [`apps/backend/.env.example`](apps/backend/.env.example): `DATABASE_URL`, `PORT`, `AUTH_SECRET` (obligatoria, mínimo 32 caracteres), `AUTH_TRUST_HOST`, `AUTH_SESSION_MAX_AGE`, Google OAuth opcional (`AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`), `TEST_DATABASE_URL`, `SEED_PASSWORD` (seed de desarrollo) y `ADMIN_*` (script `admin:create`).
 - [`docker/.env.example`](docker/.env.example): `POSTGRES_*` del contenedor local (opcional).
 
-Las copias de notificaciones por correo (SMTP) y WhatsApp (BuilderBot con el provider Baileys; se vincula escaneando un QR) se configuran con las variables `NOTIFICATIONS_*`, `SMTP_*`, `EMAIL_FROM` y `WHATSAPP_*` de `apps/backend/.env.example`; por defecto solo se registran en el log. Las variables de AWS S3, Microsoft Teams e inteligencia artificial se añadirán cuando se integren esos servicios.
+Las copias de notificaciones por correo (SMTP) y WhatsApp (BuilderBot con el provider Baileys; se vincula escaneando un QR) se configuran con las variables `NOTIFICATIONS_*`, `SMTP_*`, `EMAIL_FROM` y `WHATSAPP_*` de `apps/backend/.env.example`; por defecto solo se registran en el log. Microsoft Teams usa `MICROSOFT_*` y `MEETINGS_TIME_ZONE` (requiere registrar una app en Entra ID; ver `docs/api/microsoft.md`). Las variables de AWS S3 e inteligencia artificial se añadirán cuando se integren esos servicios.
 
 <a id="ejecucion"></a>
 
@@ -261,7 +261,7 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 | Estructura del proyecto | 🟢 Definida | Carpetas base del monorepo; solo el backend tiene código |
 | Herramientas del monorepo | 🟢 Definidas | pnpm + Turborepo |
 | Aplicación web | 🟡 En planificación | Aún no creada (sin código fuente) |
-| Backend | 🟡 En desarrollo | NestJS con inicio de sesión (Auth.js: correo + contraseña y Google), alta de usuarios por el administrador, proyectos, tableros y actividades con permisos por proyecto, novedades y notificaciones con copias por correo y WhatsApp, seed de desarrollo, esquema Prisma y pruebas |
+| Backend | 🟡 En desarrollo | NestJS con inicio de sesión (Auth.js: correo + contraseña y Google), alta de usuarios por el administrador, proyectos, tableros y actividades con permisos por proyecto, novedades y notificaciones con copias por correo y WhatsApp, reuniones con Microsoft Teams, seed de desarrollo, esquema Prisma y pruebas |
 | Aplicación móvil | 🟡 En planificación | Aún no creada (sin código fuente); la autenticación móvil está pendiente |
 | Documentación | 🟡 En elaboración | Alcance, dominio y modelo de datos definidos |
 
@@ -287,7 +287,7 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 - [ ] MVP de la aplicación web
 - [ ] MVP de la aplicación móvil
 - [x] Copias de notificaciones por WhatsApp y correo electrónico
-- [ ] Integración con Microsoft Teams
+- [x] Integración con Microsoft Teams (reuniones)
 - [ ] Módulo de inteligencia artificial y reportes
 - [ ] Pruebas, documentación técnica y despliegue
 

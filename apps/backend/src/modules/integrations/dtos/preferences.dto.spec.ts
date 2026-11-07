@@ -100,12 +100,12 @@ describe('parseUpdatePreferences', () => {
     }
   });
 
-  it('rechaza listas de preferencias fuera del rango 1..8', () => {
-    expect(updateErrors({ preferences: 'NEWS' })).toEqual(['preferences debe ser una lista de 1 a 8 elementos.']);
-    expect(updateErrors({ preferences: [] })).toEqual(['preferences debe ser una lista de 1 a 8 elementos.']);
+  it('rechaza listas de preferencias fuera del rango 1..10', () => {
+    expect(updateErrors({ preferences: 'NEWS' })).toEqual(['preferences debe ser una lista de 1 a 10 elementos.']);
+    expect(updateErrors({ preferences: [] })).toEqual(['preferences debe ser una lista de 1 a 10 elementos.']);
     expect(
-      updateErrors({ preferences: Array.from({ length: 9 }, (_item, index) => ({ ...validChange, kind: index < 4 ? 'NEWS' : 'CHANGE', channel: index % 2 === 0 ? 'EMAIL' : 'WHATSAPP' })) }),
-    ).toEqual(['preferences debe ser una lista de 1 a 8 elementos.']);
+      updateErrors({ preferences: Array.from({ length: 11 }, (_item, index) => ({ ...validChange, kind: index < 4 ? 'NEWS' : 'CHANGE', channel: index % 2 === 0 ? 'EMAIL' : 'WHATSAPP' })) }),
+    ).toEqual(['preferences debe ser una lista de 1 a 10 elementos.']);
   });
 
   it('rechaza elementos de preferencias que no son objetos', () => {
@@ -125,7 +125,7 @@ describe('parseUpdatePreferences', () => {
 
   it('rechaza valores inválidos con el prefijo del índice', () => {
     expect(updateErrors({ preferences: [{ kind: 'ALERT', channel: 'SMS', enabled: 'true' }] })).toEqual([
-      'preferences[0].kind no es válido. Valores permitidos: NEWS, COMMUNICATION, CHANGE, NOTIFICATION.',
+      'preferences[0].kind no es válido. Valores permitidos: NEWS, COMMUNICATION, CHANGE, NOTIFICATION, MEETING.',
       'preferences[0].channel no es válido. Valores permitidos: EMAIL, WHATSAPP.',
       'preferences[0].enabled debe ser un booleano.',
     ]);

@@ -131,6 +131,12 @@
 - **Decisión:** (c). Las preferencias viven en `notification_preferences` con valores por defecto implícitos (sin fila).
 - **Justificación:** la novedad y sus envíos se crean en la misma transacción, los reintentos y el estado quedan auditables y no se añade infraestructura. Materializar envíos por usuario es aceptable aquí porque son un registro histórico de lo enviado, no la audiencia (que sigue calculándose al consultar, DB-06).
 
+### DB-16 · Reuniones, cuentas de Microsoft y avisos programados
+
+- **Contexto:** las reuniones se agendan en Teams desde la cuenta del organizador y generan avisos programados (ADR 0007).
+- **Decisión:** `meetings.status` (enum) más `cancelled_at`; `microsoft_accounts` con los tokens **cifrados** (nunca en claro); la bandeja de salida (DB-15) admite como origen una reunión (`meeting_id`, `purpose`) y la programación (`scheduled_for`, `expires_at`); las preferencias pasan de `AnnouncementKind` a `NotificationKind` (añade `MEETING`) con una conversión que conserva los datos.
+- **Justificación:** se reutiliza el mismo mecanismo de envío, reintentos y preferencias; el estado se guarda (no solo se calcula) para poder filtrar y registrar cancelaciones, y se actualiza por horario antes de cada lectura.
+
 ## Pendientes
 
 1. P-08: alcance del encargado de área; `area_managers` es un modelo provisional.

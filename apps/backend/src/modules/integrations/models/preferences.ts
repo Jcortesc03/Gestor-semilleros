@@ -1,4 +1,4 @@
-import { AnnouncementKind, NotificationChannel } from '../../../generated/prisma/enums';
+import { NotificationKind, NotificationChannel } from '../../../generated/prisma/enums';
 
 /**
  * Valor por defecto cuando el usuario no ha elegido (sin fila en `notification_preferences`):
@@ -9,11 +9,11 @@ export const DEFAULT_CHANNEL_ENABLED: Record<NotificationChannel, boolean> = {
   WHATSAPP: false,
 };
 
-export const ALL_KINDS = Object.values(AnnouncementKind);
+export const ALL_KINDS = Object.values(NotificationKind);
 export const ALL_CHANNELS = Object.values(NotificationChannel);
 
 export interface PreferenceRow {
-  kind: AnnouncementKind;
+  kind: NotificationKind;
   channel: NotificationChannel;
   enabled: boolean;
 }
@@ -30,6 +30,6 @@ export function effectivePreferences(stored: readonly PreferenceRow[]): Preferen
 }
 
 /** ¿El usuario quiere copia de este tipo por este canal? */
-export function wantsCopy(stored: readonly PreferenceRow[], kind: AnnouncementKind, channel: NotificationChannel): boolean {
+export function wantsCopy(stored: readonly PreferenceRow[], kind: NotificationKind, channel: NotificationChannel): boolean {
   return stored.find((p) => p.kind === kind && p.channel === channel)?.enabled ?? DEFAULT_CHANNEL_ENABLED[channel];
 }

@@ -59,7 +59,7 @@ export class AnnouncementsService {
         select: announcementSelect,
       });
       const count = await this.deliveries.enqueue(
-        { announcementId: created.id, kind: dto.kind, subject, body, recipientIds },
+        { source: { announcementId: created.id }, kind: dto.kind, subject, body, recipientIds },
         tx,
       );
       return { row: created, queued: count };
@@ -95,7 +95,7 @@ export class AnnouncementsService {
     const row = await this.findVisible(user, id);
     this.assertOwnerOrAdmin(user, row.author.id);
     await this.prisma.announcement.update({ where: { id }, data: { deletedAt: new Date() } });
-    await this.deliveries.cancel(id);
+    await this.deliveries.cancel({ announcementId: id });
   }
 
   /** Estado de las copias externas (solo autor o administrador). */

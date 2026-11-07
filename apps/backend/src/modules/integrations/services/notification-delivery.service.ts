@@ -1,18 +1,33 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import type { Prisma } from '../../../generated/prisma/client';
-import type { AnnouncementKind, DeliveryStatus, NotificationChannel } from '../../../generated/prisma/enums';
+import type { DeliveryStatus, DispatchPurpose, NotificationChannel, NotificationKind } from '../../../generated/prisma/enums';
 import type { ChannelSender } from '../models/channel';
 import { wantsCopy } from '../models/preferences';
 import { CHANNEL_SENDERS } from './channel-registry';
 
-/** Copia de una novedad a encolar para sus destinatarios. */
+/** Origen de la copia: una novedad, o un aviso de una reunión. */
+export type DispatchSource =
+  | { announcementId: string }
+  | { meetingId: string; purpose: Exclude<DispatchPurpose, 'ANNOUNCEMENT'> };
+
+/** Copia a encolar para sus destinatarios. */
 export interface EnqueueRequest {
-  announcementId: string;
-  kind: AnnouncementKind;
+  source: DispatchSource;
+  kind: NotificationKind;
   subject: string;
   body: string;
   recipientIds: readonly string[];
+  /** Desde cuándo se envía (por defecto, ya). Los recordatorios se programan a futuro. */
+  scheduledFor?: Date;
+  /** Después de este momento la copia se descarta sin enviarse (p. ej. al empezar la reunión). */
+  expiresAt?: Date | null;
+}
+
+function sourceData(source: DispatchSource) {
+  return 'announcementId' in source
+    ? { announcementId: source.announcementId, purpose: 'ANNOUNCEMENT' as const }
+    : { meetingId: source.meetingId, purpose: source.purpose };
 }
 
 export type DeliverySummary = Record<NotificationChannel, Record<DeliveryStatus, number>>;
@@ -52,21 +67,40 @@ export class NotificationDeliveryService {
     );
     if (deliveries.length === 0) return 0;
 
+    const scheduledFor = request.scheduledFor ?? new Date();
     const dispatch = await db.notificationDispatch.create({
-      data: { announcementId: request.announcementId, kind: request.kind, subject: request.subject, body: request.body },
+      data: {
+        ...sourceData(request.source),
+        kind: request.kind,
+        subject: request.subject,
+        body: request.body,
+        scheduledFor,
+        expiresAt: request.expiresAt ?? null,
+      },
       select: { id: true },
     });
     const { count } = await db.notificationDelivery.createMany({
-      data: deliveries.map((d) => ({ ...d, dispatchId: dispatch.id })),
+      data: deliveries.map((d) => ({ ...d, dispatchId: dispatch.id, nextAttemptAt: scheduledFor })),
       skipDuplicates: true,
     });
     return count;
   }
 
-  /** Cancela los envíos pendientes de una novedad (p. ej. al eliminarla). */
-  async cancel(announcementId: string, reason = 'Novedad eliminada.'): Promise<number> {
-    const { count } = await this.prisma.notificationDelivery.updateMany({
-      where: { status: 'PENDING', dispatch: { announcementId } },
+  /**
+   * Cancela los envíos pendientes de una novedad (p. ej. al eliminarla) o de una reunión
+   * (p. ej. sus recordatorios al cancelarla); `purposes` limita qué avisos de la reunión.
+   */
+  async cancel(
+    source: { announcementId: string } | { meetingId: string; purposes?: DispatchPurpose[] },
+    reason = 'Novedad eliminada.',
+    db: Db = this.prisma,
+  ): Promise<number> {
+    const dispatch =
+      'announcementId' in source
+        ? { announcementId: source.announcementId }
+        : { meetingId: source.meetingId, ...(source.purposes ? { purpose: { in: source.purposes } } : {}) };
+    const { count } = await db.notificationDelivery.updateMany({
+      where: { status: 'PENDING', dispatch },
       data: { status: 'SKIPPED', lastError: reason },
     });
     return count;

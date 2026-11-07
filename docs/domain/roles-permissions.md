@@ -1,6 +1,6 @@
 # Roles y permisos
 
-> **Estado:** definición funcional. Es una **matriz conceptual**. Los roles globales y de proyecto existen en el modelo de datos (`user_roles`, `project_members`). **Implementado hoy** en el backend: `SessionGuard` (autenticación), `RolesGuard` + `@Roles` (rol global), **crear usuarios (solo `ADMIN`)** y la **autorización por proyecto** de proyectos, participantes, tableros y actividades (`can.*` en `apps/backend/src/modules/projects/models/project-access.ts`, [ADR 0004](../decisions/0004-proyectos-tableros-actividades.md)). Las celdas marcadas ✅ en la matriz de proyectos, tableros y actividades están implementadas. También están implementadas la **publicación de novedades y notificaciones** y las preferencias de copias (`notifications/models/publish-scope.ts`, [ADR 0005](../decisions/0005-notificaciones-y-copias-externas.md)). No están implementados los permisos de áreas, documentos, reuniones, recordatorios ni dashboards.
+> **Estado:** definición funcional. Es una **matriz conceptual**. Los roles globales y de proyecto existen en el modelo de datos (`user_roles`, `project_members`). **Implementado hoy** en el backend: `SessionGuard` (autenticación), `RolesGuard` + `@Roles` (rol global), **crear usuarios (solo `ADMIN`)** y la **autorización por proyecto** de proyectos, participantes, tableros y actividades (`can.*` en `apps/backend/src/modules/projects/models/project-access.ts`, [ADR 0004](../decisions/0004-proyectos-tableros-actividades.md)). Las celdas marcadas ✅ en la matriz de proyectos, tableros y actividades están implementadas. También están implementadas la **publicación de novedades y notificaciones** y las preferencias de copias (`notifications/models/publish-scope.ts`, [ADR 0005](../decisions/0005-notificaciones-y-copias-externas.md)). También las **reuniones con Microsoft Teams** ([ADR 0007](../decisions/0007-reuniones-con-microsoft-teams.md)). No están implementados los permisos de áreas, documentos, recordatorios ni dashboards.
 > **No inventes permisos.** Lo que no aparece como ✅ requiere confirmación antes de implementarse.
 > Marcas: ✅ confirmado · 🟡 hipótesis · ❓ pendiente · `—` no definido. Los códigos `P-xx` remiten a las [preguntas pendientes](business-rules.md#preguntas-pendientes).
 
@@ -106,7 +106,7 @@ Una celda sin marca de estado está ✅ confirmada. Las celdas `—` no tienen p
 | Tableros | C R U D ✅ | — | R ✅ | C R U D ✅ | R | R |
 | Actividades | C R U D A ✅ | — | R ✅ | C R U D A ✅ | C R U D ✅ · I | R · I (asignadas: progreso y enlaces) ✅ |
 | Encargados de actividad | C U D ✅ | — | — | C U D ✅ | C U D ✅ | — |
-| Reuniones | — | — | — | C | R 🟡 (si es participante) | R 🟡 (si es participante) |
+| Reuniones | C R U (todas; supuesto 🟡) ✅ | — | — | C (sus proyectos o sin proyecto) · R U (las que organiza) ✅ | R (si es participante) ✅ | R (si es participante) ✅ |
 | Recordatorios | — | — | — | C | — | — |
 | Documentos | — | — | — | — ❓ | — ❓ | — ❓ |
 | Novedades | C R D (todas; supuesto 🟡) ✅ | C (todos / roles; sus áreas 🟡) · D (propias) ✅ | C (sus facultades / proyectos de ellas) · D (propias) ✅ | — | — | — |

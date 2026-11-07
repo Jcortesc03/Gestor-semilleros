@@ -19,6 +19,7 @@ const MAX_BACKOFF_MS = 60 * 60_000;
 const MAX_ERROR_LENGTH = 500;
 /** Cada cuánto se vuelve a probar una copia en espera por un canal no disponible. */
 export const DEFER_RETRY_MS = 60_000;
+export const NO_LONGER_RELEVANT_REASON = 'El aviso dejó de ser vigente antes de poder enviarse.';
 export const EXPIRED_REASON = (hours: number) =>
   `La copia no pudo enviarse en ${hours} h (canal no disponible); se descartó para no enviar un aviso vencido.`;
 
@@ -78,8 +79,7 @@ export class DeliveryDispatcher implements OnModuleInit, OnApplicationShutdown {
         id: true,
         channel: true,
         attempts: true,
-        createdAt: true,
-        dispatch: { select: { kind: true, subject: true, body: true } },
+        dispatch: { select: { kind: true, subject: true, body: true, scheduledFor: true, expiresAt: true } },
         user: { select: { email: true, phone: true, status: true } },
       },
     });
@@ -95,16 +95,7 @@ export class DeliveryDispatcher implements OnModuleInit, OnApplicationShutdown {
 
       const address = delivery.channel === 'EMAIL' ? delivery.user.email : delivery.user.phone;
       const sender = senderFor(this.senders, delivery.channel);
-      const skipReason =
-        delivery.createdAt < expiresBefore
-          ? EXPIRED_REASON(this.config.maxDeferHours)
-          : delivery.user.status !== 'ACTIVE'
-          ? 'Usuario inactivo.'
-          : !address
-            ? 'El usuario no tiene dirección para este canal.'
-            : !sender
-              ? 'Canal desactivado.'
-              : null;
+      const skipReason = this.skipReason(delivery, address, Boolean(sender), expiresBefore);
       if (skipReason || !sender || !address) {
         await this.mark(delivery.id, { status: 'SKIPPED', lastError: skipReason });
         report.skipped++;
@@ -112,7 +103,8 @@ export class DeliveryDispatcher implements OnModuleInit, OnApplicationShutdown {
       }
 
       try {
-        await sender.send(address, delivery.dispatch);
+        const { kind, subject, body } = delivery.dispatch;
+        await sender.send(address, { kind, subject, body });
         await this.mark(delivery.id, { status: 'SENT', sentAt: new Date(), lastError: null });
         report.sent++;
       } catch (error) {
@@ -142,6 +134,21 @@ export class DeliveryDispatcher implements OnModuleInit, OnApplicationShutdown {
       }
     }
     return report;
+  }
+
+  /** Motivo para omitir el envío sin intentarlo, o `null` si debe enviarse. */
+  private skipReason(
+    delivery: { dispatch: { scheduledFor: Date; expiresAt: Date | null }; user: { status: string } },
+    address: string | null,
+    hasSender: boolean,
+    expiresBefore: Date,
+  ): string | null {
+    if (delivery.dispatch.expiresAt && delivery.dispatch.expiresAt <= new Date()) return NO_LONGER_RELEVANT_REASON;
+    if (delivery.dispatch.scheduledFor < expiresBefore) return EXPIRED_REASON(this.config.maxDeferHours);
+    if (delivery.user.status !== 'ACTIVE') return 'Usuario inactivo.';
+    if (!address) return 'El usuario no tiene dirección para este canal.';
+    if (!hasSender) return 'Canal desactivado.';
+    return null;
   }
 
   private async mark(

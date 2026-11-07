@@ -122,7 +122,7 @@ describe('Novedades, notificaciones y copias por correo/WhatsApp (e2e)', () => {
     it('por defecto: correo activado y WhatsApp desactivado en todos los tipos', async () => {
       const res = await (await world.as('student')).get('/api/me/notification-preferences').expect(200);
       expect(res.body.phone).toBeNull();
-      expect(res.body.preferences).toHaveLength(8);
+      expect(res.body.preferences).toHaveLength(10);
       for (const p of res.body.preferences) expect(p.enabled).toBe(p.channel === 'EMAIL');
     });
 
@@ -243,7 +243,8 @@ describe('Novedades, notificaciones y copias por correo/WhatsApp (e2e)', () => {
       expect((await dispatch()).deferred).toBe(4);
 
       const dayAndAHourAgo = new Date(Date.now() - 25 * 3_600_000);
-      await world.prisma.notificationDelivery.updateMany({ data: { createdAt: dayAndAHourAgo, nextAttemptAt: new Date(0) } });
+      await world.prisma.notificationDispatch.updateMany({ data: { scheduledFor: dayAndAHourAgo } });
+      await world.prisma.notificationDelivery.updateMany({ data: { nextAttemptAt: new Date(0) } });
       email.failWith = null; // aunque el canal ya volvió, la copia está vencida
       expect(await dispatch()).toEqual({ sent: 0, retrying: 0, failed: 0, skipped: 4, deferred: 0 });
       expect(email.sent).toEqual([]);

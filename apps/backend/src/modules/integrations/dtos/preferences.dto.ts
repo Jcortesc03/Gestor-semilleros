@@ -1,4 +1,4 @@
-import { AnnouncementKind, NotificationChannel } from '../../../generated/prisma/enums';
+import { NotificationKind, NotificationChannel } from '../../../generated/prisma/enums';
 import {
   asObject,
   fail,
@@ -10,7 +10,7 @@ import {
 
 /** Cambio puntual de preferencia para una combinación (kind, channel). */
 export interface PreferenceChangeDto {
-  kind: AnnouncementKind;
+  kind: NotificationKind;
   channel: NotificationChannel;
   enabled: boolean;
 }
@@ -27,7 +27,8 @@ export const E164_PATTERN = /^\+[1-9]\d{7,14}$/;
 const UPDATE_FIELDS = ['phone', 'preferences'] as const;
 const PREFERENCE_FIELDS: readonly string[] = ['kind', 'channel', 'enabled'];
 const MIN_PREFERENCES = 1;
-const MAX_PREFERENCES = 8;
+/** Matriz completa: 5 tipos (NotificationKind) × 2 canales. */
+const MAX_PREFERENCES = 10;
 
 const PHONE_ERROR = 'phone debe estar en formato internacional E.164, p. ej. +573001234567.';
 const PREFERENCES_ERROR = `preferences debe ser una lista de ${MIN_PREFERENCES} a ${MAX_PREFERENCES} elementos.`;
@@ -42,7 +43,7 @@ export function normalizePhone(value: unknown): string | null {
 }
 
 function kindError(index: number): string {
-  return `preferences[${index}].kind no es válido. Valores permitidos: ${Object.values(AnnouncementKind).join(', ')}.`;
+  return `preferences[${index}].kind no es válido. Valores permitidos: ${Object.values(NotificationKind).join(', ')}.`;
 }
 
 function channelError(index: number): string {
@@ -61,11 +62,11 @@ function parsePreferenceChange(item: unknown, index: number, errors: string[]): 
   const extra = Object.keys(body).filter((key) => !PREFERENCE_FIELDS.includes(key));
   if (extra.length > 0) errors.push(`${prefix}: campos no permitidos: ${extra.join(', ')}.`);
 
-  let kind: AnnouncementKind | null = null;
+  let kind: NotificationKind | null = null;
   if (body.kind === undefined) {
     errors.push(`${prefix}.kind es obligatorio.`);
   } else {
-    kind = parseEnum(body.kind, AnnouncementKind);
+    kind = parseEnum(body.kind, NotificationKind);
     if (kind === null) errors.push(kindError(index));
   }
 

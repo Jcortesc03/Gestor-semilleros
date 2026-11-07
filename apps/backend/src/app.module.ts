@@ -7,8 +7,9 @@ import { ProjectsModule } from './modules/projects';
 import { BoardsModule } from './modules/boards';
 import { IntegrationsModule } from './modules/integrations';
 import { NotificationsModule } from './modules/notifications';
+import { MeetingsModule } from './modules/meetings';
 
 @Module({
-  imports: [ConfigModule, DatabaseModule, AuthModule, UsersModule, ProjectsModule, BoardsModule, IntegrationsModule, NotificationsModule],
+  imports: [ConfigModule, DatabaseModule, AuthModule, UsersModule, ProjectsModule, BoardsModule, IntegrationsModule, NotificationsModule, MeetingsModule],
 })
 export class AppModule {}
