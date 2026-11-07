@@ -114,6 +114,16 @@ La notificación es un tipo de novedad (P-16). No hay registro de lectura ni col
 **`announcement_audiences`**: `id` PK · `announcement_id` FK NN · `audience_type` NN (`AudienceType`) · `role?` (`Role`) · `faculty_id?` FK · `area_id?` FK · `project_id?` FK.
 CHECK: solo la columna de destino que corresponde a `audience_type` tiene valor, y ninguna si es `ALL` (DB-06).
 
+### Copias de novedades (ADR 0005)
+
+**`users.phone?`**: teléfono E.164 para WhatsApp. CHECK `users_phone_e164`.
+
+**`notification_preferences`**: (`user_id` FK, `kind` `AnnouncementKind`, `channel` `NotificationChannel`) PK · `enabled` NN · `updated_at`. Sin fila se aplica el valor por defecto (`EMAIL` activado, `WHATSAPP` desactivado).
+
+**`notification_dispatches`**: `id` PK · `announcement_id` FK UQ · `kind` NN · `subject` NN · `body` NN · `created_at`. Copia del mensaje tal como se envía.
+
+**`notification_deliveries`**: `id` PK · `dispatch_id` FK NN · `user_id` FK NN · `channel` NN · `status` NN (`DeliveryStatus`: `PENDING`, `SENT`, `FAILED`, `SKIPPED`) · `attempts` NN (≥ 0, CHECK) · `last_error?` · `next_attempt_at` NN · `sent_at?` · `created_at` · `updated_at`. UQ (`dispatch_id`, `user_id`, `channel`); índice (`status`, `next_attempt_at`).
+
 ### Reuniones y recordatorios
 
 **`meetings`**: `id` PK · `project_id?` FK (P-18) · `organizer_id` FK→users NN · `external_id?` UQ (Teams) · `reason` NN · `starts_at` NN · `duration_minutes` NN (> 0; DB-12) · `join_url?` · `recording_url?` · `created_at` · `updated_at` · `deleted_at?`.

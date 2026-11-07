@@ -152,7 +152,7 @@ Noticia, comunicación, cambio o notificación dirigida a un grupo de usuarios.
 | Audiencia(s) | ✅ | Todos, roles, facultad, área o proyecto. |
 | Vigencia / expiración | ❓ | No definida; no hay columna de expiración. |
 | Registro de lectura | ✅ | No existe; la audiencia se calcula al consultar (P-16). |
-| Canales externos (WhatsApp, correo) | ❓ | Pendientes (P-16). |
+| Canales externos (WhatsApp, correo) | ✅ | Copias según las preferencias de cada usuario (RN-89 a RN-91, ADR 0005). |
 
 **Responsabilidades:** comunicar información institucional a una audiencia acotada.
 **Relaciones:** Novedad **N : 1** Usuario (autor); Novedad **1 : N** Audiencia de novedad.

@@ -124,11 +124,18 @@
 
 ---
 
+### DB-15 · Bandeja de salida de copias externas
+
+- **Contexto:** las novedades se copian por correo y WhatsApp (RN-89). DB-06 preveía una tabla de entregas si se añadían canales.
+- **Alternativas:** (a) enviar durante la petición, sin registro; (b) una cola externa; (c) **bandeja de salida en PostgreSQL** (`notification_dispatches` + `notification_deliveries`) procesada por el backend.
+- **Decisión:** (c). Las preferencias viven en `notification_preferences` con valores por defecto implícitos (sin fila).
+- **Justificación:** la novedad y sus envíos se crean en la misma transacción, los reintentos y el estado quedan auditables y no se añade infraestructura. Materializar envíos por usuario es aceptable aquí porque son un registro histórico de lo enviado, no la audiencia (que sigue calculándose al consultar, DB-06).
+
 ## Pendientes
 
 1. P-08: alcance del encargado de área; `area_managers` es un modelo provisional.
 2. P-19: atributos y destinatarios del recordatorio; `reminders` es un modelo mínimo provisional.
-3. P-16 (parcial): canales de envío (WhatsApp, correo), vigencia de las novedades y, si se añaden, el registro de lectura o las entregas.
+3. P-16 (parcial): vigencia de las novedades y registro de lectura. Los canales y las entregas se resolvieron en DB-15.
 4. P-24 (parcial): si el tutor responsable y el estudiante encargado deben ser participantes (hoy, validación en el servicio) y si el encargado es el líder.
 5. P-23: correspondencia entre los módulos existentes del backend (`semilleros`, `tasks`, `notifications`, `reminders`…) y las entidades nuevas. **No** renombres módulos sin aprobación.
 6. Mecanismo del filtro de eliminación lógica (`PrismaService` o extensión del cliente).

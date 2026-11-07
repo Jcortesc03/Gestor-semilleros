@@ -20,7 +20,8 @@ El alcance, los módulos y el estado se documentan en `README.md`; no los repita
 - **Definido:** stack, versiones base, estructura del monorepo, workspace (pnpm + Turborepo) y scripts raíz.
 - **Implementado:** esquema de datos y migraciones, PostgreSQL local con Docker Compose ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)), y en el backend `PrismaService`, inicio de sesión con Auth.js (correo + contraseña y Google), `SessionGuard`, `GET /api/me` y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)); alta de usuarios `POST /api/users` con `RolesGuard` ([ADR 0003](docs/decisions/0003-alta-de-usuarios.md)); el script `admin:create` y la seed de desarrollo (`db:seed`).
 - **Instalado:** dependencias de Turborepo y del backend (`pnpm-lock.yaml` versionado).
-- **No implementado:** módulos de dominio (proyectos, tableros…), permisos por proyecto, resto de la gestión de usuarios, autenticación móvil, Docker de despliegue ni CI/CD.
+- **Implementado también:** proyectos y participantes, tableros y actividades (encargados, aprobación, enlaces adjuntos) con permisos por proyecto ([ADR 0004](docs/decisions/0004-proyectos-tableros-actividades.md); API en `docs/api/projects.md` y `docs/api/boards.md`); novedades y notificaciones con copias por correo (SMTP) y WhatsApp (Cloud API) según las preferencias de cada usuario ([ADR 0005](docs/decisions/0005-notificaciones-y-copias-externas.md)).
+- **No implementado:** documentos (S3), reuniones, recordatorios, dashboards, permisos del encargado de área, resto de la gestión de usuarios, autenticación móvil, Docker de despliegue ni CI/CD.
 
 Por lo tanto:
 
@@ -62,7 +63,7 @@ Si dos fuentes se contradicen, **detente y reporta**; no elijas una por tu cuent
 | Contenedores | Docker |
 | Arquitectura | MVC + monolito modular |
 
-**Versiones fijadas** ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)): Node.js 24 LTS (`.nvmrc`), pnpm 12.18.0 (`packageManager`, vía Corepack), Prisma 7.10.1 (con `@prisma/adapter-pg`) y PostgreSQL 18.6 (`postgres:18.6-alpine`). Backend y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)): NestJS 12.3.3, TypeScript 6.0.3, `@auth/express` 0.12.3, Argon2id (`@node-rs/argon2`), Jest 30 + ts-jest + Supertest.
+**Versiones fijadas** ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)): Node.js 24 LTS (`.nvmrc`), pnpm 12.18.0 (`packageManager`, vía Corepack), Prisma 7.10.1 (con `@prisma/adapter-pg`) y PostgreSQL 18.6 (`postgres:18.6-alpine`). Backend y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)): NestJS 12.3.3, TypeScript 6.0.3, `@auth/express` 0.12.3, Argon2id (`@node-rs/argon2`), Jest 30 + ts-jest + Supertest. Correo ([ADR 0005](docs/decisions/0005-notificaciones-y-copias-externas.md)): nodemailer 10.3.1 (SMTP); WhatsApp mediante la Cloud API de Meta con `fetch` (sin dependencia).
 
 **Pendiente de definición:** versión de Turborepo (`latest`, fijada solo por el lockfile), linting y formato, CI/CD, infraestructura de despliegue, contratos de API de los demás módulos, autenticación móvil, permisos por rol y preguntas abiertas del dominio (`docs/domain/business-rules.md`).
 
@@ -238,6 +239,10 @@ Si la decisión ya está aprobada y registrada, procede sin volver a preguntar.
 | [`docs/database/local-setup.md`](docs/database/local-setup.md) | Instalación local de la base de datos |
 | [`docs/api/auth.md`](docs/api/auth.md) | Contrato de la API de autenticación |
 | [`docs/api/users.md`](docs/api/users.md) | Contrato de la API de usuarios |
+| [`docs/api/projects.md`](docs/api/projects.md) | Contrato de la API de proyectos y participantes |
+| [`docs/api/boards.md`](docs/api/boards.md) | Contrato de la API de tableros y actividades |
+| [`docs/api/announcements.md`](docs/api/announcements.md) | Contrato de la API de novedades y notificaciones |
+| [`docs/api/notification-preferences.md`](docs/api/notification-preferences.md) | Preferencias de notificación y envío de copias por correo y WhatsApp |
 | `docs/decisions/` | ADRs |
 
 Antes de implementar cualquier funcionalidad del dominio (entidades, permisos, flujos o esquema de datos), consulta `docs/domain/` empezando por su `README.md`, y `docs/database/` si afecta a la persistencia. Lo marcado como 🟡 hipótesis o ❓ pendiente **no** se implementa sin confirmación. **No inventes reglas de negocio ni permisos** que sigan pendientes.

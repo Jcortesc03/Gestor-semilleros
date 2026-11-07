@@ -122,7 +122,8 @@ stateDiagram-v2
 2. ✅ Elige una o varias audiencias permitidas por su rol (RN-51, RN-52).
 3. 🟡 El sistema valida que el autor pueda publicar en cada audiencia.
 4. 🟡 Los usuarios ven la novedad si pertenecen a alguna de sus audiencias (RN-53, RN-54).
-5. ✅ No se registra la lectura y la notificación es un tipo de novedad (P-16). ❓ El envío por canales externos (WhatsApp o correo) está por definir.
+5. ✅ No se registra la lectura y la notificación es un tipo de novedad (P-16).
+6. ✅ Se envía una copia por correo o WhatsApp a cada destinatario (menos el autor) según sus preferencias por tipo y canal (RN-89 a RN-91). Los envíos fallidos se reintentan ([ADR 0005](../decisions/0005-notificaciones-y-copias-externas.md)).
 
 ```mermaid
 flowchart LR

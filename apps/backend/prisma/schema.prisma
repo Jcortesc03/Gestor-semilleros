@@ -105,6 +105,19 @@ enum AudienceType {
   PROJECT
 }
 
+/// Canales externos para las copias de las novedades (ADR 0005).
+enum NotificationChannel {
+  EMAIL
+  WHATSAPP
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
 // ─────────────────────────────────────────────────────────────
 // Usuarios y roles
 // ─────────────────────────────────────────────────────────────
@@ -115,6 +128,8 @@ model User {
   email        String     @unique
   /// Hash Argon2id. Nulo si el usuario solo inicia sesión con Google.
   passwordHash String?    @map("password_hash")
+  /// Teléfono en formato E.164 para las copias por WhatsApp (CHECK en SQL). Opcional.
+  phone        String?
   status       UserStatus @default(ACTIVE)
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
@@ -136,6 +151,8 @@ model User {
   organizedMeetings   Meeting[]
   meetings            MeetingParticipant[]
   reminders           Reminder[]
+  notificationPrefs   NotificationPreference[]
+  deliveries          NotificationDelivery[]
 
   @@map("users")
 }
@@ -414,6 +431,7 @@ model Announcement {
 
   author    User                   @relation(fields: [authorId], references: [id], onDelete: Restrict)
   audiences AnnouncementAudience[]
+  dispatch  NotificationDispatch?
 
   @@index([publishedAt])
   @@map("announcements")
@@ -439,6 +457,63 @@ model AnnouncementAudience {
   @@index([areaId])
   @@index([projectId])
   @@map("announcement_audiences")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Copias de novedades por canales externos (ADR 0005)
+// ─────────────────────────────────────────────────────────────
+
+/// Preferencia de un usuario por tipo de novedad y canal. Sin fila se aplica el valor
+/// por defecto: correo activado, WhatsApp desactivado (exige teléfono y consentimiento).
+model NotificationPreference {
+  userId    String              @map("user_id") @db.Uuid
+  kind      AnnouncementKind
+  channel   NotificationChannel
+  enabled   Boolean
+  updatedAt DateTime            @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, kind, channel])
+  @@map("notification_preferences")
+}
+
+/// Bandeja de salida: copia del mensaje de una novedad tal como se envió por los canales.
+model NotificationDispatch {
+  id             String           @id @default(uuid()) @db.Uuid
+  announcementId String           @unique @map("announcement_id") @db.Uuid
+  kind           AnnouncementKind
+  subject        String
+  body           String
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  announcement Announcement           @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  deliveries   NotificationDelivery[]
+
+  @@map("notification_dispatches")
+}
+
+/// Un envío por destinatario y canal, con reintentos.
+model NotificationDelivery {
+  id            String              @id @default(uuid()) @db.Uuid
+  dispatchId    String              @map("dispatch_id") @db.Uuid
+  userId        String              @map("user_id") @db.Uuid
+  channel       NotificationChannel
+  status        DeliveryStatus      @default(PENDING)
+  attempts      Int                 @default(0)
+  lastError     String?             @map("last_error")
+  nextAttemptAt DateTime            @default(now()) @map("next_attempt_at")
+  sentAt        DateTime?           @map("sent_at")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  dispatch NotificationDispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([dispatchId, userId, channel])
+  @@index([status, nextAttemptAt])
+  @@index([userId])
+  @@map("notification_deliveries")
 }
 
 // ─────────────────────────────────────────────────────────────
