@@ -1,4 +1,5 @@
 import type { AppEnv } from '../../../config/env';
+import { loadNotificationsConfig } from '../../../config/notifications.config';
 import type { AuthUser } from '../models/auth-user';
 import { AUTH_BASE_PATH, createAuthConfig } from './auth-config.factory';
 import type { AuthService } from './auth.service';
@@ -10,6 +11,7 @@ const env: AppEnv = {
   authTrustHost: true,
   sessionMaxAge: 3600,
   google: null,
+  notifications: loadNotificationsConfig({}),
 };
 
 const dbUser: AuthUser = { id: 'interno-1', email: 'ana@example.test', fullName: 'Ana', roles: ['STUDENT'] };

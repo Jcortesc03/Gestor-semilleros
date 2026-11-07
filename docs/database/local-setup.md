@@ -33,6 +33,9 @@ pnpm db:up
 
 # 5. Aplicar las migraciones y generar el cliente de Prisma
 pnpm db:migrate
+
+# 6. (Opcional) Sembrar datos de desarrollo; ver "Datos de desarrollo (seed)"
+SEED_PASSWORD='…' pnpm db:seed
 ```
 
 > Si `corepack enable` pide permisos de administrador, usa `corepack pnpm <comando>` en su lugar.
@@ -49,6 +52,7 @@ pnpm db:migrate
 | `pnpm db:migrate` | Aplica las migraciones pendientes (`prisma migrate dev`) y regenera el cliente |
 | `pnpm db:generate` | Regenera el cliente de Prisma en `apps/backend/src/generated/prisma` |
 | `pnpm db:studio` | Abre Prisma Studio para explorar los datos |
+| `pnpm db:seed` | Siembra datos de **desarrollo** (requiere `SEED_PASSWORD`); ver [Datos de desarrollo](#datos-de-desarrollo-seed) |
 
 **Desde `apps/backend`**, o con `pnpm --filter @gestor-semilleros/backend <script>`:
 
@@ -59,6 +63,8 @@ pnpm db:migrate
 | `db:status` | Muestra el estado de las migraciones |
 | `db:deploy` | Aplica las migraciones sin crear ninguna nueva (entornos no interactivos) |
 | `db:reset` | ⚠️ **Borra la base de datos local** y vuelve a aplicar todas las migraciones |
+| `db:seed` | Compila (`nest build`) y ejecuta `dist/cli/seed.js` |
+| `admin:create` | Compila y crea un administrador (`ADMIN_EMAIL`, `ADMIN_FULL_NAME`, `ADMIN_PASSWORD`) |
 
 ## Cambiar el esquema
 
@@ -75,7 +81,7 @@ pnpm db:migrate
 | --- | --- |
 | `docker/compose.yaml` | Servicio `postgres` (imagen `postgres:18.6-alpine`, volumen persistente) |
 | `docker/.env.example` | Variables opcionales del contenedor |
-| `apps/backend/.env.example` | Plantilla de `DATABASE_URL` |
+| `apps/backend/.env.example` | Plantilla de variables del backend (`DATABASE_URL`, `AUTH_*`, `TEST_DATABASE_URL`, `SEED_PASSWORD`, `ADMIN_*`) |
 | `apps/backend/prisma.config.ts` | Configuración de Prisma CLI: rutas y URL de la base de datos |
 | `apps/backend/prisma/schema.prisma` | Esquema de datos |
 | `apps/backend/prisma/migrations/` | Migraciones versionadas |
@@ -91,6 +97,40 @@ pnpm test       # pruebas unitarias
 pnpm test:e2e   # pruebas de la API; usa TEST_DATABASE_URL (semilleros_test) y la vacía en cada prueba
 ```
 
+Para iniciar sesión en local hace falta un primer administrador:
+
+```bash
+ADMIN_EMAIL=admin@example.test ADMIN_FULL_NAME="Administrador" ADMIN_PASSWORD='…' \
+  pnpm --filter @gestor-semilleros/backend admin:create
+```
+
+Después, ese administrador crea el resto de usuarios con `POST /api/users` ([`docs/api/users.md`](../api/users.md)).
+
+### Datos de desarrollo (seed)
+
+Como alternativa a `admin:create`, `pnpm db:seed` (`apps/backend/src/cli/seed.ts`) crea un conjunto mínimo de datos para probar la aplicación:
+
+| Usuario | Rol global | Rol de proyecto |
+| --- | --- | --- |
+| `admin@example.test` | `ADMIN` | — |
+| `encargado.area@example.test` | `AREA_MANAGER` (asignado al área) | — |
+| `decano@example.test` | `DEAN` (decano vigente de la facultad) | — |
+| `tutor@example.test` | `TUTOR` | tutor principal |
+| `lider@example.test` | `STUDENT` | `STUDENT_LEADER` |
+| `estudiante@example.test` | `STUDENT` | `STUDENT` |
+
+Además crea el área "Semillero de investigación", la facultad "Facultad de Ingeniería (demo)" y un proyecto demo con su tutor, líder y estudiante.
+
+```bash
+SEED_PASSWORD='…' pnpm db:seed
+# En fish: env SEED_PASSWORD='…' pnpm db:seed
+```
+
+- `SEED_PASSWORD` (8–256 caracteres) es obligatoria y es la contraseña común de todos los usuarios sembrados. Ver [`apps/backend/.env.example`](../../apps/backend/.env.example).
+- Es **idempotente**: se puede ejecutar varias veces.
+- Se niega a ejecutarse con `NODE_ENV=production`.
+- Los usuarios sembrados son **solo para desarrollo**; no los uses ni los crees en otros entornos.
+
 La base de pruebas se crea y se migra automáticamente. Su nombre **debe** terminar en `_test`; si no, las pruebas se niegan a ejecutarse.
 
 ## Problemas frecuentes
@@ -103,4 +143,4 @@ La base de pruebas se crea y se migra automáticamente. Su nombre **debe** termi
 | `Unable to find package manager binary` al usar Turborepo | `pnpm` no está en el PATH: ejecuta `corepack enable`. |
 | Quiero empezar de cero | `docker compose -f docker/compose.yaml down -v` elimina el volumen. ⚠️ **Borra todos los datos locales.** |
 
-Las credenciales de las plantillas son solo para desarrollo local. Nunca uses estos valores en otros entornos ni versiones archivos `.env`.
+Las credenciales de las plantillas y los usuarios sembrados son solo para desarrollo local. Nunca uses estos valores en otros entornos ni versiones archivos `.env`.

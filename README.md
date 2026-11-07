@@ -2,7 +2,7 @@
 
 **Plataforma integral para la gestión académica, administrativa y organizativa de los semilleros de investigación.**
 
-![Estado](https://img.shields.io/badge/estado-planificaci%C3%B3n-yellow)
+![Estado](https://img.shields.io/badge/estado-desarrollo%20inicial-yellow)
 ![Lenguaje](https://img.shields.io/badge/lenguaje-TypeScript-3178C6?logo=typescript&logoColor=white)
 ![Web](https://img.shields.io/badge/web-React-61DAFB?logo=react&logoColor=black)
 ![Móvil](https://img.shields.io/badge/m%C3%B3vil-React%20Native-61DAFB?logo=react&logoColor=black)
@@ -11,7 +11,7 @@
 ![Arquitectura](https://img.shields.io/badge/arquitectura-MVC%20%C2%B7%20monorepo-blue)
 
 > [!IMPORTANT]
-> El proyecto se encuentra en **fase de planificación**. El stack, la estructura y el workspace (pnpm + Turborepo) ya están configurados, pero aún **no existe código de las aplicaciones**. Ya están disponibles el esquema de base de datos (Prisma) y el entorno local de PostgreSQL.
+> El proyecto está en **desarrollo inicial**. El **backend** (NestJS) ya cuenta con autenticación (Auth.js), alta de usuarios por el administrador, esquema de base de datos (Prisma), PostgreSQL local con Docker y pruebas. La **aplicación web** y la **móvil** aún no se han creado, y los módulos de dominio (proyectos, tableros, documentos, etc.) están pendientes.
 
 <a id="contenido"></a>
 
@@ -78,17 +78,17 @@ flowchart LR
 ```
 
 - La **web (React)** y la **móvil (React Native)** consumen la API del backend; no acceden directamente a la base de datos ni a S3.
-- **Auth.js** centraliza la autenticación y autorización. El detalle de sesiones, roles y del flujo en la aplicación móvil está pendiente de definición.
+- **Auth.js** centraliza la autenticación. Ya funciona en el backend con sesión JWT en cookie (web); los roles globales se comprueban con `RolesGuard`. Los permisos por proyecto y el flujo en la aplicación móvil están pendientes.
 - El **backend (NestJS)** aplica **MVC**: modelos y reglas de negocio en el dominio, controladores para la API y vistas en los clientes.
 - **Prisma** es el ORM del backend y el único punto de acceso a **PostgreSQL**.
 - **PostgreSQL** almacena los datos estructurados; **AWS S3** guarda documentos e imágenes.
-- El despliegue se realizará con **Docker**. Los Dockerfiles y la configuración de contenedores aún no existen.
+- El despliegue se realizará con **Docker**. Existe el Compose de PostgreSQL local; los Dockerfiles y el Compose de despliegue aún no existen.
 
 <a id="caracteristicas"></a>
 
 ## ✨ Características principales
 
-> Funcionalidades planificadas. Ninguna se encuentra disponible todavía.
+> Funcionalidades planificadas. Hoy están disponibles, solo en el backend (API): el inicio de sesión (correo + contraseña y Google), `GET /api/me`, la creación de usuarios por el administrador, proyectos, tableros y actividades, y las novedades y notificaciones con copias por correo y WhatsApp según las preferencias de cada usuario. El resto aún no está disponible.
 
 **Gestión académica y operativa**
 
@@ -124,17 +124,17 @@ Solo se listan como definidas las decisiones ya tomadas. El resto permanece **po
 | Documentos e imágenes | AWS S3 | ✅ Definido |
 | Autenticación y autorización | Auth.js | ✅ Definido |
 | Arquitectura | MVC | ✅ Definido |
-| Despliegue | Docker | ✅ Definido |
+| Despliegue | Docker | ✅ Definido (solo PostgreSQL local; despliegue pendiente) |
 | Gestor de paquetes | pnpm | ✅ Definido |
 | Herramientas del monorepo | Turborepo | ✅ Definido |
-| Pruebas | Jest + Supertest | ✅ Definido |
+| Pruebas | Jest + Supertest | ✅ Definido e implementado en el backend |
 | CI/CD | — | ⏳ Por definir |
 
 <a id="estructura"></a>
 
 ## 📁 Estructura del proyecto
 
-La estructura inicial de carpetas ya está creada (todavía sin código). El backend se organiza como un **monolito modularizado** por dominios. El árbol completo y las convenciones están en [`docs/architecture/estructura.md`](docs/architecture/estructura.md).
+La estructura de carpetas está creada; solo el backend contiene código (`apps/web`, `apps/mobile` y `packages/` están vacíos). El backend se organiza como un **monolito modularizado** por dominios. El árbol completo y las convenciones están en [`docs/architecture/estructura.md`](docs/architecture/estructura.md).
 
 ```text
 .
@@ -171,7 +171,7 @@ Versiones registradas en [ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorn
 
 ## 🚀 Instalación y configuración
 
-> El workspace ya está configurado con **pnpm + Turborepo**, pero las aplicaciones aún no existen. Los pasos marcados como pendientes se completarán al implementarlas.
+> El workspace usa **pnpm + Turborepo**. Por ahora solo existe el paquete del backend; la web y la móvil se añadirán más adelante.
 
 1. **Clonar el repositorio** (URL pendiente de publicación).
 
@@ -186,50 +186,35 @@ Versiones registradas en [ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorn
    pnpm install
    ```
 
-   Instala Turborepo y Prisma. Si `pnpm` no está disponible, ejecuta antes `corepack enable`.
+   Instala Turborepo y las dependencias del backend. Si `pnpm` no está disponible, ejecuta antes `corepack enable`.
 
 3. **Configurar las variables de entorno:** `cp apps/backend/.env.example apps/backend/.env`. Ver [Variables de entorno](#variables-entorno).
 
 4. **Levantar la base de datos y aplicar las migraciones:** `pnpm db:up` y luego `pnpm db:migrate`. La guía completa está en [`docs/database/local-setup.md`](docs/database/local-setup.md). La configuración de Docker para despliegue sigue pendiente.
 
-5. **Iniciar los entregables** según se describe en [Ejecución del proyecto](#ejecucion).
+5. **Crear usuarios de desarrollo** (opcional): `SEED_PASSWORD='…' pnpm db:seed` crea un usuario por tipo con una contraseña común (en fish: anteponer `env`). Los usuarios sembrados son **solo para desarrollo**. Alternativa mínima: `admin:create` ([`docs/api/users.md`](docs/api/users.md#primer-administrador)).
+
+6. **Iniciar el backend** según se describe en [Ejecución del proyecto](#ejecucion).
 
 <a id="variables-entorno"></a>
 
 ## 🔐 Variables de entorno
 
-La plantilla está en [`apps/backend/.env.example`](apps/backend/.env.example) e incluye `DATABASE_URL`, `AUTH_SECRET`, Google OAuth opcional y `TEST_DATABASE_URL`. El resto de variables se añadirá cuando se integren los servicios externos.
+Las variables se configuran por entorno y **nunca** se versionan. Las plantillas, con la explicación de cada variable, son:
 
-```env
-# Pendiente de definición.
-#
-# Aquí se documentarán las variables necesarias para, entre otras:
-#   - conexión con PostgreSQL (gestionada mediante Prisma)
-#   - credenciales y configuración de AWS S3 (documentos e imágenes)
-#   - secretos de Auth.js para sesiones y autenticación
-#   - envío de notificaciones por WhatsApp y correo electrónico
-#   - integración con Microsoft Teams
-#   - servicios de inteligencia artificial
-#
-# Ninguna credencial debe versionarse en el repositorio.
-```
+- [`apps/backend/.env.example`](apps/backend/.env.example): `DATABASE_URL`, `PORT`, `AUTH_SECRET` (obligatoria, mínimo 32 caracteres), `AUTH_TRUST_HOST`, `AUTH_SESSION_MAX_AGE`, Google OAuth opcional (`AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`), `TEST_DATABASE_URL`, `SEED_PASSWORD` (seed de desarrollo) y `ADMIN_*` (script `admin:create`).
+- [`docker/.env.example`](docker/.env.example): `POSTGRES_*` del contenedor local (opcional).
+
+Las copias de notificaciones por correo (SMTP) y WhatsApp (BuilderBot con el provider Baileys; se vincula escaneando un QR) se configuran con las variables `NOTIFICATIONS_*`, `SMTP_*`, `EMAIL_FROM` y `WHATSAPP_*` de `apps/backend/.env.example`; por defecto solo se registran en el log. Las variables de AWS S3, Microsoft Teams e inteligencia artificial se añadirán cuando se integren esos servicios.
 
 <a id="ejecucion"></a>
 
 ## ▶️ Ejecución del proyecto
 
-El workspace usa **pnpm + Turborepo**. Todavía no hay aplicaciones ni scripts de arranque; cuando existan, `pnpm dev` ejecutará el entorno de desarrollo de cada entregable.
+El workspace usa **pnpm + Turborepo**. Hoy `pnpm dev` inicia solo el backend (`http://localhost:3000`, API bajo `/api`); la web y la móvil aún no existen. Requiere `pnpm db:up`, `pnpm db:migrate` y `apps/backend/.env`.
 
 ```bash
-# Arranque previsto del workspace (aún sin aplicaciones):
 pnpm dev
-#
-# Cada entregable definirá su propio script "dev":
-#   - aplicación web (React)
-#   - backend (NestJS)
-#   - aplicación móvil (React Native)
-#
-# Docker se añadirá al configurar el despliegue.
 ```
 
 | Comando | Descripción |
@@ -237,10 +222,12 @@ pnpm dev
 | `pnpm install` | Instala las dependencias del workspace |
 | `pnpm db:up` / `pnpm db:down` | Inicia o detiene PostgreSQL local (Docker) |
 | `pnpm db:migrate` | Aplica las migraciones de Prisma y genera el cliente |
+| `pnpm db:seed` | Siembra datos de **desarrollo** (usuarios, área, facultad y proyecto demo). Requiere `SEED_PASSWORD`; no corre en producción |
 | `pnpm db:studio` | Abre Prisma Studio |
-| `pnpm dev` | Inicia los entregables en modo desarrollo |
-| `pnpm build` | Compila los entregables |
-| `pnpm lint` | Ejecuta el análisis estático |
+| `pnpm --filter @gestor-semilleros/backend admin:create` | Crea un administrador (`ADMIN_EMAIL`, `ADMIN_FULL_NAME`, `ADMIN_PASSWORD`) |
+| `pnpm dev` | Inicia el backend en modo desarrollo |
+| `pnpm build` | Compila el backend |
+| `pnpm lint` | Configurado, pero ningún paquete lo implementa todavía |
 | `pnpm test` | Ejecuta las pruebas unitarias |
 | `pnpm test:e2e` | Ejecuta las pruebas de la API (requiere `pnpm db:up`) |
 | `pnpm typecheck` | Verifica los tipos |
@@ -271,11 +258,11 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 | Entregable | Estado | Notas |
 | --- | --- | --- |
 | Stack tecnológico | 🟢 Definido | React, React Native, NestJS, PostgreSQL, Prisma, AWS S3, Auth.js y Docker |
-| Estructura del proyecto | 🟢 Definida | Carpetas base del monorepo, sin código |
+| Estructura del proyecto | 🟢 Definida | Carpetas base del monorepo; solo el backend tiene código |
 | Herramientas del monorepo | 🟢 Definidas | pnpm + Turborepo |
-| Aplicación web | 🟡 En planificación | Sin código fuente |
-| Backend | 🟡 En desarrollo | NestJS con inicio de sesión (Auth.js: correo + contraseña y Google), esquema Prisma y pruebas |
-| Aplicación móvil | 🟡 En planificación | Sin código fuente |
+| Aplicación web | 🟡 En planificación | Aún no creada (sin código fuente) |
+| Backend | 🟡 En desarrollo | NestJS con inicio de sesión (Auth.js: correo + contraseña y Google), alta de usuarios por el administrador, proyectos, tableros y actividades con permisos por proyecto, novedades y notificaciones con copias por correo y WhatsApp, seed de desarrollo, esquema Prisma y pruebas |
+| Aplicación móvil | 🟡 En planificación | Aún no creada (sin código fuente); la autenticación móvil está pendiente |
 | Documentación | 🟡 En elaboración | Alcance, dominio y modelo de datos definidos |
 
 > Versiones fijadas: Node.js 24 LTS, pnpm 12.18.0, Prisma 7.10.1 y PostgreSQL 18.6.
@@ -290,12 +277,17 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 - [x] Estructura base del monorepo y de los módulos del backend
 - [x] Configuración del monorepo (pnpm + Turborepo)
 - [x] Definición del modelo de datos y migraciones iniciales
-- [ ] Definición de los contratos de la API y del flujo de autenticación
+- [x] Autenticación (Auth.js: correo + contraseña y Google) y alta de usuarios por el administrador
+- [ ] Autenticación móvil y contratos de API de los demás módulos
+- [x] Permisos por proyecto (proyectos, tableros y actividades)
+- [ ] Resto de la gestión de usuarios
+- [ ] CI/CD
 - [ ] Configuración de Docker para desarrollo y despliegue
-- [ ] MVP del backend
+- [ ] MVP del backend (módulos de dominio)
 - [ ] MVP de la aplicación web
 - [ ] MVP de la aplicación móvil
-- [ ] Integraciones con WhatsApp, correo electrónico y Microsoft Teams
+- [x] Copias de notificaciones por WhatsApp y correo electrónico
+- [ ] Integración con Microsoft Teams
 - [ ] Módulo de inteligencia artificial y reportes
 - [ ] Pruebas, documentación técnica y despliegue
 
@@ -321,6 +313,6 @@ Licencia **por definir**. Hasta que se incluya un archivo `LICENSE`, el contenid
 
 <div align="center">
 
-**Gestor de Semilleros Universitarios** · Proyecto académico en fase de planificación
+**Gestor de Semilleros Universitarios** · Proyecto académico en desarrollo inicial
 
 </div>

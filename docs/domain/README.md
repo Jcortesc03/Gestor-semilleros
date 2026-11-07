@@ -1,6 +1,6 @@
 # Dominio del Gestor de Semilleros Universitarios
 
-> **Estado:** planificación. Modelo conceptual en elaboración; nada de lo descrito está implementado.
+> **Estado:** modelo conceptual en elaboración. Del dominio solo están implementados el inicio de sesión y el alta de usuarios con roles globales (`POST /api/users`, solo Administrador); el resto no está implementado.
 > Este directorio es la **fuente de verdad del negocio**. Es independiente de la tecnología: los detalles relacionales y de Prisma viven en [`docs/database/`](../database/).
 
 ## Objetivo del sistema
