@@ -1,8 +1,11 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
+import { normalizeForSearch } from '../../../common/utils/text';
 import { PasswordService } from '../../auth';
 import type { CreateUserDto } from '../dtos/create-user.dto';
+import type { UserDirectoryItemDto } from '../dtos/user-directory-item.dto';
+import type { UserDirectoryQuery } from '../dtos/user-directory-query.dto';
 import type { UserResponseDto } from '../dtos/user-response.dto';
 
 export class EmailAlreadyRegisteredError extends ConflictException {
@@ -54,5 +57,35 @@ export class UsersService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Directorio para seleccionar personas: solo usuarios activos, ordenados por nombre.
+   * La búsqueda se filtra en la aplicación (sin tildes; ver `parseUserDirectoryQuery`), por lo que
+   * con `search` se leen todos los usuarios activos que cumplen el rol. Se asume un directorio
+   * institucional de tamaño moderado.
+   */
+  async listDirectory(query: UserDirectoryQuery): Promise<UserDirectoryItemDto[]> {
+    const users = await this.prisma.user.findMany({
+      where: { status: 'ACTIVE', ...(query.role ? { roles: { some: { role: query.role } } } : {}) },
+      select: { id: true, fullName: true, email: true, roles: { select: { role: true } } },
+      orderBy: [{ fullName: 'asc' }, { id: 'asc' }],
+      ...(query.search === null ? { take: query.limit } : {}),
+    });
+
+    const needle = query.search === null ? null : normalizeForSearch(query.search);
+    const matches =
+      needle === null
+        ? users
+        : users.filter(
+            (u) => normalizeForSearch(u.fullName).includes(needle) || normalizeForSearch(u.email).includes(needle),
+          );
+
+    return matches.slice(0, query.limit).map((u) => ({
+      id: u.id,
+      fullName: u.fullName,
+      email: u.email,
+      roles: u.roles.map((r) => r.role),
+    }));
   }
 }

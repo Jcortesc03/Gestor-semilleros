@@ -1,6 +1,6 @@
 # API de usuarios
 
-> **Estado:** implementado en `apps/backend/src/modules/users/` y cubierto por `apps/backend/test/users.e2e-spec.ts`.
+> **Estado:** implementado en `apps/backend/src/modules/users/` (`POST /api/users` y `GET /api/users`). Cubierto por `apps/backend/test/users.e2e-spec.ts` (alta, directorio: 401, 403, búsqueda sin tildes, filtro por rol, exclusión de inactivos, límite por defecto, campos expuestos y 400) y por las pruebas unitarias `users/dtos/user-directory-query.dto.spec.ts` y `users/services/users.service.directory.spec.ts`. Limitación: la eñe se compara como n (ver `common/utils/text.ts`).
 > Decisión: [ADR 0003](../decisions/0003-alta-de-usuarios.md). Autenticación: [`auth.md`](auth.md).
 
 ## `POST /api/users`
@@ -34,6 +34,32 @@ Cualquier otro campo, por ejemplo `status` o `passwordHash`, se rechaza con `400
 | `403` | El usuario no es Administrador | `{ message: "No tienes permisos para realizar esta acción." }` |
 | `409` | El correo ya está registrado | `{ message: "Ya existe un usuario con ese correo." }` |
 
+## `GET /api/users`
+
+Directorio para **seleccionar personas** (tutores, estudiantes, participantes) sin escribir identificadores. Decisión: [ADR 0009](../decisions/0009-directorio-catalogos-y-paneles.md).
+
+> **Estado:** implementado. Cubierto por `apps/backend/test/users.e2e-spec.ts` (bloque `GET /api/users`) y las pruebas unitarias de su DTO de consulta y de `listDirectory`.
+
+**Requiere** sesión válida y al menos uno de los roles globales `ADMIN`, `DEAN` o `TUTOR` (`RolesGuard`). Otro rol → `403`.
+
+### Parámetros de consulta (todos opcionales)
+
+| Parámetro | Reglas |
+| --- | --- |
+| `search` | Texto de 2 a 100 caracteres; busca sin distinguir mayúsculas ni tildes en nombre o correo (contiene). |
+| `role` | Uno de `ADMIN`, `AREA_MANAGER`, `DEAN`, `TUTOR`, `STUDENT`: solo usuarios con ese rol global. |
+| `limit` | Entero de 1 a 50. Por defecto 20. |
+
+Solo devuelve usuarios `ACTIVE`, ordenados por nombre. Cualquier otro parámetro o valor inválido → `400 { message: "Datos inválidos.", errors: string[] }`.
+
+### `200`
+
+```json
+[{ "id": "uuid", "fullName": "Tatiana Tutora Demo", "email": "tutor@example.test", "roles": ["TUTOR"] }]
+```
+
+Nunca incluye estado, contraseña, teléfono ni fechas.
+
 ## Primer administrador
 
 El endpoint exige un administrador, así que el primero se crea desde la terminal (para desarrollo, `pnpm db:seed` crea además un usuario por tipo; ver [`local-setup.md`](../database/local-setup.md#datos-de-desarrollo-seed)). Los datos se leen de variables de entorno para que la contraseña no quede en el historial:
@@ -47,7 +73,7 @@ ADMIN_EMAIL=admin@example.test ADMIN_FULL_NAME="Administrador" ADMIN_PASSWORD='�
 
 ## Pendiente
 
-- Listar, consultar, editar y desactivar usuarios, y cambiar contraseñas.
+- Consultar uno, editar y desactivar usuarios, y cambiar contraseñas (el directorio de selección sí existe: `GET /api/users`).
 - Cambio de contraseña obligatorio en el primer inicio de sesión, o invitación por correo en lugar de contraseña inicial.
 - Política definitiva de contraseñas.
 - Registro de auditoría (quién creó a quién).
