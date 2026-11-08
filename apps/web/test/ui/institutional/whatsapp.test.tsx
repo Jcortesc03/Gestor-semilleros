@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { InstitutionalWorkspace } from '../../../src/features/institutional';
 import { admin, fakeRequest, student } from './fixtures';
 
@@ -24,7 +24,7 @@ describe('Estado de WhatsApp', () => {
     await user.click(screen.getByRole('button', { name: 'Consultar estado' }));
 
     const image = await screen.findByRole('img', { name: 'Código QR para vincular la cuenta de WhatsApp' });
-    expect(image).toHaveAttribute('src', '/api/integrations/whatsapp/qr?v=2026-11-06T12%3A00%3A00.000Z');
+    expect(image.getAttribute('src')).toMatch(/^\/api\/integrations\/whatsapp\/qr\?v=2026-11-06T12%3A00%3A00\.000Z-\d+$/);
     expect(screen.getByText('Esperando el escaneo del QR')).toBeInTheDocument();
     expect(document.body.textContent).not.toContain('credencial-de-prueba');
   });
@@ -46,5 +46,39 @@ describe('Estado de WhatsApp', () => {
 
     expect(screen.getByText('La conexión institucional solo puede consultarla un administrador.')).toBeInTheDocument();
     expect(request).not.toHaveBeenCalled();
+  });
+
+  it('carga el estado al abrir y renueva el QR solo, sin pulsar nada (WhatsApp lo cambia cada ~40 s)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let current: Record<string, unknown> = awaitingQr;
+      const request = fakeRequest(async () => current);
+      render(<InstitutionalWorkspace user={admin} request={request} section="whatsapp" />);
+
+      const qrImage = () => screen.getByRole('img', { name: 'Código QR para vincular la cuenta de WhatsApp' });
+      await screen.findByRole('img', { name: 'Código QR para vincular la cuenta de WhatsApp' });
+      const first = qrImage().getAttribute('src');
+      expect(first).toMatch(/^\/api\/integrations\/whatsapp\/qr\?v=2026-11-06T12%3A00%3A00\.000Z-/);
+
+      // Aunque updatedAt no cambie, cada consulta vuelve a pedir la imagen: BuilderBot avisa del QR
+      // nuevo antes de escribir el PNG, así que la primera descarga podía traer el QR anterior.
+      await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+      const sameVersion = qrImage().getAttribute('src');
+      expect(sameVersion).not.toBe(first);
+
+      current = { ...awaitingQr, updatedAt: '2026-11-06T12:00:40.000Z' };
+      await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+      expect(qrImage().getAttribute('src')).toMatch(/^\/api\/integrations\/whatsapp\/qr\?v=2026-11-06T12%3A00%3A40\.000Z-/);
+
+      // Una vez conectado deja de consultar.
+      current = { ...awaitingQr, state: 'connected', connectedPhone: '+57 300 000 0000', updatedAt: '2026-11-06T12:01:00.000Z' };
+      await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+      expect(await screen.findByText('Conectado')).toBeInTheDocument();
+      const calls = request.mock.calls.length;
+      await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+      expect(request.mock.calls.length).toBe(calls);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

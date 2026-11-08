@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { MessageCircle, RefreshCw } from 'lucide-react';
 import type { CurrentUser } from '../../types/auth.ts';
@@ -23,22 +23,64 @@ export function WhatsappSection({ user, request }: { user: CurrentUser; request:
   return <WhatsappStatusPanel request={request} />;
 }
 
+/** Estados en los que WhatsApp cambia solo (el QR se renueva cada ~40 s): se consulta periódicamente. */
+const POLLING_STATES = new Set(['starting', 'awaiting_qr', 'awaiting_pairing_code']);
+const POLL_INTERVAL_MS = 5000;
+
+/** Identifica la versión del QR: el backend cambia `updatedAt` con cada QR nuevo. */
+function versionOf(status: WhatsAppStatus | null): string | null {
+  return status?.transport === 'builderbot' ? status.updatedAt ?? null : null;
+}
+
 function WhatsappStatusPanel({ request }: { request: ApiRequest }) {
   const [status, setStatus] = useState<WhatsAppStatus | null>(null);
   const [error, setError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
   const [qrFailed, setQrFailed] = useState(false);
+  // Cada consulta vuelve a pedir la imagen: BuilderBot avisa del QR nuevo ANTES de escribir el PNG,
+  // así que una sola descarga por `updatedAt` podía quedarse con el QR anterior.
+  const [qrTick, setQrTick] = useState(0);
+  const [checkedAt, setCheckedAt] = useState<Date | null>(null);
+
+  const load = useCallback(async (isActive: () => boolean = () => true) => {
+    try {
+      const next = await getWhatsAppStatus(request);
+      if (!isActive()) return;
+      setStatus(next);
+      // Cada consulta reintenta la imagen: un fallo puntual (p. ej. mientras se reescribe el PNG) no la oculta.
+      setQrFailed(false);
+      setError(undefined);
+      setQrTick((tick) => tick + 1);
+      setCheckedAt(new Date());
+    } catch (cause) {
+      if (!isActive()) return;
+      setStatus(null);
+      setError(cause);
+    }
+  }, [request]);
+
+  // Carga inicial al abrir la sección.
+  useEffect(() => {
+    let active = true;
+    void load(() => active);
+    return () => { active = false; };
+  }, [load]);
+
+  // Mientras se espera la vinculación, WhatsApp renueva el QR: se refresca solo para no mostrar uno caducado.
+  const polling = status?.transport === 'builderbot' && POLLING_STATES.has(status.state);
+  useEffect(() => {
+    if (!polling) return;
+    let active = true;
+    const timer = window.setInterval(() => { void load(() => active); }, POLL_INTERVAL_MS);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [polling, load]);
 
   async function refresh() {
     if (busy) return;
     setBusy(true);
-    setError(undefined);
     setQrFailed(false);
     try {
-      setStatus(await getWhatsAppStatus(request));
-    } catch (cause) {
-      setStatus(null);
-      setError(cause);
+      await load();
     } finally {
       setBusy(false);
     }
@@ -47,23 +89,23 @@ function WhatsappStatusPanel({ request }: { request: ApiRequest }) {
   return (
     <PanelCard title="Estado de WhatsApp" action={<MessageCircle aria-hidden="true" className="size-5 text-gold" />}>
       <p className="mb-6 text-sm leading-relaxed text-navy/75">
-        Consulta bajo demanda el estado reportado por el backend. Esta pantalla no inicia, detiene ni vincula sesiones: para vincular
-        la cuenta, escanea el QR desde WhatsApp → Dispositivos vinculados.
+        Estado reportado por el backend. Mientras se espera la vinculación se actualiza solo cada pocos segundos, porque WhatsApp
+        renueva el QR. Para vincular la cuenta, escanéalo desde WhatsApp → Ajustes → Dispositivos vinculados.
       </p>
       <Button disabled={busy} onClick={refresh}>
         <RefreshCw aria-hidden="true" className="size-4" />
         {busy ? 'Consultando…' : 'Consultar estado'}
       </Button>
       {error !== undefined && <div className="mt-5"><ErrorNotice error={error} /></div>}
-      {busy && status === null && <LoadingState label="Consultando el estado de WhatsApp…" />}
+      {status === null && error === undefined && <LoadingState label="Consultando el estado de WhatsApp…" />}
       {status !== null && (
-        <StatusDetails status={status} qrFailed={qrFailed} onQrError={() => setQrFailed(true)} />
+        <StatusDetails status={status} qrVersion={`${versionOf(status) ?? ''}-${qrTick}`} checkedAt={checkedAt} qrFailed={qrFailed} onQrError={() => setQrFailed(true)} />
       )}
     </PanelCard>
   );
 }
 
-function StatusDetails({ status, qrFailed, onQrError }: { status: WhatsAppStatus; qrFailed: boolean; onQrError: () => void }) {
+function StatusDetails({ status, qrVersion, checkedAt, qrFailed, onQrError }: { status: WhatsAppStatus; qrVersion: string; checkedAt: Date | null; qrFailed: boolean; onQrError: () => void }) {
   if (status.transport === 'log') {
     return <StatusBox title="Transporte">Este entorno registra los envíos en el log y no conecta con WhatsApp.</StatusBox>;
   }
@@ -93,7 +135,7 @@ function StatusDetails({ status, qrFailed, onQrError }: { status: WhatsAppStatus
             </p>
           ) : (
             <img
-              src={whatsappQrUrl(status.updatedAt)}
+              src={whatsappQrUrl(qrVersion)}
               alt="Código QR para vincular la cuenta de WhatsApp"
               width={256}
               height={256}
@@ -101,7 +143,10 @@ function StatusDetails({ status, qrFailed, onQrError }: { status: WhatsAppStatus
               onError={onQrError}
             />
           )}
-          <figcaption className="text-sm text-navy/70">Escanéalo desde WhatsApp → Dispositivos vinculados.</figcaption>
+          <figcaption className="text-sm text-navy/70">
+            Escanéalo desde WhatsApp → Ajustes → Dispositivos vinculados. Se actualiza solo cada 5 segundos
+            {checkedAt ? ` (última actualización: ${checkedAt.toLocaleTimeString('es-CO')})` : ''}.
+          </figcaption>
         </figure>
       )}
     </StatusBox>

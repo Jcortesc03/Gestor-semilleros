@@ -7,6 +7,7 @@ const MESSAGES: Record<number, string> = {
   403: 'No tienes permiso para realizar esta acción.',
   404: 'No encontramos el recurso solicitado.',
   409: 'Ya existe un registro con esos datos o hay un conflicto con su estado.',
+  413: 'El archivo supera el tamaño máximo permitido.',
 };
 
 const MAX_MESSAGE_LENGTH = 300;
