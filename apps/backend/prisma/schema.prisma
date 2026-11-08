@@ -159,6 +159,7 @@ model User {
   status             UserStatus @default(ACTIVE)
   /// Contraseña temporal fijada por un administrador: el usuario debe cambiarla antes de continuar (ADR 0011).
   mustChangePassword Boolean    @default(false) @map("must_change_password")
+  passwordResetAt    DateTime?  @map("password_reset_at")
   createdAt          DateTime   @default(now()) @map("created_at")
   updatedAt          DateTime   @updatedAt @map("updated_at")
 
@@ -182,11 +183,26 @@ model User {
   notificationPrefs   NotificationPreference[]
   deliveries          NotificationDelivery[]
   microsoftAccount    MicrosoftAccount?
+  passwordRecovery    PasswordRecovery?
 
   @@map("users")
 }
 
 /// DB-01
+model PasswordRecovery {
+  userId         String    @id @map("user_id") @db.Uuid
+  codeHash       String    @map("code_hash")
+  resetTokenHash String?   @unique @map("reset_token_hash")
+  requestedAt    DateTime  @map("requested_at")
+  expiresAt      DateTime  @map("expires_at")
+  attempts       Int       @default(0)
+  verifiedAt     DateTime? @map("verified_at")
+  consumedAt     DateTime? @map("consumed_at")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_recoveries")
+}
+
 model UserRole {
   userId     String   @map("user_id") @db.Uuid
   role       Role
@@ -458,7 +474,7 @@ model Announcement {
   updatedAt   DateTime         @updatedAt @map("updated_at")
   deletedAt   DateTime?        @map("deleted_at")
 
-  author    User                   @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  author      User                     @relation(fields: [authorId], references: [id], onDelete: Restrict)
   audiences   AnnouncementAudience[]
   dispatch    NotificationDispatch?
   attachments AnnouncementAttachment[]
@@ -627,18 +643,18 @@ enum MicrosoftAccountType {
 /// Cuenta de Microsoft vinculada (OAuth delegado con Microsoft Graph, ADR 0007). Los tokens se
 /// guardan cifrados con AES-256-GCM (MICROSOFT_TOKEN_ENCRYPTION_KEY); nunca en claro.
 model MicrosoftAccount {
-  userId                String   @id @map("user_id") @db.Uuid
+  userId                String               @id @map("user_id") @db.Uuid
   /// Id del usuario en Entra ID (`oid`).
-  microsoftUserId       String   @unique @map("microsoft_user_id")
+  microsoftUserId       String               @unique @map("microsoft_user_id")
   email                 String
-  accessTokenEncrypted  String   @map("access_token_encrypted")
-  refreshTokenEncrypted String   @map("refresh_token_encrypted")
-  accessTokenExpiresAt  DateTime @map("access_token_expires_at")
+  accessTokenEncrypted  String               @map("access_token_encrypted")
+  refreshTokenEncrypted String               @map("refresh_token_encrypted")
+  accessTokenExpiresAt  DateTime             @map("access_token_expires_at")
   scopes                String
   /// Tipo de cuenta según el `tid` del token de identidad (ADR 0014).
   accountType           MicrosoftAccountType @default(WORK_OR_SCHOOL) @map("account_type")
-  linkedAt              DateTime @default(now()) @map("linked_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  linkedAt              DateTime             @default(now()) @map("linked_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { LoginPage } from './pages/LoginPage';
 import { Workspace } from './layouts/Workspace';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
+import { PasswordRecoveryPage } from './pages/PasswordRecoveryPage';
 import { createApiRequest } from './lib/api';
 import { AuthError, authErrorFromUrl, createAuthClient } from './services/auth';
 import type { AuthProviders } from './services/auth';
@@ -30,6 +31,7 @@ export function App() {
   const [session, setSession] = useState<Session>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [pending, setPending] = useState(false);
+  const [recoveringPassword, setRecoveringPassword] = useState(false);
   const [error, setError] = useState<string | null>(() => authErrorFromUrl(window.location.search)?.message ?? null);
   const [providers, setProviders] = useState<AuthProviders>({ credentials: true, google: false });
 
@@ -170,11 +172,16 @@ export function App() {
     );
   }
 
+  if (!session.user && recoveringPassword) {
+    return <PasswordRecoveryPage request={apiRequest} onBack={() => { setRecoveringPassword(false); setError(null); }} />;
+  }
+
   return session.user
     ? <Workspace key={session.user.id} user={session.user} onSignOut={signOut} signingOut={pending} error={error} onExpired={expireSession} onRefresh={() => { setError(null); setAttempt((value) => value + 1); }} />
     : (
       <LoginPage
         onSubmit={signIn}
+        onForgotPassword={() => setRecoveringPassword(true)}
         onGoogle={providers.google ? signInWithGoogle : undefined}
         pending={pending}
         error={error}

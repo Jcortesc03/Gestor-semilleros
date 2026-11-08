@@ -4,6 +4,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { LoginPage } from '../../src/pages/LoginPage';
 
 describe('LoginPage', () => {
+  it('permite abrir la recuperación de contraseña', async () => {
+    const onForgotPassword = vi.fn();
+    render(<LoginPage onSubmit={vi.fn()} onForgotPassword={onForgotPassword} pending={false} error={null} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Olvidé mi contraseña' }));
+    expect(onForgotPassword).toHaveBeenCalledOnce();
+  });
   it('envía el correo sin espacios y limpia la contraseña tras el intento', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     render(<LoginPage onSubmit={onSubmit} pending={false} error={null} />);

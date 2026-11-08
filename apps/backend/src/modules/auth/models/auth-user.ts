@@ -8,6 +8,8 @@ export interface AuthUser {
   roles: Role[];
   /** Contraseña temporal pendiente de cambio (ADR 0011). */
   mustChangePassword: boolean;
+  /** Internal timestamp used only to invalidate sessions after recovery. */
+  passwordResetAt?: number;
 }
 
 /** Perfil mínimo que entrega Google tras el inicio de sesión OAuth. */
