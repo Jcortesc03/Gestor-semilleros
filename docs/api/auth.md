@@ -25,7 +25,8 @@ La autenticación usa **Auth.js** (`@auth/express`) montado en NestJS con **sesi
 
 **Respuestas del inicio de sesión:** siempre responde `302`.
 - Si tiene éxito, fija la cookie de sesión y redirige a la aplicación.
-- Si falla, redirige a `…/api/auth/signin?error=CredentialsSignin&code=credentials`. La respuesta es **idéntica** si el correo no existe, si la contraseña es incorrecta o si el usuario está inactivo, para que no se pueda averiguar qué cuentas existen.
+- Si falla, redirige a `…/api/auth/signin?error=CredentialsSignin&code=credentials`.
+- **Errores de OAuth** (p. ej. `AccessDenied` cuando el correo de Google no corresponde a un usuario activo): Auth.js redirige a la página de error configurada, `pages.error = '/login'` (`AUTH_ERROR_PAGE`), es decir `/login?error=AccessDenied`. La web traduce ese código a un mensaje seguro. La respuesta es **idéntica** si el correo no existe, si la contraseña es incorrecta o si el usuario está inactivo, para que no se pueda averiguar qué cuentas existen.
 
 ## Endpoints protegidos
 
@@ -39,13 +40,19 @@ Todas las rutas protegidas usan `SessionGuard`, que:
 `200`:
 
 ```json
-{ "id": "uuid", "email": "usuario@example.test", "fullName": "Nombre", "roles": ["TUTOR"] }
+{ "id": "uuid", "email": "usuario@example.test", "fullName": "Nombre", "roles": ["TUTOR"], "mustChangePassword": false }
 ```
+
+### Cambio de contraseña obligatorio ([ADR 0011](../decisions/0011-gestion-de-usuarios.md))
+
+> **Estado:** implementado en `SessionGuard`; las dos rutas exentas se marcan con el decorador `@AllowPendingPasswordChange()` (`common/decorators/allow-password-change.decorator.ts`). Cubierto por `auth.e2e-spec.ts` y `session.guard.spec.ts`.
+
+Si `mustChangePassword` es `true`, todos los endpoints protegidos salvo `GET /api/me` y `PUT /api/me/password` responden `403 { message: "Debes cambiar tu contraseña antes de continuar.", code: "PASSWORD_CHANGE_REQUIRED" }`. Cerrar sesión (`POST /api/auth/signout`) siempre está permitido.
 
 ## Pendiente
 
 - **Móvil:** el flujo con cookie sirve para la web. La autenticación de React Native sigue pendiente (`AGENTS.md` §4).
 - **Límite de intentos** (fuerza bruta) en `/api/auth/callback/credentials`.
-- **Alta de usuarios** y definición de contraseñas por el Administrador: todavía no hay endpoint.
+- Alta de usuarios: implementada en [`users.md`](users.md).
 - **Restricción de dominio** de los correos de Google (p. ej. solo institucionales): no está definida.
-- **Permisos por rol** (autorización): `SessionGuard` solo autentica.
+- **Permisos por rol:** `SessionGuard` solo autentica. Los roles globales se comprueban con `RolesGuard` (ver ADR 0003); hoy lo usan `POST /api/users` y `POST /api/projects`. La autorización **por proyecto** está implementada y documentada en [`projects.md`](projects.md) y [`boards.md`](boards.md); la autorización por área sigue pendiente.

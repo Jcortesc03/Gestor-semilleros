@@ -122,7 +122,8 @@ stateDiagram-v2
 2. ✅ Elige una o varias audiencias permitidas por su rol (RN-51, RN-52).
 3. 🟡 El sistema valida que el autor pueda publicar en cada audiencia.
 4. 🟡 Los usuarios ven la novedad si pertenecen a alguna de sus audiencias (RN-53, RN-54).
-5. ✅ No se registra la lectura y la notificación es un tipo de novedad (P-16). ❓ El envío por canales externos (WhatsApp o correo) está por definir.
+5. ✅ No se registra la lectura y la notificación es un tipo de novedad (P-16).
+6. ✅ Se envía una copia por correo o WhatsApp a cada destinatario (menos el autor) según sus preferencias por tipo y canal (RN-89 a RN-91). Los envíos fallidos se reintentan ([ADR 0005](../decisions/0005-notificaciones-y-copias-externas.md)).
 
 ```mermaid
 flowchart LR
@@ -171,9 +172,10 @@ sequenceDiagram
 ## 7. Gestión de reuniones
 
 1. ✅ El **Tutor** crea una reunión con fecha, motivo, duración y participantes.
-2. 🟡 El backend crea la reunión en **Microsoft Teams** y guarda el identificador externo y el enlace de acceso.
+2. ✅ El backend crea la reunión en el calendario de **Microsoft Teams** de la cuenta vinculada del tutor y guarda el identificador externo y el enlace de acceso; si no puede, no la crea (RN-75).
+   - ✅ Envía la invitación con el enlace y programa recordatorios 24 h y 1 h antes (RN-78).
 3. ✅ Localmente solo se guarda lo indicado en RN-71.
-4. 🟡 Después de la reunión se registra el enlace de grabación, si existe.
+4. ✅ El estado avanza solo por horario o a mano (RN-77) y el organizador registra, si existe, el enlace de evidencia de la grabación (RN-79).
 5. ❓ La sincronización de cambios hechos en Teams está por definir (P-18).
 
 ```mermaid

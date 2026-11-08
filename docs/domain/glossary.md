@@ -46,7 +46,8 @@
 | Documento | Metadatos de un archivo (PDF, Word, Excel o imagen) guardado en un almacenamiento externo y accesible por API. | ✅ |
 | Novedad | Noticia, comunicación, cambio o notificación dirigida a una audiencia. | ✅ |
 | Audiencia / destinatario | A quién va dirigida una novedad: todos, determinados roles, una facultad, un área o un proyecto. | ✅ |
-| Notificación | Tipo de novedad (P-16). Los canales externos (WhatsApp o correo) están por definir. | ✅ / ❓ (canales) |
+| Notificación | Tipo de novedad (P-16). Se envían copias por correo y WhatsApp según las preferencias del usuario. | ✅ |
+| Preferencia de notificación | Elección de un usuario sobre si recibe copia de un tipo de novedad por un canal (correo o WhatsApp). | ✅ |
 | Reunión | Registro local de una reunión de Microsoft Teams. | ✅ |
 | Recordatorio | Aviso programado creado por un tutor. Sus atributos no están definidos. | ✅ (existencia) / ❓ (detalle) |
 | Dashboard | Vista de métricas derivadas, acotada al alcance de cada rol. No es una entidad persistida. | 🟡 |

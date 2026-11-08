@@ -1,0 +1,1 @@
+export { MeetingsWorkspace } from './MeetingsWorkspace';

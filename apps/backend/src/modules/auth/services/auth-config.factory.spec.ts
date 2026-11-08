@@ -1,6 +1,7 @@
 import type { AppEnv } from '../../../config/env';
+import { loadNotificationsConfig } from '../../../config/notifications.config';
 import type { AuthUser } from '../models/auth-user';
-import { AUTH_BASE_PATH, createAuthConfig } from './auth-config.factory';
+import { AUTH_BASE_PATH, AUTH_ERROR_PAGE, createAuthConfig } from './auth-config.factory';
 import type { AuthService } from './auth.service';
 
 const env: AppEnv = {
@@ -10,9 +11,12 @@ const env: AppEnv = {
   authTrustHost: true,
   sessionMaxAge: 3600,
   google: null,
+  notifications: loadNotificationsConfig({}),
+  microsoft: null,
+  meetingsTimeZone: 'America/Bogota',
 };
 
-const dbUser: AuthUser = { id: 'interno-1', email: 'ana@example.test', fullName: 'Ana', roles: ['STUDENT'] };
+const dbUser: AuthUser = { id: 'interno-1', email: 'ana@example.test', fullName: 'Ana', roles: ['STUDENT'], mustChangePassword: false };
 
 function fakeAuth(googleUser: AuthUser | null = dbUser) {
   return {
@@ -30,6 +34,7 @@ describe('createAuthConfig', () => {
   it('usa sesión JWT, la ruta base y la duración configuradas', () => {
     const config = createAuthConfig(env, fakeAuth());
     expect(config.basePath).toBe(AUTH_BASE_PATH);
+    expect(config.pages).toEqual({ error: AUTH_ERROR_PAGE });
     expect(config.session).toEqual({ strategy: 'jwt', maxAge: 3600 });
   });
 

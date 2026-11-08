@@ -105,37 +105,83 @@ enum AudienceType {
   PROJECT
 }
 
+/// Tipo de aviso para las preferencias y la bandeja de salida: los cuatro tipos de novedad
+/// más los avisos de reuniones (ADR 0007).
+enum NotificationKind {
+  NEWS
+  COMMUNICATION
+  CHANGE
+  NOTIFICATION
+  MEETING
+}
+
+/// Para qué se envía una copia de la bandeja de salida.
+enum DispatchPurpose {
+  ANNOUNCEMENT
+  MEETING_INVITATION
+  MEETING_REMINDER
+  MEETING_CANCELLATION
+}
+
+/// ADR 0007. EN_PROCESO y FINALIZADA se alcanzan solas por horario o a mano.
+enum MeetingStatus {
+  SCHEDULED
+  IN_PROGRESS
+  FINISHED
+  CANCELLED
+}
+
+/// Canales externos para las copias de las novedades (ADR 0005).
+enum NotificationChannel {
+  EMAIL
+  WHATSAPP
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
 // ─────────────────────────────────────────────────────────────
 // Usuarios y roles
 // ─────────────────────────────────────────────────────────────
 
 model User {
-  id           String     @id @default(uuid()) @db.Uuid
-  fullName     String     @map("full_name")
-  email        String     @unique
+  id                 String     @id @default(uuid()) @db.Uuid
+  fullName           String     @map("full_name")
+  email              String     @unique
   /// Hash Argon2id. Nulo si el usuario solo inicia sesión con Google.
-  passwordHash String?    @map("password_hash")
-  status       UserStatus @default(ACTIVE)
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
+  passwordHash       String?    @map("password_hash")
+  /// Teléfono en formato E.164 para las copias por WhatsApp (CHECK en SQL). Opcional.
+  phone              String?
+  status             UserStatus @default(ACTIVE)
+  /// Contraseña temporal fijada por un administrador: el usuario debe cambiarla antes de continuar (ADR 0011).
+  mustChangePassword Boolean    @default(false) @map("must_change_password")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
 
   roles               UserRole[]
   managedAreas        AreaManager[]
   deanships           FacultyDean[]
   memberships         ProjectMember[]
-  createdProjects     Project[]            @relation("ProjectCreator")
-  tutoredBoards       Board[]              @relation("BoardResponsibleTutor")
-  assignedBoards      Board[]              @relation("BoardResponsibleStudent")
-  authoredActivities  Activity[]           @relation("ActivityAuthor")
-  approvedActivities  Activity[]           @relation("ActivityApprover")
-  activityAssignments ActivityAssignee[]   @relation("ActivityAssignee")
-  assignmentsGiven    ActivityAssignee[]   @relation("ActivityAssigner")
+  createdProjects     Project[]                @relation("ProjectCreator")
+  tutoredBoards       Board[]                  @relation("BoardResponsibleTutor")
+  assignedBoards      Board[]                  @relation("BoardResponsibleStudent")
+  authoredActivities  Activity[]               @relation("ActivityAuthor")
+  approvedActivities  Activity[]               @relation("ActivityApprover")
+  activityAssignments ActivityAssignee[]       @relation("ActivityAssignee")
+  assignmentsGiven    ActivityAssignee[]       @relation("ActivityAssigner")
   attachments         ActivityAttachment[]
   documents           Document[]
   announcements       Announcement[]
   organizedMeetings   Meeting[]
   meetings            MeetingParticipant[]
   reminders           Reminder[]
+  notificationPrefs   NotificationPreference[]
+  deliveries          NotificationDelivery[]
+  microsoftAccount    MicrosoftAccount?
 
   @@map("users")
 }
@@ -414,6 +460,7 @@ model Announcement {
 
   author    User                   @relation(fields: [authorId], references: [id], onDelete: Restrict)
   audiences AnnouncementAudience[]
+  dispatch  NotificationDispatch?
 
   @@index([publishedAt])
   @@map("announcements")
@@ -442,30 +489,101 @@ model AnnouncementAudience {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Copias de novedades por canales externos (ADR 0005)
+// ─────────────────────────────────────────────────────────────
+
+/// Preferencia de un usuario por tipo de novedad y canal. Sin fila se aplica el valor
+/// por defecto: correo activado, WhatsApp desactivado (exige teléfono y consentimiento).
+model NotificationPreference {
+  userId    String              @map("user_id") @db.Uuid
+  kind      NotificationKind
+  channel   NotificationChannel
+  enabled   Boolean
+  updatedAt DateTime            @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, kind, channel])
+  @@map("notification_preferences")
+}
+
+/// Bandeja de salida: copia del mensaje (de una novedad o de una reunión) tal como se envía.
+/// CHECK en SQL: exactamente uno de announcement_id / meeting_id.
+model NotificationDispatch {
+  id             String           @id @default(uuid()) @db.Uuid
+  announcementId String?          @unique @map("announcement_id") @db.Uuid
+  meetingId      String?          @map("meeting_id") @db.Uuid
+  purpose        DispatchPurpose  @default(ANNOUNCEMENT)
+  kind           NotificationKind
+  subject        String
+  body           String
+  /// Momento a partir del cual se envía (los recordatorios se programan a futuro).
+  scheduledFor   DateTime         @default(now()) @map("scheduled_for")
+  /// Si se define, la copia se descarta después de este momento (p. ej. un recordatorio tras empezar la reunión).
+  expiresAt      DateTime?        @map("expires_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  announcement Announcement?          @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  meeting      Meeting?               @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  deliveries   NotificationDelivery[]
+
+  @@index([meetingId])
+  @@map("notification_dispatches")
+}
+
+/// Un envío por destinatario y canal, con reintentos.
+model NotificationDelivery {
+  id            String              @id @default(uuid()) @db.Uuid
+  dispatchId    String              @map("dispatch_id") @db.Uuid
+  userId        String              @map("user_id") @db.Uuid
+  channel       NotificationChannel
+  status        DeliveryStatus      @default(PENDING)
+  attempts      Int                 @default(0)
+  lastError     String?             @map("last_error")
+  nextAttemptAt DateTime            @default(now()) @map("next_attempt_at")
+  sentAt        DateTime?           @map("sent_at")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  dispatch NotificationDispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([dispatchId, userId, channel])
+  @@index([status, nextAttemptAt])
+  @@index([userId])
+  @@map("notification_deliveries")
+}
+
+// ─────────────────────────────────────────────────────────────
 // Reuniones y recordatorios
 // ─────────────────────────────────────────────────────────────
 
 /// P-18: el proyecto es opcional. DB-12: duración sin hora de fin.
 model Meeting {
-  id              String    @id @default(uuid()) @db.Uuid
-  projectId       String?   @map("project_id") @db.Uuid
-  organizerId     String    @map("organizer_id") @db.Uuid
-  externalId      String?   @unique @map("external_id")
+  id              String        @id @default(uuid()) @db.Uuid
+  projectId       String?       @map("project_id") @db.Uuid
+  organizerId     String        @map("organizer_id") @db.Uuid
+  externalId      String?       @unique @map("external_id")
   reason          String
-  startsAt        DateTime  @map("starts_at")
-  durationMinutes Int       @map("duration_minutes")
-  joinUrl         String?   @map("join_url")
-  recordingUrl    String?   @map("recording_url")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  deletedAt       DateTime? @map("deleted_at")
+  startsAt        DateTime      @map("starts_at")
+  durationMinutes Int           @map("duration_minutes")
+  joinUrl         String?       @map("join_url")
+  /// Enlace de evidencia de la grabación; opcional (puede fallar la grabación).
+  recordingUrl    String?       @map("recording_url")
+  status          MeetingStatus @default(SCHEDULED)
+  cancelledAt     DateTime?     @map("cancelled_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  deletedAt       DateTime?     @map("deleted_at")
 
-  project      Project?             @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  organizer    User                 @relation(fields: [organizerId], references: [id], onDelete: Restrict)
+  project      Project?               @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  organizer    User                   @relation(fields: [organizerId], references: [id], onDelete: Restrict)
   participants MeetingParticipant[]
+  dispatches   NotificationDispatch[]
 
   @@index([projectId])
   @@index([startsAt])
+  @@index([status])
   @@map("meetings")
 }
 
@@ -479,6 +597,25 @@ model MeetingParticipant {
   @@id([meetingId, userId])
   @@index([userId])
   @@map("meeting_participants")
+}
+
+/// Cuenta de Microsoft vinculada (OAuth delegado con Microsoft Graph, ADR 0007). Los tokens se
+/// guardan cifrados con AES-256-GCM (MICROSOFT_TOKEN_ENCRYPTION_KEY); nunca en claro.
+model MicrosoftAccount {
+  userId                String   @id @map("user_id") @db.Uuid
+  /// Id del usuario en Entra ID (`oid`).
+  microsoftUserId       String   @unique @map("microsoft_user_id")
+  email                 String
+  accessTokenEncrypted  String   @map("access_token_encrypted")
+  refreshTokenEncrypted String   @map("refresh_token_encrypted")
+  accessTokenExpiresAt  DateTime @map("access_token_expires_at")
+  scopes                String
+  linkedAt              DateTime @default(now()) @map("linked_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("microsoft_accounts")
 }
 
 /// Provisional (P-19): modelo mínimo.

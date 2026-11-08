@@ -61,7 +61,7 @@
 
 ### Usuarios y roles
 
-**`users`**: `id` PK · `full_name` NN · `email` NN UQ · `password_hash?` (Argon2id; nulo si solo usa Google, ADR 0002) · `status` NN (`UserStatus`, por defecto `ACTIVE`) · `created_at` · `updated_at`.
+**`users`**: `id` PK · `full_name` NN · `email` NN UQ · `password_hash?` (Argon2id; nulo si solo usa Google, ADR 0002) · `status` NN (`UserStatus`, por defecto `ACTIVE`) · `must_change_password` NN (booleano, por defecto `false`; contraseña temporal fijada por un administrador, ADR 0011) · `created_at` · `updated_at`.
 
 **`user_roles`**: (`user_id` FK→users, `role` `Role`) PK · `assigned_at` NN. Un usuario puede tener varios roles globales (P-02, DB-01).
 
@@ -114,9 +114,21 @@ La notificación es un tipo de novedad (P-16). No hay registro de lectura ni col
 **`announcement_audiences`**: `id` PK · `announcement_id` FK NN · `audience_type` NN (`AudienceType`) · `role?` (`Role`) · `faculty_id?` FK · `area_id?` FK · `project_id?` FK.
 CHECK: solo la columna de destino que corresponde a `audience_type` tiene valor, y ninguna si es `ALL` (DB-06).
 
+### Copias de novedades (ADR 0005)
+
+**`users.phone?`**: teléfono E.164 para WhatsApp. CHECK `users_phone_e164`.
+
+**`notification_preferences`**: (`user_id` FK, `kind` `NotificationKind` (tipos de novedad + `MEETING`), `channel` `NotificationChannel`) PK · `enabled` NN · `updated_at`. Sin fila se aplica el valor por defecto (`EMAIL` activado, `WHATSAPP` desactivado).
+
+**`notification_dispatches`**: `id` PK · `announcement_id?` FK UQ · `meeting_id?` FK · `purpose` NN (`DispatchPurpose`) · `kind` NN (`NotificationKind`) · `subject` NN · `body` NN · `scheduled_for` NN · `expires_at?` · `created_at`. Copia del mensaje tal como se envía. CHECK: exactamente un origen (`notification_dispatches_one_source`) y `purpose = ANNOUNCEMENT` si y solo si el origen es una novedad (ADR 0007).
+
+**`notification_deliveries`**: `id` PK · `dispatch_id` FK NN · `user_id` FK NN · `channel` NN · `status` NN (`DeliveryStatus`: `PENDING`, `SENT`, `FAILED`, `SKIPPED`) · `attempts` NN (≥ 0, CHECK) · `last_error?` · `next_attempt_at` NN · `sent_at?` · `created_at` · `updated_at`. UQ (`dispatch_id`, `user_id`, `channel`); índice (`status`, `next_attempt_at`).
+
+**`microsoft_accounts`**: `user_id` PK FK→users (CASCADE) · `microsoft_user_id` NN UQ · `email` NN · `access_token_encrypted` NN · `refresh_token_encrypted` NN · `access_token_expires_at` NN · `scopes` NN · `linked_at` · `updated_at`. Tokens cifrados con AES-256-GCM (ADR 0007).
+
 ### Reuniones y recordatorios
 
-**`meetings`**: `id` PK · `project_id?` FK (P-18) · `organizer_id` FK→users NN · `external_id?` UQ (Teams) · `reason` NN · `starts_at` NN · `duration_minutes` NN (> 0; DB-12) · `join_url?` · `recording_url?` · `created_at` · `updated_at` · `deleted_at?`.
+**`meetings`**: `id` PK · `project_id?` FK (P-18) · `organizer_id` FK→users NN · `external_id?` UQ (Teams) · `reason` NN · `starts_at` NN · `duration_minutes` NN (> 0; DB-12) · `join_url?` · `recording_url?` · `created_at` · `updated_at` · `deleted_at?`. · `status` NN (`MeetingStatus`: `SCHEDULED`, `IN_PROGRESS`, `FINISHED`, `CANCELLED`; por defecto `SCHEDULED`) · `cancelled_at?` (CHECK `meetings_cancelled_at_matches_status`). ADR 0007.
 
 **`meeting_participants`**: (`meeting_id` FK, `user_id` FK) PK. Participantes: usuarios del sistema.
 
