@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  Catch,
   Controller,
   Delete,
   Get,
@@ -8,7 +7,6 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
-  PayloadTooLargeException,
   Post,
   Query,
   Res,
@@ -16,39 +14,21 @@ import {
   UseFilters,
   UseGuards,
   UseInterceptors,
-  type ArgumentsHost,
-  type ExceptionFilter,
-  type HttpException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { SessionGuard } from '../../../common/guards/session.guard';
 import type { AuthUser } from '../../auth';
+import { createUploadErrorFilter, decodeFileName } from './upload-error.filter';
 import { contentDisposition, MAX_DOCUMENT_BYTES } from '../models/document-file';
 import { DocumentsService, STORAGE_UNAVAILABLE, type UploadedFile as UploadedFileData } from '../services/documents.service';
 
 const uuid = new ParseUUIDPipe();
 
-const TOO_LARGE_MESSAGE = 'El archivo supera el tamaño máximo de 25 MB.';
 const BAD_UPLOAD_ERROR = 'Debe enviar un único archivo en el campo "file".';
 
-/** Traduce los errores de Multer (en inglés) a los mensajes del contrato. */
-@Catch(PayloadTooLargeException, BadRequestException)
-class UploadErrorFilter implements ExceptionFilter {
-  catch(exception: HttpException, host: ArgumentsHost): void {
-    const response = host.switchToHttp().getResponse<Response>();
-    const status = exception.getStatus();
-    const body = exception.getResponse();
-    if (status === HttpStatus.PAYLOAD_TOO_LARGE) {
-      response.status(status).json({ message: TOO_LARGE_MESSAGE });
-    } else if (typeof body === 'object' && 'errors' in body) {
-      response.status(status).json(body);
-    } else {
-      response.status(status).json({ message: 'Datos inválidos.', errors: [BAD_UPLOAD_ERROR] });
-    }
-  }
-}
+const UploadErrorFilter = createUploadErrorFilter(BAD_UPLOAD_ERROR);
 
 @Controller()
 @UseGuards(SessionGuard)
@@ -97,10 +77,4 @@ export class DocumentsController {
   remove(@CurrentUser() user: AuthUser, @Param('documentId', uuid) documentId: string) {
     return this.documents.remove(user, documentId);
   }
-}
-
-/** Multer entrega el nombre en latin1; si en realidad era UTF-8 lo restituye. */
-function decodeFileName(name: string): string {
-  const decoded = Buffer.from(name, 'latin1').toString('utf8');
-  return decoded.includes('�') ? name : decoded;
 }

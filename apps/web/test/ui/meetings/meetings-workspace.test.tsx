@@ -7,6 +7,8 @@ import { ApiError } from '../../../src/lib/api';
 import type { ApiRequest } from '../../../src/types/api';
 
 const tutor = { id: 'u-1', email: 'tutor@example.test', fullName: 'Tutor', roles: ['TUTOR'], mustChangePassword: false };
+const dean = { id: 'u-3', email: 'decano@example.test', fullName: 'Decano', roles: ['DEAN'], mustChangePassword: false };
+const areaManager = { id: 'u-4', email: 'encargado@example.test', fullName: 'Encargada', roles: ['AREA_MANAGER'], mustChangePassword: false };
 const student = { id: 'u-9', email: 'est@example.test', fullName: 'Estudiante', roles: ['STUDENT'], mustChangePassword: false };
 const linked = { configured: true, linked: true, email: 'tutor@example.test', linkedAt: '2026-11-06T15:00:00.000Z' };
 const unlinked = { configured: true, linked: false, email: null, linkedAt: null };
@@ -48,6 +50,40 @@ describe('MeetingsWorkspace', () => {
     const request = fake({ 'GET /api/integrations/microsoft/status': linked, 'GET /api/meetings': [] });
     render(<MeetingsWorkspace user={student} request={request} />);
     expect(await screen.findByText('No tienes reuniones')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['decano', dean],
+    ['encargada de área', areaManager],
+  ])('el formulario «Nueva reunión» es visible para %s', async (_label, user) => {
+    const request = fake({ ...base, 'GET /api/integrations/microsoft/status': linked, 'GET /api/meetings': [] });
+    render(<MeetingsWorkspace user={user} request={request} />);
+    expect(await screen.findByRole('heading', { name: 'Nueva reunión' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Motivo')).toBeInTheDocument();
+  });
+
+  it('un estudiante no ve el formulario «Nueva reunión»', async () => {
+    const request = fake({ ...base, 'GET /api/integrations/microsoft/status': linked, 'GET /api/meetings': [] });
+    render(<MeetingsWorkspace user={student} request={request} />);
+    await screen.findByText('No tienes reuniones');
+    expect(screen.queryByRole('heading', { name: 'Nueva reunión' })).not.toBeInTheDocument();
+  });
+
+  it('initialProjectId preselecciona el proyecto del formulario', async () => {
+    const request = fake({
+      ...base,
+      'GET /api/integrations/microsoft/status': linked,
+      'GET /api/meetings': [],
+      'GET /api/projects/p-1/members': [
+        { id: 'x', user: { id: 'u-1', fullName: 'Tutor', email: 'tutor@example.test' }, projectRole: 'TUTOR' },
+        { id: 'y', user: { id: 'u-2', fullName: 'Ana', email: 'ana@example.test' }, projectRole: 'STUDENT' },
+      ],
+    });
+    render(<MeetingsWorkspace user={tutor} request={request} initialProjectId="p-1" />);
+    const select = await screen.findByLabelText('Proyecto');
+    await waitFor(() => expect(within(select).getByText('Proyecto demo')).toBeInTheDocument());
+    expect(select).toHaveValue('p-1');
+    expect(await screen.findByLabelText(/Ana/)).toBeInTheDocument();
   });
 
   it('muestra el error de la lista', async () => {

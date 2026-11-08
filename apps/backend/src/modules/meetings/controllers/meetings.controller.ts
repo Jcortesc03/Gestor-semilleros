@@ -14,9 +14,9 @@ import { MeetingsService } from '../services/meetings.service';
 export class MeetingsController {
   constructor(private readonly meetings: MeetingsService) {}
 
-  /** RN-73: el tutor (y el administrador) crea reuniones. */
+  /** RN-73 y ADR 0010 §10: el tutor, el decano, el encargado de área y el administrador crean reuniones. */
   @Post()
-  @Roles('TUTOR', 'ADMIN')
+  @Roles('TUTOR', 'DEAN', 'AREA_MANAGER', 'ADMIN')
   create(@CurrentUser() user: AuthUser, @Body() body: unknown) {
     return this.meetings.create(user, validated(parseCreateMeeting(body)));
   }

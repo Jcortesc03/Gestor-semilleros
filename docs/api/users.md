@@ -38,9 +38,9 @@ Cualquier otro campo, por ejemplo `status` o `passwordHash`, se rechaza con `400
 
 Directorio para **seleccionar personas** (tutores, estudiantes, participantes) sin escribir identificadores. Decisión: [ADR 0009](../decisions/0009-directorio-catalogos-y-paneles.md).
 
-> **Estado:** implementado. Cubierto por `apps/backend/test/users.e2e-spec.ts` (bloque `GET /api/users`) y las pruebas unitarias de su DTO de consulta y de `listDirectory`.
+> **Estado:** implementado. Cubierto por `apps/backend/test/users.e2e-spec.ts` (bloque `GET /api/users`) y las pruebas unitarias de su DTO de consulta y de `listDirectory`. El acceso del encargado de área (`AREA_MANAGER`, ADR 0010 §10) está implementado.
 
-**Requiere** sesión válida y al menos uno de los roles globales `ADMIN`, `DEAN` o `TUTOR` (`RolesGuard`). Otro rol → `403`.
+**Requiere** sesión válida y al menos uno de los roles globales `ADMIN`, `AREA_MANAGER`, `DEAN` o `TUTOR` (`RolesGuard`; el encargado de área se añadió en el ADR 0010 §10). Otro rol → `403`.
 
 ### Parámetros de consulta (todos opcionales)
 

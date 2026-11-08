@@ -10,5 +10,6 @@ import { DocumentsService } from './services/documents.service';
   imports: [AuthModule, ProjectsModule],
   controllers: [DocumentsController],
   providers: [DocumentsService, { provide: DOCUMENT_STORAGE, useClass: S3DocumentStorage }],
+  exports: [DOCUMENT_STORAGE],
 })
 export class DocumentsModule {}

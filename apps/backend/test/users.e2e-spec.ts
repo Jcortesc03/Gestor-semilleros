@@ -198,11 +198,8 @@ describe('GET /api/users (e2e)', () => {
       await request(app.getHttpServer()).get('/api/users').expect(401);
     });
 
-    it.each([
-      ['estudiante', 'estudiante.dir@example.test'],
-      ['encargado de área', 'encargado.dir@example.test'],
-    ])('responde 403 si el usuario es %s', async (_rol, email) => {
-      const agent = await sessionAs(email);
+    it('responde 403 si el usuario es estudiante', async () => {
+      const agent = await sessionAs('estudiante.dir@example.test');
       const res = await agent.get('/api/users').expect(403);
       expect(res.body.message).toBe('No tienes permisos para realizar esta acción.');
     });
@@ -210,6 +207,7 @@ describe('GET /api/users (e2e)', () => {
     it.each([
       ['administrador', ADMIN.email],
       ['decano', 'dean.dir@example.test'],
+      ['encargado de área', 'encargado.dir@example.test'],
       ['tutor', 'tutor.dir@example.test'],
     ])('responde 200 al %s', async (_rol, email) => {
       const agent = await sessionAs(email);

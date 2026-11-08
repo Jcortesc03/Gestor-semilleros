@@ -36,7 +36,7 @@ export function parseFaculty(value: unknown): Faculty {
   return { id: str(r.id), name: str(r.name) };
 }
 
-/** Busca usuarios activos. Solo ADMIN, DEAN y TUTOR; otro rol recibe 403. */
+/** Busca usuarios activos. Solo ADMIN, DEAN, AREA_MANAGER y TUTOR; otro rol recibe 403. */
 export async function searchUsers(request: ApiRequest, params: SearchUsersParams = {}): Promise<DirectoryUser[]> {
   const query = new URLSearchParams();
   if (params.search !== undefined) query.set('search', params.search);
@@ -70,4 +70,4 @@ export function facultyScopeFor(roles: readonly string[]): FacultyScope {
 }
 
 /** El directorio de usuarios solo lo consultan estos roles globales. */
-export const canSearchUsers = (roles: readonly string[]): boolean => roles.some((item) => item === 'ADMIN' || item === 'DEAN' || item === 'TUTOR');
+export const canSearchUsers = (roles: readonly string[]): boolean => roles.some((item) => item === 'ADMIN' || item === 'DEAN' || item === 'AREA_MANAGER' || item === 'TUTOR');

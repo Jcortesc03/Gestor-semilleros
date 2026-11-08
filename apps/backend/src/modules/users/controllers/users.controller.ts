@@ -46,11 +46,11 @@ export class UsersController {
   }
 
   /**
-   * Directorio de selección (tutores, estudiantes, participantes). Administrador, Decano o Tutor (ADR 0009).
+   * Directorio de selección (tutores, estudiantes, participantes). Administrador, Decano, Encargado de área o Tutor (ADR 0009 y 0010 §10).
    * El parámetro `status` (ver inactivos o todos) es exclusivo del Administrador (ADR 0011).
    */
   @Get()
-  @Roles('ADMIN', 'DEAN', 'TUTOR')
+  @Roles('ADMIN', 'DEAN', 'AREA_MANAGER', 'TUTOR')
   directory(@CurrentUser() user: AuthUser, @Query() query: unknown): Promise<UserDirectoryItemDto[]> {
     if ('status' in (asObject(query) ?? {}) && !user.roles.includes('ADMIN')) {
       throw new ForbiddenException('No tienes permisos para realizar esta acción.');

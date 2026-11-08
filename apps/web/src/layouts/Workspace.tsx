@@ -35,6 +35,7 @@ function getInitials(user: CurrentUser): string {
 
 export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, error }: WorkspaceProps) {
   const [page, setPage] = useState<Page>('account');
+  const [meetingProjectId, setMeetingProjectId] = useState<string | undefined>(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordChanged, setPasswordChanged] = useState(false);
@@ -67,7 +68,9 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
   useEffect(() => {
     const update = () => {
       const hash = window.location.hash.slice(1);
-      setPage(navigation.find((item) => item.key === hash)?.key ?? 'account');
+      const key = navigation.find((item) => item.key === hash)?.key ?? 'account';
+      setPage(key);
+      if (key !== 'meetings') setMeetingProjectId(undefined);
     };
     update();
     window.addEventListener('hashchange', update);
@@ -82,8 +85,16 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
   }, [menuOpen]);
 
   function navigate(next: Page) {
+    setMeetingProjectId(undefined);
     setPage(next);
     window.location.hash = next;
+    setMenuOpen(false);
+  }
+
+  function goToMeetings(projectId?: string) {
+    setMeetingProjectId(projectId);
+    setPage('meetings');
+    window.location.hash = 'meetings';
     setMenuOpen(false);
   }
 
@@ -170,9 +181,9 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
               />
             )}
           </> : page === 'academic'
-            ? <AcademicWorkspace user={user} request={request} />
+            ? <AcademicWorkspace user={user} request={request} onCreateMeeting={(projectId) => goToMeetings(projectId)} />
             : page === 'meetings'
-            ? <MeetingsWorkspace user={user} request={request} />
+            ? <MeetingsWorkspace user={user} request={request} initialProjectId={meetingProjectId} />
             : page === 'institution'
             ? <InstitutionWorkspace user={user} request={request} />
             : <InstitutionalWorkspace user={user} request={request} section={page} />}

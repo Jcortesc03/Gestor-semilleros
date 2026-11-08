@@ -56,6 +56,16 @@ El tipo `NOTIFICATION` sigue reservado al decano y al administrador (RN-93); el 
 - El encargado de área **también** publica para roles (`ROLE`), además de sus áreas.
 - La web solo ofrece las opciones accesibles: áreas del encargado (`GET /api/areas?scope=managed`), facultades del decano (`GET /api/faculties?scope=dean`) y proyectos del tutor (`GET /api/projects/tutored`). El administrador ve todo y puede publicar por roles desde la web.
 
+### 10. Enmienda (2026-11-08): reuniones y directorio
+
+- **Crean reuniones** (RN-73), además del tutor y del administrador:
+  - el **decano**, con un proyecto de sus facultades o sin proyecto;
+  - el **encargado de área**, con un proyecto de sus áreas o sin proyecto.
+
+  El tutor sigue igual: sus proyectos o sin proyecto. Para cambiar el estado o la grabación siguen haciendo falta ser el organizador o el administrador.
+- El **encargado de área** puede usar el directorio `GET /api/users` (ADR 0009). Lo necesita para invitar participantes y gestionar los de los proyectos de sus áreas.
+- En la web se puede crear una reunión desde la sección Reuniones, desde el detalle de un proyecto (con el proyecto ya elegido) y desde «Próximas reuniones» de Mi panel.
+
 ## Consecuencias
 
 - Se actualizan `docs/domain/business-rules.md`, `roles-permissions.md` y los contratos de `docs/api/` afectados.

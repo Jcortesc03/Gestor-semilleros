@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { AcademicWorkspace } from '../../../src/features/academic';
 import { ApiError } from '../../../src/lib/api';
 import { admin, deferred, fakeRequest, makeActivity, makeBoard, makeMember, makeProject, student, uuid } from './fixtures';
@@ -134,6 +134,34 @@ describe('AcademicWorkspace', () => {
     expect(screen.queryByRole('button', { name: 'Crear proyecto' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Crear tablero' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Crear actividad' })).not.toBeInTheDocument();
+  });
+
+  it('el botón «Nueva reunión» del proyecto avisa con el id del proyecto', async () => {
+    const onCreateMeeting = vi.fn();
+    const request = fakeRequest({ 'GET /api/projects': () => [p1], ...projectRoutes(p1.id, []) });
+    render(<AcademicWorkspace user={admin} request={request} onCreateMeeting={onCreateMeeting} />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Nueva reunión' }));
+    expect(onCreateMeeting).toHaveBeenCalledTimes(1);
+    expect(onCreateMeeting).toHaveBeenCalledWith(p1.id);
+  });
+
+  it('solo ADMINS, tutor, decano o encargada ven el botón «Nueva reunión» del proyecto', async () => {
+    const tutor = { id: uuid(30), email: 'u30@example.test', fullName: 'Tutor de Ejemplo', roles: ['TUTOR'], mustChangePassword: false };
+    const dean = { id: uuid(91), email: 'decano@example.test', fullName: 'Decano', roles: ['DEAN'], mustChangePassword: false };
+    const areaManager = { id: uuid(92), email: 'encargado@example.test', fullName: 'Encargada', roles: ['AREA_MANAGER'], mustChangePassword: false };
+    for (const user of [admin, tutor, dean, areaManager]) {
+      const request = fakeRequest({ 'GET /api/projects': () => [p1], ...projectRoutes(p1.id, []) });
+      const view = render(<AcademicWorkspace user={user} request={request} onCreateMeeting={vi.fn()} />);
+      expect(await screen.findByRole('button', { name: 'Nueva reunión' })).toBeInTheDocument();
+      view.unmount();
+    }
+  });
+
+  it('un estudiante no ve el botón «Nueva reunión» del proyecto', async () => {
+    const request = fakeRequest({ 'GET /api/projects': () => [p1], ...projectRoutes(p1.id, []) });
+    render(<AcademicWorkspace user={student} request={request} onCreateMeeting={vi.fn()} />);
+    expect(await screen.findByRole('heading', { name: 'Semillero de robótica' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Nueva reunión' })).not.toBeInTheDocument();
   });
 
   it('descarta la respuesta tardía del proyecto A al estar viendo el proyecto B', async () => {

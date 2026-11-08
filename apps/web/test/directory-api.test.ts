@@ -49,9 +49,9 @@ test('lists faculties and validates the shape', async () => {
   await assert.rejects(() => listFaculties(mockApiRequest([{ name: 'x' }]).request), { status: 0 });
 });
 
-test('canSearchUsers is limited to ADMIN, DEAN and TUTOR', () => {
+test('canSearchUsers is limited to ADMIN, DEAN, AREA_MANAGER and TUTOR', () => {
   assert.equal(canSearchUsers(['STUDENT']), false);
-  assert.equal(canSearchUsers(['AREA_MANAGER']), false);
+  assert.equal(canSearchUsers(['AREA_MANAGER']), true);
   assert.equal(canSearchUsers(['STUDENT', 'TUTOR']), true);
   assert.equal(canSearchUsers(['DEAN']), true);
   assert.equal(canSearchUsers(['ADMIN']), true);

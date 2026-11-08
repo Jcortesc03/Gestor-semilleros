@@ -1,13 +1,17 @@
 import { useEffect, useId, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import type { CurrentUser } from '../../types/auth.ts';
 import type { ApiRequest } from '../../types/api.ts';
+import { AlertMessage } from '../../components/AlertMessage.tsx';
 import { Button, ErrorNotice, Field, LoadingState, inputClassName } from '../../components/WorkspaceUi';
 import { AreaSelect, FacultyMultiSelect } from '../directory/index.ts';
+import { DOCUMENT_EXTENSIONS, validateDocumentFile } from '../documents/api.ts';
+import { formatFileSize } from '../documents/format.ts';
 import {
   ANNOUNCEMENT_KINDS,
   createAnnouncement,
   listProjectsForAudience,
+  MAX_ANNOUNCEMENT_ATTACHMENTS,
   type AnnouncementAudienceInput,
   type AnnouncementKind,
   type Announcement,
@@ -77,9 +81,11 @@ export function PublishAnnouncementForm({ user, request, onPublished }: PublishA
   const [form, setForm] = useState<PublishFormState>(() => initialForm(defaultAudience));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
-  const [queued, setQueued] = useState<number>();
   const [projects, setProjects] = useState<PublishableProject[] | null>(null);
   const [projectsError, setProjectsError] = useState<unknown>();
+  // Adjuntos (ADR 0015): solo para el tipo NEWS; se descartan al cambiar a otro tipo.
+  const [files, setFiles] = useState<File[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
 
   // Solo ADMIN y DEAN pueden usar el tipo NOTIFICACION (P-16, RN-93); el servidor vuelve a validarlo.
   const canNotify = hasRole(user, 'ADMIN', 'DEAN');
@@ -118,6 +124,37 @@ export function PublishAnnouncementForm({ user, request, onPublished }: PublishA
     setForm((current) => ({ ...current, [key]: value }));
   }
 
+  function changeKind(kind: AnnouncementKind) {
+    update('kind', kind);
+    if (kind !== 'NEWS') {
+      setFiles([]);
+      setFileError(null);
+    }
+  }
+
+  /** Añade los archivos elegidos tras validarlos; si alguno no cumple, no se añade ninguno. */
+  function addFiles(event: ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    if (picked.length === 0) return;
+    const problem = picked.map((file) => validateDocumentFile(file)).find((message): message is string => message !== null);
+    if (problem) {
+      setFileError(problem);
+      return;
+    }
+    if (files.length + picked.length > MAX_ANNOUNCEMENT_ATTACHMENTS) {
+      setFileError(`Puedes adjuntar hasta ${MAX_ANNOUNCEMENT_ATTACHMENTS} archivos por noticia.`);
+      return;
+    }
+    setFileError(null);
+    setFiles((current) => [...current, ...picked]);
+  }
+
+  function removeFile(index: number) {
+    setFiles((current) => current.filter((_, position) => position !== index));
+    setFileError(null);
+  }
+
   function toggleRole(role: GlobalRole, checked: boolean) {
     setForm((current) => {
       const roles = checked ? [...current.roles, role] : current.roles.filter((item) => item !== role);
@@ -136,12 +173,12 @@ export function PublishAnnouncementForm({ user, request, onPublished }: PublishA
     };
     setBusy(true);
     setError(undefined);
-    setQueued(undefined);
     try {
-      const created = await createAnnouncement(request, input);
+      const created = await createAnnouncement(request, input, form.kind === 'NEWS' ? files : []);
       onPublished(created);
-      setQueued(created.queuedDeliveries ?? 0);
       setForm(initialForm(defaultAudience));
+      setFiles([]);
+      setFileError(null);
     } catch (cause) {
       setError(cause);
     } finally {
@@ -152,11 +189,14 @@ export function PublishAnnouncementForm({ user, request, onPublished }: PublishA
   return (
     <form className="space-y-5" onSubmit={submit}>
       <Field required label="Título" value={form.title} onChange={(e) => update('title', e.target.value)} />
-      <SelectField label="Tipo" value={form.kind} options={kindOptions} onChange={(kind) => update('kind', kind)} />
+      <SelectField label="Tipo" value={form.kind} options={kindOptions} onChange={changeKind} />
       <label className="block space-y-2 text-sm font-semibold">
         Contenido
         <textarea required className={textAreaClassName} value={form.content} onChange={(e) => update('content', e.target.value)} />
       </label>
+      {form.kind === 'NEWS' && (
+        <AttachmentPicker files={files} error={fileError} disabled={busy} onAdd={addFiles} onRemove={removeFile} />
+      )}
       <SelectField
         label="Destinatarios"
         value={form.audience}
@@ -204,12 +244,58 @@ export function PublishAnnouncementForm({ user, request, onPublished }: PublishA
       </p>
       <Button type="submit" disabled={busy || audiences === null}>{busy ? 'Publicando…' : 'Publicar novedad'}</Button>
       {error !== undefined && <ErrorNotice error={error} />}
-      {queued !== undefined && (
-        <p role="status" className="rounded-lg bg-canvas p-4 text-sm font-semibold">
-          Novedad publicada. Copias encoladas: {queued}.
-        </p>
-      )}
     </form>
+  );
+}
+
+const FILE_INPUT_CLASS = 'block min-h-12 w-full rounded-lg border border-navy/50 bg-white px-3 py-2 text-sm text-navy file:mr-3 file:rounded-md file:border-0 file:bg-navy file:px-3 file:py-2 file:font-semibold file:text-white focus:border-navy focus:outline-2 focus:outline-offset-2 focus:outline-navy disabled:cursor-not-allowed disabled:opacity-60';
+
+interface AttachmentPickerProps {
+  files: readonly File[];
+  error: string | null;
+  disabled: boolean;
+  onAdd: (event: ChangeEvent<HTMLInputElement>) => void;
+  onRemove: (index: number) => void;
+}
+
+/** Adjuntos de una noticia: selector múltiple con validación en cliente y lista de lo elegido. */
+function AttachmentPicker({ files, error, disabled, onAdd, onRemove }: AttachmentPickerProps) {
+  const id = useId();
+  const hintId = useId();
+  const full = files.length >= MAX_ANNOUNCEMENT_ATTACHMENTS;
+  return (
+    <div className="min-w-0 space-y-2">
+      <label htmlFor={id} className="block text-sm font-semibold text-navy">Archivos adjuntos (opcional)</label>
+      <input
+        id={id}
+        type="file"
+        multiple
+        accept={DOCUMENT_EXTENSIONS.join(',')}
+        aria-describedby={hintId}
+        disabled={disabled || full}
+        onChange={onAdd}
+        className={FILE_INPUT_CLASS}
+      />
+      <p id={hintId} className="text-sm leading-relaxed text-navy/70">
+        Hasta {MAX_ANNOUNCEMENT_ATTACHMENTS} archivos: PDF, Word, Excel o imagen (PNG, JPG, WEBP). Máximo 25 MB por archivo.
+      </p>
+      {error && <AlertMessage message={error} />}
+      {files.length > 0 && (
+        <ul aria-label="Archivos elegidos" className="divide-y divide-navy/10 rounded-lg border border-navy/10 bg-white">
+          {files.map((file, index) => (
+            <li key={`${index}-${file.name}`} className="flex flex-wrap items-center justify-between gap-3 p-3">
+              <div className="min-w-0 space-y-1">
+                <p className="break-all font-semibold text-navy">{file.name}</p>
+                <p className="text-sm text-navy/70">{formatFileSize(file.size)}</p>
+              </div>
+              <Button variant="secondary" disabled={disabled} aria-label={`Quitar ${file.name}`} onClick={() => onRemove(index)}>
+                Quitar
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

@@ -79,6 +79,7 @@
 | RN-52 | El decano publica novedades para sus facultades o para proyectos específicos. | ✅ (proyectos de sus facultades, [ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md)) |
 | RN-53 | Una novedad puede tener varias audiencias. Un usuario la recibe si pertenece a **al menos una** (unión). | 🟡 |
 | RN-54 | La audiencia se calcula al consultar; no hay registro de lectura (P-16, DB-06). Un usuario que se une después a un proyecto ve las novedades previas del proyecto. | ✅ (cálculo) / 🟡 (novedades previas) |
+| RN-54a | Solo las noticias (`NEWS`) admiten archivos adjuntos: hasta 5, con las reglas de los documentos (25 MB, PDF/Word/Excel/imagen, firma validada). Los descarga quien puede ver la noticia; las copias externas solo avisan de que hay adjuntos. | ✅ ([ADR 0015](../decisions/0015-adjuntos-en-noticias.md)) |
 | RN-55 | La información institucional de áreas y facultades se publica mediante novedades. | ✅ |
 | RN-56 | Una **notificación** es un tipo de novedad (`NEWS`, `COMMUNICATION`, `CHANGE`, `NOTIFICATION`). Se envían copias por correo y WhatsApp según las preferencias de cada usuario (RN-89 a RN-93). | ✅ |
 
@@ -102,7 +103,7 @@
 | RN-70 | Las reuniones se integran con Microsoft Teams. | ✅ |
 | RN-71 | Localmente se guardan fecha, motivo, participantes, enlace de acceso o grabación y duración. | ✅ |
 | RN-72 | No se replica localmente toda la información de Teams. | ✅ |
-| RN-73 | El tutor crea las reuniones. | ✅ (otros roles ❓) |
+| RN-73 | Crean reuniones el tutor (sus proyectos o sin proyecto), el decano (proyectos de sus facultades o sin proyecto), el encargado de área (proyectos de sus áreas o sin proyecto) y el administrador. | ✅ ([ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md) §10) |
 | RN-74 | Los participantes de una reunión son usuarios del sistema. El proyecto de la reunión es **opcional** (P-18). | ✅ |
 | RN-75 | Al crear una reunión se agenda en el calendario de Microsoft Teams de la cuenta vinculada del organizador, con los participantes como invitados. Sin cuenta vinculada, o si Teams falla, no se crea. | ✅ ([ADR 0007](../decisions/0007-reuniones-con-microsoft-teams.md)) |
 | RN-76 | Con proyecto, solo un tutor de ese proyecto (o el administrador) agenda la reunión, y los participantes deben ser miembros activos del proyecto. | ✅ (decisión técnica sobre RN-73) |

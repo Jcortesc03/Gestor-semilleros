@@ -107,7 +107,7 @@ Una celda sin marca de estado está ✅ confirmada. Las celdas `—` no tienen p
 | Tableros | C R U D ✅ | — | R ✅ | C R U D ✅ | R | R |
 | Actividades | C R U D A ✅ | — | R ✅ | C R U D A ✅ | C R U D ✅ · I | R · I (asignadas: progreso y enlaces) ✅ |
 | Encargados de actividad | C U D ✅ | — | — | C U D ✅ | C U D ✅ | — |
-| Reuniones | C R U (todas; supuesto 🟡) ✅ | — | — | C (sus proyectos o sin proyecto) · R U (las que organiza) ✅ | R (si es participante) ✅ | R (si es participante) ✅ |
+| Reuniones | C R U (todas) ✅ | C (sus áreas o sin proyecto) · R U (las que organiza) ✅ | C (sus facultades o sin proyecto) · R U (las que organiza) ✅ | C (sus proyectos o sin proyecto) · R U (las que organiza) ✅ | R (si es participante) ✅ | R (si es participante) ✅ |
 | Recordatorios | — | — | — | C | — | — |
 | Documentos | C R D (todos) ✅ | C R D (proyectos de sus áreas) ✅ | C R D (proyectos de sus facultades) ✅ | C R D (sus proyectos) ✅ | C R · D (propios) ✅ | C R · D (propios) ✅ |
 | Novedades | C R D (todas) ✅ | C (sus áreas / roles) · D (propias) ✅ | C (sus facultades / proyectos de ellas) · D (propias) ✅ | C (sus proyectos; no `NOTIFICATION`) · D (propias) ✅ | — | — |

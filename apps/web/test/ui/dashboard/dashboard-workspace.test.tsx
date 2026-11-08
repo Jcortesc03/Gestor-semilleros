@@ -114,4 +114,22 @@ describe('DashboardWorkspace', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Ver todas las novedades' }));
     expect(onNavigate.mock.calls).toEqual([['meetings'], ['announcements']]);
   });
+
+  it('el botón «Nueva reunión» aparece para los roles que crean reuniones y navega', async () => {
+    for (const roles of [['ADMIN'], ['TUTOR'], ['DEAN'], ['AREA_MANAGER']]) {
+      const onNavigate = vi.fn();
+      const view = mount(roles, fake([section(roles[0])]), onNavigate);
+      const meetingsCard = (await screen.findByRole('heading', { name: 'Próximas reuniones' })).closest('section')!;
+      const button = within(meetingsCard).getByRole('button', { name: 'Nueva reunión' });
+      await userEvent.click(button);
+      expect(onNavigate).toHaveBeenCalledWith('meetings');
+      view.unmount();
+    }
+  });
+
+  it('un estudiante no ve el botón «Nueva reunión» en Próximas reuniones', async () => {
+    mount(['STUDENT'], fake([section('STUDENT')]));
+    const meetingsCard = (await screen.findByRole('heading', { name: 'Próximas reuniones' })).closest('section')!;
+    expect(within(meetingsCard).queryByRole('button', { name: 'Nueva reunión' })).not.toBeInTheDocument();
+  });
 });

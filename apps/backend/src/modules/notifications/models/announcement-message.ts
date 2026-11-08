@@ -1,4 +1,5 @@
 import type { AnnouncementKind } from '../../../generated/prisma/enums';
+import { attachmentsNotice } from './announcement-attachments';
 
 export const KIND_LABELS: Record<AnnouncementKind, string> = {
   NEWS: 'Noticia',
@@ -13,9 +14,10 @@ export function renderAnnouncementMessage(input: {
   title: string;
   content: string;
   authorName: string;
+  attachmentsCount?: number;
 }): { subject: string; body: string } {
   return {
     subject: `[${KIND_LABELS[input.kind]}] ${input.title}`,
-    body: `${input.content}\n\n— ${input.authorName}\nGestor de Semilleros`,
+    body: `${input.content}${input.attachmentsCount ? `\n\n${attachmentsNotice(input.attachmentsCount)}` : ''}\n\n— ${input.authorName}\nGestor de Semilleros`,
   };
 }

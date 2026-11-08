@@ -25,5 +25,11 @@ for (const width of WIDTHS) {
     await expect(page.getByText('Hola, Alejandra Administradora')).toBeVisible();
     await expectNoHorizontalScroll(page);
     await page.screenshot({ path: testInfo.outputPath(`panel-${width}.png`), fullPage: true });
+
+    // Novedades: fila de pestañas por tipo y formulario con adjuntos (ADR 0015).
+    await page.goto('/panel#announcements');
+    await expect(page.getByRole('tablist', { name: 'Tipo de novedad' })).toBeVisible();
+    await expectNoHorizontalScroll(page);
+    await page.screenshot({ path: testInfo.outputPath(`novedades-${width}.png`), fullPage: true });
   });
 }

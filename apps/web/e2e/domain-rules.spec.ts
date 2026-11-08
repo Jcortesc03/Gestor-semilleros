@@ -47,6 +47,7 @@ test.describe('Reglas del ADR 0010 contra el backend real', () => {
     await expect(page.getByText(SEED_PROJECT).first()).toBeVisible();
 
     await page.goto('/panel#announcements');
+    await page.getByRole('button', { name: 'Nueva novedad' }).click();
     const audience = page.getByLabel('Destinatarios');
     await expect(audience.locator('option', { hasText: 'Todos los usuarios' })).toHaveCount(0);
 
@@ -61,6 +62,7 @@ test.describe('Reglas del ADR 0010 contra el backend real', () => {
   test('el tutor publica una novedad para su proyecto', async ({ page }) => {
     await signInAs(page, 'tutor@example.test');
     await page.goto('/panel#announcements');
+    await page.getByRole('button', { name: 'Nueva novedad' }).click();
 
     const title = `Aviso del tutor ${Date.now()}`;
     await page.getByLabel('Título').fill(title);
@@ -74,6 +76,7 @@ test.describe('Reglas del ADR 0010 contra el backend real', () => {
     for (const email of ['admin@example.test', 'encargado.area@example.test']) {
       await signInAs(page, email);
       await page.goto('/panel#announcements');
+      await page.getByRole('button', { name: 'Nueva novedad' }).click();
       await page.getByLabel('Título').fill(`Aviso por roles ${Date.now()}`);
       await page.getByLabel('Contenido').fill('Convocatoria para tutores.');
       await page.getByLabel('Destinatarios').selectOption({ label: 'Por roles' });

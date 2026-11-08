@@ -1,5 +1,6 @@
 import type { ApiRequest } from '../../types/api.ts';
 import { ApiError, isRecord, parseArray } from '../../lib/api.ts';
+import { DOCUMENT_FORMATS, type DocumentFormat } from '../documents/api.ts';
 
 /** Contratos: `docs/api/users.md`, `announcements.md` y `notification-preferences.md`. */
 
@@ -53,7 +54,13 @@ export type AnnouncementAudienceInput =
   | { type: 'AREA'; areaId: string }
   | { type: 'PROJECT'; projectId: string };
 export interface CreateAnnouncementInput { kind?: AnnouncementKind; title: string; content: string; audiences: AnnouncementAudienceInput[] }
-export interface Announcement { id: string; kind: AnnouncementKind; title: string; content: string; publishedAt: string; author: { id: string; fullName: string }; audiences: AnnouncementAudience[]; queuedDeliveries?: number }
+
+/** Límites de adjuntos de una noticia (ADR 0015): hasta 5 archivos; el tamaño se valida con `validateDocumentFile`. */
+export const MAX_ANNOUNCEMENT_ATTACHMENTS = 5;
+
+/** Archivo adjunto de una noticia: solo metadatos; el contenido se descarga por `announcementAttachmentUrl`. */
+export interface AnnouncementAttachment { id: string; fileName: string; format: DocumentFormat; mimeType: string; sizeBytes: number }
+export interface Announcement { id: string; kind: AnnouncementKind; title: string; content: string; publishedAt: string; author: { id: string; fullName: string }; audiences: AnnouncementAudience[]; attachments: AnnouncementAttachment[]; queuedDeliveries?: number }
 export interface AnnouncementQuery { kind?: AnnouncementKind; limit?: number; before?: string }
 
 export type DeliveryCounts = Record<DeliveryStatus, number>;
@@ -97,6 +104,7 @@ function booleanValue(value: unknown): boolean { return typeof value === 'boolea
 function countValue(value: unknown): number { return typeof value === 'number' ? value : fail(); }
 function oneOf<T extends string>(allowed: readonly T[], value: unknown): T { return allowed.find((item) => item === value) ?? fail(); }
 function nullableString(value: unknown): string | null { return value === null || value === undefined ? null : stringValue(value); }
+function sizeValue(value: unknown): number { return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fail(); }
 
 function parseUser(value: unknown): CreatedUser {
   const v = record(value);
@@ -121,6 +129,17 @@ function parseAudience(value: unknown): AnnouncementAudience {
   return result;
 }
 
+function parseAttachment(value: unknown): AnnouncementAttachment {
+  const v = record(value);
+  return {
+    id: stringValue(v.id),
+    fileName: stringValue(v.fileName),
+    format: oneOf(DOCUMENT_FORMATS, v.format),
+    mimeType: stringValue(v.mimeType),
+    sizeBytes: sizeValue(v.sizeBytes),
+  };
+}
+
 function parseAnnouncement(value: unknown): Announcement {
   const v = record(value);
   const author = record(v.author);
@@ -132,6 +151,8 @@ function parseAnnouncement(value: unknown): Announcement {
     publishedAt: stringValue(v.publishedAt),
     author: { id: stringValue(author.id), fullName: stringValue(author.fullName) },
     audiences: parseArray(v.audiences, parseAudience),
+    // Si el servidor no envía `attachments` (novedades anteriores a ADR 0015) se trata como lista vacía.
+    attachments: v.attachments === undefined || v.attachments === null ? [] : parseArray(v.attachments, parseAttachment),
     ...(typeof v.queuedDeliveries === 'number' ? { queuedDeliveries: v.queuedDeliveries } : {}),
   };
 }
@@ -241,8 +262,27 @@ export async function getAnnouncement(request: ApiRequest, id: string): Promise<
   return parseAnnouncement(await request(`/api/announcements/${encodeURIComponent(id)}`));
 }
 
-export async function createAnnouncement(request: ApiRequest, body: CreateAnnouncementInput): Promise<Announcement> {
-  return parseAnnouncement(await request('/api/announcements', { method: 'POST', body }));
+/**
+ * Publica una novedad. Sin archivos envía el JSON habitual; con archivos (solo noticias, ADR 0015) envía
+ * `multipart/form-data` con el cuerpo JSON en `data` y cada archivo en `files`.
+ */
+export async function createAnnouncement(request: ApiRequest, body: CreateAnnouncementInput, files: readonly File[] = []): Promise<Announcement> {
+  if (files.length === 0) {
+    return parseAnnouncement(await request('/api/announcements', { method: 'POST', body }));
+  }
+  const form = new FormData();
+  form.append('data', JSON.stringify(body));
+  for (const file of files) form.append('files', file);
+  return parseAnnouncement(await request('/api/announcements', { method: 'POST', body: form }));
+}
+
+/**
+ * URL de descarga de un adjunto (mismo origen, con la cookie de sesión). `inline` sirve para previsualizar
+ * PDF e imágenes en una pestaña nueva.
+ */
+export function announcementAttachmentUrl(announcementId: string, attachmentId: string, options: { inline?: boolean } = {}): string {
+  const base = `/api/announcements/${encodeURIComponent(announcementId)}/attachments/${encodeURIComponent(attachmentId)}/download`;
+  return options.inline ? `${base}?inline=true` : base;
 }
 
 export async function getAnnouncementDeliveries(request: ApiRequest, id: string): Promise<DeliverySummary> {

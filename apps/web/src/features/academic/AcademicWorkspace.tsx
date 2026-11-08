@@ -14,11 +14,11 @@ import { useAcademicData } from './useAcademicData.ts';
 import { useAction } from './useAction.ts';
 import { useProjectDocuments } from '../documents/index.ts';
 
-export interface AcademicWorkspaceProps { user: CurrentUser; request: ApiRequest }
+export interface AcademicWorkspaceProps { user: CurrentUser; request: ApiRequest; onCreateMeeting?: (projectId: string) => void }
 
 const confirmAction = (message: string) => window.confirm(message);
 
-export function AcademicWorkspace({ user, request }: AcademicWorkspaceProps) {
+export function AcademicWorkspace({ user, request, onCreateMeeting }: AcademicWorkspaceProps) {
   const data = useAcademicData(request);
   const documents = useProjectDocuments(request, data.projectId);
   const { busy, error: actionError, run } = useAction();
@@ -85,6 +85,8 @@ export function AcademicWorkspace({ user, request }: AcademicWorkspaceProps) {
             canManage={can.manageProject}
             canDeleteAnyDocument={can.deleteAnyDocument}
             busy={busy}
+            canCreateMeeting={can.canCreateMeeting}
+            onCreateMeeting={onCreateMeeting}
             onSave={(changes) => run(
               () => api.updateProject(request, project.id, changes),
               () => data.reloadList({ silent: true }),
