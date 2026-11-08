@@ -82,6 +82,16 @@ Sección «Áreas y facultades» (`features/institution`), visible para administ
 
 El administrador lista, busca y filtra usuarios (activos, inactivos o todos), edita su nombre y roles, los desactiva o reactiva y les fija una contraseña temporal. Quien entra con una temporal ve primero «Cambia tu contraseña» y no puede usar nada más hasta cambiarla. Cualquier usuario puede cambiar la suya desde la tarjeta de su cuenta. Política: 10–256 caracteres, con al menos una letra y un número, distinta del correo ([ADR 0011](../../docs/decisions/0011-gestion-de-usuarios.md)).
 
+## Analítica
+
+Sección «Analítica» (`features/analytics`), visible para administradores, encargados de área y decanos según su alcance ([ADR 0016](../../docs/decisions/0016-modulo-de-analitica.md)). Consume `GET /api/analytics/filters` y `GET /api/analytics` ([contrato](../../docs/api/analytics.md)) y no calcula métricas en el cliente: solo valida la respuesta y dibuja.
+
+- Filtros por periodo (atajos de 30 y 90 días, este año y todo), área, facultad, proyecto, tutor y estado del proyecto; el query string omite los filtros vacíos.
+- Tarjetas KPI con su definición y, cuando el contrato devuelve `comparison`, la diferencia frente al periodo anterior.
+- Gráficas en SVG propio, sin dependencias nuevas: rankings de facultades y áreas, barras agrupadas de tutores y decanos, columnas por día de la semana, líneas mensuales y distribuciones.
+- Tablas ordenables de tutores y decanos, y tabla de patrones que resalta el grupo con mayor finalización o éxito.
+- Estados de carga, error (incluido el 403 sin permisos) y vacío; las tasas sin denominador se muestran como «—». Cada gráfica incluye título accesible y una tabla alternativa.
+
 ## Diseño
 
 Tailwind CSS 4, Montserrat local y la [guía visual](../../skill/front/habilidades/design-taste-frontend/guia-estilos-proyecto.md). Frontlipe es responsable de las vistas. La [decisión técnica](../../docs/decisions/0008-aplicacion-web-y-sistema-visual.md) documenta versiones y límites.

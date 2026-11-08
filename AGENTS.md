@@ -29,6 +29,7 @@ El alcance, los módulos y el estado se documentan en `README.md`; no los repita
 - **Documentos en S3 ([ADR 0013](docs/decisions/0013-documentos-en-s3.md)):** subida y descarga mediadas por el backend, 25 MB con validación de firma, adjuntos de documentos en actividades; RustFS como S3 local.
 - **Cuentas personales de Microsoft ([ADR 0014](docs/decisions/0014-cuentas-personales-de-microsoft.md)):** `MICROSOFT_TENANT_ID=common` por defecto; con cuenta personal el organizador indica el enlace de la reunión (`joinUrl`). Migración `microsoft_account_type`.
 - **Adjuntos en noticias ([ADR 0015](docs/decisions/0015-adjuntos-en-noticias.md)):** hasta 5 archivos por noticia (`NEWS`) en S3, tabla `announcement_attachments`; publicación multipart en una sola petición.
+- **Analítica ([ADR 0016](docs/decisions/0016-modulo-de-analitica.md)):** `GET /api/analytics` y `/filters` (ADMIN global; encargado de área y decano por alcance) con filtros de periodo, área, facultad, proyecto, tutor y estado; `completed_at` en tableros y actividades para medir entregas a tiempo (migración `completed_at`); vista web con gráficas SVG propias. Sin entidad carrera.
 - **No implementado:** recordatorios, recuperación de contraseña olvidada, límite de intentos de inicio de sesión, autenticación móvil, HTTPS/infraestructura de producción concreta ni CI/CD.
 
 Por lo tanto:
@@ -177,6 +178,7 @@ El workspace contiene `@gestor-semilleros/backend` y la primera entrega de `@ges
 | `pnpm --filter @gestor-semilleros/web dev` | Vite en `127.0.0.1:5173`; proxy `/api` al backend local en el puerto 3000. |
 | `pnpm --filter @gestor-semilleros/backend admin:create` | ✅ Crea un administrador (`ADMIN_EMAIL`, `ADMIN_FULL_NAME`, `ADMIN_PASSWORD`). |
 | `pnpm db:seed` | ✅ Siembra datos de **desarrollo** (`src/cli/seed.ts`): un usuario por tipo (`admin@example.test`, `encargado.area@`, `decano@`, `tutor@`, `lider@`, `estudiante@`), área, facultad y un proyecto demo. Requiere `SEED_PASSWORD` (política del ADR 0011: 10–256, letra y número), es idempotente y se niega a correr con `NODE_ENV=production`. Ej.: `SEED_PASSWORD='…' pnpm db:seed` (fish: anteponer `env`). |
+| `pnpm db:seed:bulk` | ✅ Seed masiva de **desarrollo** (`src/cli/seed-bulk.ts`): miles de usuarios, proyectos, actividades, adjuntos y reuniones ficticios (`@semillero.example.test`, sufijo ` · demo`) para la analítica. Requiere `SEED_PASSWORD`; `SEED_BULK_SCALE` (1–10) y `SEED_BULK_RESET=1` (borra solo esos datos). No corre en producción; los documentos no tienen archivo en S3. |
 | `pnpm test:e2e` | ✅ Pruebas de la API contra `TEST_DATABASE_URL` (requiere `pnpm db:up`). |
 | `pnpm lint` | Configurado; ningún paquete lo implementa (herramienta pendiente). |
 | `docker compose -f docker/compose.prod.yaml --env-file docker/.env.prod up -d --build` | ✅ Despliegue completo (PostgreSQL + backend + web nginx) en `WEB_PORT` (8080). Plantilla: `docker/env.prod.example`. |
@@ -266,6 +268,7 @@ Si la decisión ya está aprobada y registrada, procede sin volver a preguntar.
 | [`docs/api/catalogs.md`](docs/api/catalogs.md) | Catálogos de áreas y facultades |
 | [`docs/api/dashboard.md`](docs/api/dashboard.md) | Panel por rol |
 | [`docs/api/documents.md`](docs/api/documents.md) | Documentos en S3 |
+| [`docs/api/analytics.md`](docs/api/analytics.md) | Analítica con filtros |
 | `docs/decisions/` | ADRs |
 
 Antes de implementar cualquier funcionalidad del dominio (entidades, permisos, flujos o esquema de datos), consulta `docs/domain/` empezando por su `README.md`, y `docs/database/` si afecta a la persistencia. Lo marcado como 🟡 hipótesis o ❓ pendiente **no** se implementa sin confirmación. **No inventes reglas de negocio ni permisos** que sigan pendientes.

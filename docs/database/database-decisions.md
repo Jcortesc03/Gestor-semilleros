@@ -137,6 +137,13 @@
 - **Decisión:** `meetings.status` (enum) más `cancelled_at`; `microsoft_accounts` con los tokens **cifrados** (nunca en claro); la bandeja de salida (DB-15) admite como origen una reunión (`meeting_id`, `purpose`) y la programación (`scheduled_for`, `expires_at`); las preferencias pasan de `AnnouncementKind` a `NotificationKind` (añade `MEETING`) con una conversión que conserva los datos.
 - **Justificación:** se reutiliza el mismo mecanismo de envío, reintentos y preferencias; el estado se guarda (no solo se calcula) para poder filtrar y registrar cancelaciones, y se actualiza por horario antes de cada lectura.
 
+### DB-17 · Momento de terminación de tableros y actividades
+
+- **Contexto:** la analítica necesita saber cuándo se terminó cada tablero o actividad para medir las entregas a tiempo frente a `due_date`. Solo se guardaba el estado actual del progreso (DB-09), y `updated_at` cambia con cualquier edición.
+- **Alternativas:** (a) usar `updated_at` como aproximación; (b) una tabla de historial de cambios de progreso; (c) **columna `completed_at`** en `boards` y `activities`.
+- **Decisión:** (c), nula y con índice (ADR 0016). El servicio la fija en la misma escritura que cambia el progreso: al pasar a `DONE` desde otro estado toma el momento actual, reenviar `DONE` no la cambia y salir de `DONE` la vuelve nula. No se expone en las respuestas de tableros y actividades. La migración `completed_at` rellena los registros ya en `DONE` (incluidos los eliminados lógicamente) con su `updated_at`, como aproximación.
+- **Justificación:** es un hecho registrado, no una métrica derivada (DB-11): no puede recalcularse después. (a) es inexacta y (b) añade una tabla que hoy no se necesita; si se pide el historial completo, daría lugar a ella.
+
 ## Pendientes
 
 1. P-08: alcance del encargado de área; `area_managers` es un modelo provisional.

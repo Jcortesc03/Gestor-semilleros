@@ -53,6 +53,7 @@ SEED_PASSWORD='…' pnpm db:seed
 | `pnpm db:generate` | Regenera el cliente de Prisma en `apps/backend/src/generated/prisma` |
 | `pnpm db:studio` | Abre Prisma Studio para explorar los datos |
 | `pnpm db:seed` | Siembra datos de **desarrollo** (requiere `SEED_PASSWORD`); ver [Datos de desarrollo](#datos-de-desarrollo-seed) |
+| `pnpm db:seed:bulk` | Miles de datos ficticios para la analítica; ver [Datos masivos](#datos-masivos-para-la-analítica-seed-masiva) |
 
 **Desde `apps/backend`**, o con `pnpm --filter @gestor-semilleros/backend <script>`:
 
@@ -64,6 +65,7 @@ SEED_PASSWORD='…' pnpm db:seed
 | `db:deploy` | Aplica las migraciones sin crear ninguna nueva (entornos no interactivos) |
 | `db:reset` | ⚠️ **Borra la base de datos local** y vuelve a aplicar todas las migraciones |
 | `db:seed` | Compila (`nest build`) y ejecuta `dist/cli/seed.js` |
+| `db:seed:bulk` | Compila (`nest build`) y ejecuta `dist/cli/seed-bulk.js` |
 | `admin:create` | Compila y crea un administrador (`ADMIN_EMAIL`, `ADMIN_FULL_NAME`, `ADMIN_PASSWORD`) |
 
 ## Cambiar el esquema
@@ -130,6 +132,21 @@ SEED_PASSWORD='…' pnpm db:seed
 - Es **idempotente**: se puede ejecutar varias veces.
 - Se niega a ejecutarse con `NODE_ENV=production`.
 - Los usuarios sembrados son **solo para desarrollo**; no los uses ni los crees en otros entornos.
+
+### Datos masivos para la analítica (seed masiva)
+
+`pnpm db:seed:bulk` (`apps/backend/src/cli/seed-bulk.ts`) genera miles de datos ficticios para probar la analítica ([ADR 0016](../decisions/0016-modulo-de-analitica.md)). Con `SEED_BULK_SCALE=1` (por defecto, máximo 10): unos 1.000 usuarios, 7 áreas, 8 facultades, ~150 proyectos, ~800 tableros, ~4.500 actividades, ~4.000 adjuntos y ~1.600 reuniones repartidos en unos 18 meses. Tarda segundos.
+
+```bash
+SEED_PASSWORD='…' pnpm db:seed:bulk                       # primera vez
+SEED_PASSWORD='…' SEED_BULK_RESET=1 SEED_BULK_SCALE=3 pnpm db:seed:bulk   # reemplazar con más volumen
+# En fish: env SEED_PASSWORD='…' pnpm db:seed:bulk
+```
+
+- Es determinista y sigue patrones verosímiles: facultades y tutores con distinta disciplina, menos entregas el fin de semana, y mejores resultados con más encargados, descripción o adjuntos.
+- Todo queda marcado: correos `@semillero.example.test` y áreas/facultades con el sufijo ` · demo`. Si ya existen, se niega a correr; con `SEED_BULK_RESET=1` borra **solo** esos datos y vuelve a sembrar.
+- Comparte `SEED_PASSWORD` con `db:seed` y se niega a ejecutarse con `NODE_ENV=production`. Para entrar como administrador, ejecuta antes `pnpm db:seed` (`admin@example.test`); la salida muestra correos de ejemplo de cada rol masivo.
+- Los documentos son **solo metadatos**: no hay archivos en S3, así que su descarga falla.
 
 La base de pruebas se crea y se migra automáticamente. Su nombre **debe** terminar en `_test`; si no, las pruebas se niegan a ejecutarse.
 
