@@ -10,13 +10,32 @@ import {
   changeMeetingStatus, createMeeting, getMeeting, getMeetingProjects, getMeetings, getMicrosoftConnectUrl,
   getMicrosoftStatus, getProjectMembers, setMeetingRecording, unlinkMicrosoft,
 } from './api';
-import type { Meeting, MeetingProject, MeetingStatus, MicrosoftStatus, ProjectMember } from './api';
+import type { Meeting, MeetingProject, MeetingStatus, MicrosoftAccountType, MicrosoftStatus, ProjectMember } from './api';
 
 export interface MeetingsWorkspaceProps { user: CurrentUser; request: ApiRequest }
 
 const STATUS_LABELS: Record<MeetingStatus, string> = {
   SCHEDULED: 'Programada', IN_PROGRESS: 'En proceso', FINISHED: 'Finalizada', CANCELLED: 'Cancelada',
 };
+
+const ACCOUNT_TYPE_LABELS: Record<MicrosoftAccountType, string> = {
+  WORK_OR_SCHOOL: 'Cuenta laboral o educativa', PERSONAL: 'Cuenta personal',
+};
+
+const PERSONAL_ACCOUNT_NOTE = 'Microsoft no genera enlaces de Teams para cuentas personales: al crear una reunión deberás indicar el enlace (Teams gratis, Meet, Zoom…).';
+
+const MAX_JOIN_URL_LENGTH = 2048;
+
+/** Devuelve el mensaje de error del enlace de la reunión o `null` si es válido (https://, hasta 2048 caracteres). */
+function validateJoinUrl(value: string): string | null {
+  const url = value.trim();
+  if (!url) return 'Indica el enlace de la reunión.';
+  if (url.length > MAX_JOIN_URL_LENGTH) return `El enlace de la reunión no puede tener más de ${MAX_JOIN_URL_LENGTH} caracteres.`;
+  try {
+    if (new URL(url).protocol === 'https:') return null;
+  } catch { /* se informa abajo */ }
+  return 'El enlace de la reunión debe empezar por https:// y ser una dirección válida.';
+}
 
 const formatDateTime = (value: string): string => {
   const date = new Date(value);
@@ -59,6 +78,7 @@ export function MeetingsWorkspace({ user, request }: MeetingsWorkspaceProps) {
           user={user}
           request={request}
           linked={linked}
+          accountType={microsoft.phase === 'ready' ? microsoft.data.accountType : null}
           onCreated={(meeting) => { reloadMeetings(); setSelectedId(meeting.id); }}
         />
       )}
@@ -132,6 +152,8 @@ function MicrosoftPanel({ request, state, reload }: { request: ApiRequest; state
       {state.phase === 'ready' && state.data.configured && state.data.linked && (
         <div className="space-y-4">
           <p>Cuenta vinculada: <strong>{state.data.email ?? 'sin correo'}</strong>{state.data.linkedAt ? ` (desde ${formatDateTime(state.data.linkedAt)})` : ''}</p>
+          {state.data.accountType && <p>Tipo de cuenta: <strong>{ACCOUNT_TYPE_LABELS[state.data.accountType]}</strong></p>}
+          {state.data.accountType === 'PERSONAL' && <p className="text-sm leading-relaxed text-navy/70">{PERSONAL_ACCOUNT_NOTE}</p>}
           <Button variant="secondary" onClick={unlink} disabled={busy}><Unlink aria-hidden="true" className="size-5" />Desvincular cuenta</Button>
         </div>
       )}
@@ -140,11 +162,15 @@ function MicrosoftPanel({ request, state, reload }: { request: ApiRequest; state
   );
 }
 
-function CreateMeeting({ user, request, linked, onCreated }: { user: CurrentUser; request: ApiRequest; linked: boolean; onCreated: (meeting: Meeting) => void }) {
+function CreateMeeting({ user, request, linked, accountType, onCreated }: {
+  user: CurrentUser; request: ApiRequest; linked: boolean; accountType: MicrosoftAccountType | null; onCreated: (meeting: Meeting) => void;
+}) {
   const [projects] = useRemote<MeetingProject[]>(() => getMeetingProjects(request), [request]);
   const [reason, setReason] = useState('');
   const [startsAt, setStartsAt] = useState('');
   const [duration, setDuration] = useState('60');
+  const [joinUrl, setJoinUrl] = useState('');
+  const personal = accountType === 'PERSONAL';
   const [projectId, setProjectId] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
   const [picked, setPicked] = useState<DirectoryUser[]>([]);
@@ -173,6 +199,8 @@ function CreateMeeting({ user, request, linked, onCreated }: { user: CurrentUser
     setError(null); setCreated(false);
     const date = new Date(startsAt);
     if (Number.isNaN(date.getTime())) { setError(new Error('Indica una fecha y hora de inicio válidas.')); return; }
+    const joinUrlError = personal ? validateJoinUrl(joinUrl) : null;
+    if (joinUrlError) { setError(new Error(joinUrlError)); return; }
     setBusy(true);
     try {
       const meeting = await createMeeting(request, {
@@ -181,8 +209,9 @@ function CreateMeeting({ user, request, linked, onCreated }: { user: CurrentUser
         durationMinutes: Number(duration),
         projectId: projectId || null,
         participantIds,
+        ...(personal ? { joinUrl: joinUrl.trim() } : {}),
       });
-      setReason(''); setStartsAt(''); setSelected([]); setPicked([]); setCreated(true);
+      setReason(''); setStartsAt(''); setJoinUrl(''); setSelected([]); setPicked([]); setCreated(true);
       onCreated(meeting);
     } catch (caught) { setError(caught); } finally { setBusy(false); }
   }
@@ -196,6 +225,17 @@ function CreateMeeting({ user, request, linked, onCreated }: { user: CurrentUser
         <Field label="Motivo" value={reason} maxLength={200} required onChange={(e) => setReason(e.target.value)} />
         <Field label="Inicio" type="datetime-local" value={startsAt} required onChange={(e) => setStartsAt(e.target.value)} hint="Se envía con tu zona horaria local." />
         <Field label="Duración (minutos)" type="number" min={5} max={480} value={duration} required onChange={(e) => setDuration(e.target.value)} />
+        {personal && (
+          <Field
+            label="Enlace de la reunión"
+            type="url"
+            value={joinUrl}
+            maxLength={MAX_JOIN_URL_LENGTH}
+            required
+            onChange={(e) => setJoinUrl(e.target.value)}
+            hint="Enlace https:// a la sala (Teams gratis, Google Meet, Zoom…). Es obligatorio con cuenta personal."
+          />
+        )}
         <div className="space-y-2">
           <label htmlFor="meeting-project" className="block text-sm font-semibold">Proyecto</label>
           <select id="meeting-project" className={inputClassName} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
@@ -243,7 +283,7 @@ function CreateMeeting({ user, request, linked, onCreated }: { user: CurrentUser
         )}
         {error !== null && (error instanceof Error && error.name !== 'ApiError' ? <p role="alert" className="text-sm text-alert">{error.message}</p> : <ErrorNotice error={error} />)}
         {created && <p role="status" className="text-sm font-semibold">Reunión creada.</p>}
-        <Button type="submit" disabled={busy || !linked || participantIds.length === 0 || !reason.trim() || !startsAt}>
+        <Button type="submit" disabled={busy || !linked || participantIds.length === 0 || !reason.trim() || !startsAt || (personal && !joinUrl.trim())}>
           <Video aria-hidden="true" className="size-5" />Crear reunión
         </Button>
       </form>

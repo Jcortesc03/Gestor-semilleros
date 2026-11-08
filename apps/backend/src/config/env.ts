@@ -1,5 +1,7 @@
 import { loadMeetingsTimeZone, loadMicrosoftConfig } from './microsoft.config';
 import type { MicrosoftConfig } from './microsoft.config.types';
+import { loadStorageConfig } from './storage.config';
+import type { StorageConfig } from './storage.config.types';
 import { loadNotificationsConfig } from './notifications.config';
 import type { NotificationsConfig } from './notifications.config.types';
 
@@ -27,6 +29,8 @@ export interface AppEnv {
   microsoft: MicrosoftConfig | null;
   /** Zona horaria IANA con la que se muestran las fechas de las reuniones. */
   meetingsTimeZone: string;
+  /** Almacenamiento S3 de documentos (ADR 0013); null si no está configurado. */
+  storage: StorageConfig | null;
 }
 
 export class EnvValidationError extends Error {}
@@ -71,6 +75,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     notifications: loadNotificationsConfig(source),
     microsoft: loadMicrosoftConfig(source),
     meetingsTimeZone: loadMeetingsTimeZone(source),
+    storage: loadStorageConfig(source),
   };
 }
 

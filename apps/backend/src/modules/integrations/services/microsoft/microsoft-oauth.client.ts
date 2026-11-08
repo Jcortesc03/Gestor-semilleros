@@ -14,6 +14,7 @@ interface TokenPayload {
   refresh_token?: unknown;
   expires_in?: unknown;
   scope?: unknown;
+  id_token?: unknown;
   error?: unknown;
   error_description?: unknown;
 }
@@ -141,6 +142,7 @@ export class MicrosoftOAuthClient {
       refreshToken: issuedRefreshToken,
       expiresAt: new Date(Date.now() + expiresIn * 1000),
       scopes: readNonEmptyString(payload?.scope) ?? MICROSOFT_SCOPES,
+      idToken: readNonEmptyString(payload?.id_token),
     };
   }
 

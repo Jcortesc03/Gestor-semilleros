@@ -68,6 +68,7 @@ export class MicrosoftGraphClient implements TeamsCalendar {
     input: OnlineEventInput,
   ): Promise<OnlineEvent> {
     const end = new Date(input.startsAt.getTime() + input.durationMinutes * 60_000);
+    const customLink = input.joinUrl ?? null;
     const requestBody = {
       subject: input.subject,
       body: { contentType: 'text', content: input.body },
@@ -77,9 +78,11 @@ export class MicrosoftGraphClient implements TeamsCalendar {
         emailAddress: { address: attendee.email, name: attendee.name },
         type: 'required',
       })),
-      isOnlineMeeting: true,
-      onlineMeetingProvider: 'teamsForBusiness',
       allowNewTimeProposals: false,
+      // Cuenta personal (ADR 0014): Graph no genera enlaces de Teams; se usa el enlace del organizador.
+      ...(customLink === null
+        ? { isOnlineMeeting: true, onlineMeetingProvider: 'teamsForBusiness' }
+        : { location: { displayName: customLink } }),
     };
 
     const response = await this.send(accessToken, 'POST', '/me/events', requestBody, {
@@ -90,7 +93,7 @@ export class MicrosoftGraphClient implements TeamsCalendar {
     const payload = (readJsonObject(await this.readJson(response)) ??
       {}) as GraphEventPayload;
     const eventId = readNonEmptyString(payload.id) ?? '';
-    const joinUrl = readNonEmptyString(payload.onlineMeeting?.joinUrl);
+    const joinUrl = customLink ?? readNonEmptyString(payload.onlineMeeting?.joinUrl);
 
     if (joinUrl === null) {
       if (eventId !== '') {

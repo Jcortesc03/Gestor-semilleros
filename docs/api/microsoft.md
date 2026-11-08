@@ -1,6 +1,6 @@
 # API de vinculación de la cuenta de Microsoft
 
-> **Estado:** implementado en `apps/backend/src/modules/integrations/` (`controllers/microsoft.controller.ts`, `services/microsoft/`) y cubierto por `apps/backend/test/meetings.e2e-spec.ts`. Las utilidades tienen pruebas unitarias (`services/microsoft/*.spec.ts`, `models/token-cipher.spec.ts`, `config/microsoft.config.spec.ts`). Decisión: [ADR 0007](../decisions/0007-reuniones-con-microsoft-teams.md).
+> **Estado:** implementado en `apps/backend/src/modules/integrations/` (`controllers/microsoft.controller.ts`, `services/microsoft/`) y cubierto por `apps/backend/test/meetings.e2e-spec.ts`. Las utilidades tienen pruebas unitarias (`services/microsoft/*.spec.ts`, `models/token-cipher.spec.ts`, `config/microsoft.config.spec.ts`). Decisiones: [ADR 0007](../decisions/0007-reuniones-con-microsoft-teams.md) y [ADR 0014](../decisions/0014-cuentas-personales-de-microsoft.md) (tipo de cuenta, implementado). El tipo se detecta con el `tid` del `id_token` de la respuesta de token (se decodifica sin verificar la firma porque llega directo del endpoint de token por TLS y solo clasifica la cuenta); sin `id_token` se asume `WORK_OR_SCHOOL`.
 > Reuniones que usan esta vinculación: [`meetings.md`](meetings.md). Autenticación: [`auth.md`](auth.md). Variables de entorno: [`apps/backend/.env.example`](../../apps/backend/.env.example).
 
 Todas las rutas requieren una sesión válida (cookie de Auth.js; `401` con `{ "message": "Sesión no válida o expirada." }` si falta). El prefijo global es `/api`.
@@ -153,9 +153,14 @@ Cada vez que el backend necesita llamar a Microsoft Graph, usa el token de acces
 
 Un usuario tiene como máximo una cuenta vinculada, y una cuenta de Microsoft solo puede estar vinculada a un usuario (`409` si ya pertenece a otro).
 
-### Requisito de la cuenta
+### Tipo de cuenta ([ADR 0014](../decisions/0014-cuentas-personales-de-microsoft.md))
 
-La cuenta debe ser **laboral o educativa (Microsoft 365) con Teams**. Con una cuenta personal (o sin Teams), Microsoft no genera el enlace de la reunión y crear una reunión responde `422` con `Microsoft no generó el enlace de Teams; la cuenta vinculada debe ser laboral o educativa con Teams.` (el evento sin enlace se elimina del calendario).
+Se admiten cuentas **laborales o educativas** y **personales** (`MICROSOFT_TENANT_ID=common`, valor por defecto). Al vincular se guarda `accountType`:
+
+- `WORK_OR_SCHOOL`: las reuniones se crean con Teams y Microsoft genera el enlace.
+- `PERSONAL` (el `tid` del token es `9188040d-6c67-4c5b-b112-36a304b66dad`): Microsoft no genera enlaces de Teams. El organizador debe indicar el enlace de la reunión al crearla (ver `joinUrl` en [`meetings.md`](meetings.md)).
+
+`status` (y la respuesta del `callback`) incluye `accountType`: `WORK_OR_SCHOOL`, `PERSONAL` o `null` si no hay cuenta vinculada.
 
 ## Configuración
 
@@ -167,7 +172,7 @@ Si `MICROSOFT_CLIENT_ID` y `MICROSOFT_CLIENT_SECRET` están vacías, la integrac
 | `MICROSOFT_CLIENT_SECRET` | Sí, si está activa | Secreto de cliente. Es un secreto: nunca se versiona. |
 | `MICROSOFT_REDIRECT_URI` | Sí, si está activa | URL `http(s)` de `callback`. Debe coincidir con el URI de redirección registrado en Entra ID. |
 | `MICROSOFT_TOKEN_ENCRYPTION_KEY` | Sí, si está activa | Clave AES-256 de 32 bytes en base64 (`openssl rand -base64 32`). Cifra los tokens y el `state`. |
-| `MICROSOFT_TENANT_ID` | No | GUID, dominio, `organizations` (por defecto) o `common`. Cualquier otro valor impide arrancar. |
+| `MICROSOFT_TENANT_ID` | No | `common` (por defecto: cuentas laborales, educativas y personales), `organizations` (solo laborales o educativas), un GUID o un dominio. Cualquier otro valor impide arrancar. |
 | `MICROSOFT_LINK_REDIRECT_URL` | No | URL `http(s)` a la que se redirige al terminar la vinculación. Sin ella, `callback` responde JSON. |
 | `MEETINGS_TIME_ZONE` | No | Zona horaria IANA de las fechas de los avisos (por defecto `America/Bogota`). Ver [`meetings.md`](meetings.md#formato-de-los-mensajes). |
 
@@ -189,5 +194,4 @@ Los puertos y URL de los pasos son un ejemplo: usa los de tu entorno.
 ## Pendiente
 
 - **Interfaz para vincular**: no hay pantalla de la aplicación; hoy se usa el navegador directamente.
-- **Cuentas personales de Microsoft**: no soportadas (no generan Teams).
 - **Revocar el consentimiento en Microsoft** al desvincular: solo se borran los tokens locales.

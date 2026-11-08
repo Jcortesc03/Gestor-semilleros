@@ -1,4 +1,4 @@
-import type { ApprovalStatus, ProgressStatus, WorkResult } from '../../../generated/prisma/enums';
+import type { ApprovalStatus, DocumentFormat, ProgressStatus, WorkResult } from '../../../generated/prisma/enums';
 
 type UserRef = { id: string; fullName: string };
 
@@ -20,6 +20,7 @@ export interface AttachmentResponseDto {
   kind: 'LINK' | 'DOCUMENT';
   url: string | null;
   documentId: string | null;
+  document: { id: string; fileName: string; format: DocumentFormat; sizeBytes: number } | null;
   createdBy: UserRef;
   createdAt: string;
 }

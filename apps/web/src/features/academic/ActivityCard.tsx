@@ -1,7 +1,9 @@
 import { useId, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Archive, Link as LinkIcon, X } from 'lucide-react';
-import { Button, Field, inputClassName } from '../../components/WorkspaceUi.tsx';
+import { Archive, Download, Link as LinkIcon, Paperclip, X } from 'lucide-react';
+import { Button, ErrorNotice, EmptyState, Field, LoadingState, inputClassName } from '../../components/WorkspaceUi.tsx';
+import { documentUrl } from '../documents/index.ts';
+import type { ProjectDocumentsState } from '../documents/index.ts';
 import type { Activity, ApprovalStatus, Member, ProgressStatus, ResultStatus } from './api.ts';
 import { APPROVAL_LABELS, PROGRESS_LABELS, RESULT_LABELS } from './labels.ts';
 
@@ -13,6 +15,7 @@ export interface ActivityActions {
   onAddAssignee: (activity: Activity, userId: string) => Promise<boolean>;
   onRemoveAssignee: (activity: Activity, userId: string) => void;
   onAddLink: (activity: Activity, url: string) => Promise<boolean>;
+  onAddDocument: (activity: Activity, documentId: string) => Promise<boolean>;
   onRemoveLink: (activity: Activity, attachmentId: string) => void;
 }
 
@@ -23,13 +26,16 @@ interface ActivityCardProps extends ActivityActions {
   canManage: boolean;
   canReview: boolean;
   busy: boolean;
+  /** Documentos del proyecto para adjuntarlos a la actividad. */
+  documents: ProjectDocumentsState;
 }
 
 const selectClassName = 'min-h-10 rounded-lg border border-navy/30 bg-white px-2 text-sm text-navy';
 
-export function ActivityCard({ activity, students, currentUserId, canManage, canReview, busy, ...actions }: ActivityCardProps) {
+export function ActivityCard({ activity, students, currentUserId, canManage, canReview, busy, documents, ...actions }: ActivityCardProps) {
   const [assigneeId, setAssigneeId] = useState('');
   const [url, setUrl] = useState('');
+  const [documentId, setDocumentId] = useState('');
   const isAssignee = activity.assignees.some((item) => item.user.id === currentUserId);
   const canProgress = canManage || isAssignee;
   const canLinks = canManage || isAssignee;
@@ -37,6 +43,8 @@ export function ActivityCard({ activity, students, currentUserId, canManage, can
   const candidates = students.filter((item) => !assignedIds.has(item.user.id));
   const canDecide = activity.progressStatus === 'DONE';
   const approvalHintId = useId();
+  const attachedDocumentIds = new Set(activity.attachments.flatMap((item) => (item.documentId ? [item.documentId] : [])));
+  const availableDocuments = documents.items.filter((item) => !attachedDocumentIds.has(item.id));
 
   const assign = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -45,6 +53,10 @@ export function ActivityCard({ activity, students, currentUserId, canManage, can
   const attach = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (await actions.onAddLink(activity, url.trim())) setUrl('');
+  };
+  const attachDocument = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (await actions.onAddDocument(activity, documentId)) setDocumentId('');
   };
 
   return (
@@ -122,13 +134,24 @@ export function ActivityCard({ activity, students, currentUserId, canManage, can
       </div>
 
       <div className="mt-4">
-        <h4 className="text-sm font-semibold">Enlaces adjuntos</h4>
-        {activity.attachments.length === 0 ? <p className="mt-1 text-sm text-navy/70">Sin enlaces.</p> : (
+        <h4 className="text-sm font-semibold">Adjuntos</h4>
+        {activity.attachments.length === 0 ? <p className="mt-1 text-sm text-navy/70">Sin adjuntos.</p> : (
           <ul className="mt-1 space-y-2 text-sm">
             {activity.attachments.map((item) => (
-              <li key={item.id} className="flex items-center justify-between gap-2">
-                {item.url ? <a href={item.url} target="_blank" rel="noopener noreferrer" className="break-all text-navy underline">{item.url}</a> : <span>Documento no disponible</span>}
-                {canLinks && <Button type="button" variant="secondary" disabled={busy} onClick={() => actions.onRemoveLink(activity, item.id)}><X aria-hidden="true" className="size-4" />Quitar enlace</Button>}
+              <li key={item.id} className="flex flex-wrap items-center justify-between gap-2">
+                {item.kind === 'DOCUMENT' ? (
+                  item.document ? (
+                    <span className="flex min-w-0 flex-wrap items-center gap-2">
+                      <span className="break-all">{item.document.fileName}</span>
+                      <a href={documentUrl(item.document.id)} aria-label={`Descargar ${item.document.fileName}`} className="inline-flex items-center gap-1 font-semibold text-navy underline">
+                        <Download aria-hidden="true" className="size-4" />Descargar
+                      </a>
+                    </span>
+                  ) : <span>Documento no disponible</span>
+                ) : item.url ? (
+                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="break-all text-navy underline">{item.url}</a>
+                ) : <span>Enlace no disponible</span>}
+                {canLinks && <Button type="button" variant="secondary" disabled={busy} onClick={() => actions.onRemoveLink(activity, item.id)}><X aria-hidden="true" className="size-4" />{item.kind === 'DOCUMENT' ? 'Quitar documento' : 'Quitar enlace'}</Button>}
               </li>
             ))}
           </ul>
@@ -138,6 +161,26 @@ export function ActivityCard({ activity, students, currentUserId, canManage, can
             <Field label={`Enlace http(s) para ${activity.title}`} type="url" value={url} maxLength={2048} onChange={(event) => setUrl(event.target.value)} required />
             <Button type="submit" disabled={busy}><LinkIcon aria-hidden="true" className="size-4" />Adjuntar enlace</Button>
           </form>
+        )}
+        {canLinks && (
+          <div className="mt-4">
+            {documents.status === 'loading' && <LoadingState label="Cargando documentos del proyecto…" />}
+            {documents.status === 'error' && <ErrorNotice error={documents.error} />}
+            {documents.status === 'ready' && documents.items.length === 0 && (
+              <EmptyState title="Sin documentos en el proyecto" description="Sube documentos en la sección Documentos para adjuntarlos aquí." />
+            )}
+            {documents.status === 'ready' && documents.items.length > 0 && (
+              <form className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end" onSubmit={(event) => void attachDocument(event)}>
+                <label className="block space-y-2 text-sm font-semibold">Documento del proyecto para {activity.title}
+                  <select className={inputClassName} value={documentId} disabled={busy} onChange={(event) => setDocumentId(event.target.value)} required>
+                    <option value="">Seleccionar documento</option>
+                    {availableDocuments.map((item) => <option key={item.id} value={item.id}>{item.fileName}</option>)}
+                  </select>
+                </label>
+                <Button type="submit" disabled={busy || documentId === ''}><Paperclip aria-hidden="true" className="size-4" />Adjuntar documento</Button>
+              </form>
+            )}
+          </div>
         )}
       </div>
     </article>

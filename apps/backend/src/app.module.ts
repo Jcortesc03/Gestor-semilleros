@@ -10,8 +10,9 @@ import { NotificationsModule } from './modules/notifications';
 import { MeetingsModule } from './modules/meetings';
 import { DashboardModule } from './modules/dashboard';
 import { FacultiesModule } from './modules/faculties';
+import { DocumentsModule } from './modules/documents';
 
 @Module({
-  imports: [ConfigModule, DatabaseModule, AuthModule, UsersModule, ProjectsModule, BoardsModule, IntegrationsModule, NotificationsModule, MeetingsModule, DashboardModule, FacultiesModule],
+  imports: [ConfigModule, DatabaseModule, AuthModule, UsersModule, ProjectsModule, BoardsModule, IntegrationsModule, NotificationsModule, MeetingsModule, DashboardModule, FacultiesModule, DocumentsModule],
 })
 export class AppModule {}

@@ -15,6 +15,7 @@ const members = [makeMember(30, 'Tutor de Ejemplo', 'TUTOR'), makeMember(31, 'Es
 const projectRoutes = (id: string, boards: unknown[], activities: Record<string, unknown[]> = {}) => ({
   [`GET /api/projects/${id}/boards`]: () => boards,
   [`GET /api/projects/${id}/members`]: () => members,
+  [`GET /api/projects/${id}/documents`]: () => [],
   ...Object.fromEntries(Object.entries(activities).map(([boardId, list]) => [`GET /api/boards/${boardId}/activities`, () => list])),
 });
 

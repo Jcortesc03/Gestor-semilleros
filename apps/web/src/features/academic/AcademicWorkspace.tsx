@@ -12,6 +12,7 @@ import { ProjectList } from './ProjectList.tsx';
 import { canCreateProject, resolvePermissions } from './permissions.ts';
 import { useAcademicData } from './useAcademicData.ts';
 import { useAction } from './useAction.ts';
+import { useProjectDocuments } from '../documents/index.ts';
 
 export interface AcademicWorkspaceProps { user: CurrentUser; request: ApiRequest }
 
@@ -19,6 +20,7 @@ const confirmAction = (message: string) => window.confirm(message);
 
 export function AcademicWorkspace({ user, request }: AcademicWorkspaceProps) {
   const data = useAcademicData(request);
+  const documents = useProjectDocuments(request, data.projectId);
   const { busy, error: actionError, run } = useAction();
   const { projects, projectId, boardId, boards, members, activities } = data;
 
@@ -81,11 +83,13 @@ export function AcademicWorkspace({ user, request }: AcademicWorkspaceProps) {
             user={user}
             project={project}
             canManage={can.manageProject}
+            canDeleteAnyDocument={can.deleteAnyDocument}
             busy={busy}
             onSave={(changes) => run(
               () => api.updateProject(request, project.id, changes),
               () => data.reloadList({ silent: true }),
             )}
+            onDocumentsChanged={documents.reload}
             onDelete={() => {
               if (!confirmAction('¿Archivar este proyecto? Dejará de aparecer en los listados.')) return;
               void run(() => api.deleteProject(request, project.id), () => data.reloadList({ silent: true }));
@@ -161,6 +165,7 @@ export function AcademicWorkspace({ user, request }: AcademicWorkspaceProps) {
                   canManage={can.manageActivities}
                   canReview={can.review}
                   busy={busy}
+                  documents={documents}
                   onCreate={(title, description) => run(() => api.createActivity(request, board.id, { title, description }), reloadBoth)}
                   onProgress={(item, status) => void run(() => api.updateActivity(request, item.id, { progressStatus: status }), data.reloadActivities)}
                   onApproval={(item, status) => void run(() => api.approveActivity(request, item.id, status), data.reloadActivities)}
@@ -172,6 +177,7 @@ export function AcademicWorkspace({ user, request }: AcademicWorkspaceProps) {
                   onAddAssignee={(item, userId) => run(() => api.addAssignee(request, item.id, userId), data.reloadActivities)}
                   onRemoveAssignee={(item, userId) => void run(() => api.removeAssignee(request, item.id, userId), data.reloadActivities)}
                   onAddLink={(item, url) => run(() => Promise.resolve().then(() => api.addAttachment(request, item.id, url)), data.reloadActivities)}
+                  onAddDocument={(item, documentId) => run(() => api.addDocumentAttachment(request, item.id, documentId), data.reloadActivities)}
                   onRemoveLink={(item, attachmentId) => void run(() => api.removeAttachment(request, item.id, attachmentId), data.reloadActivities)}
                 />
               )}

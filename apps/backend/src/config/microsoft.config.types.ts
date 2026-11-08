@@ -1,6 +1,6 @@
 /** Integración con Microsoft Teams mediante Microsoft Graph (OAuth delegado, ADR 0007). */
 export interface MicrosoftConfig {
-  /** Inquilino de Entra ID: un GUID, un dominio, o `organizations` (cuentas laborales o educativas). */
+  /** Inquilino de Entra ID: un GUID, un dominio, `common` (por defecto: cuentas laborales, educativas y personales) u `organizations` (solo laborales o educativas). */
   tenantId: string;
   clientId: string;
   clientSecret: string;

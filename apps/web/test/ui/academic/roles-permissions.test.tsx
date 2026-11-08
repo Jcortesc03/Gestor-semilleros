@@ -23,6 +23,7 @@ function routes(activities: unknown[]) {
     'GET /api/projects': () => [p1],
     [`GET /api/projects/${p1.id}/boards`]: () => [b1],
     [`GET /api/projects/${p1.id}/members`]: () => members,
+    [`GET /api/projects/${p1.id}/documents`]: () => [],
     [`GET /api/boards/${b1.id}/activities`]: () => activities,
     'GET /api/areas': () => [{ id: uuid(1), name: 'Área de prueba', description: null }],
     'GET /api/areas?scope=managed': () => [{ id: uuid(1), name: 'Área de prueba', description: null }],

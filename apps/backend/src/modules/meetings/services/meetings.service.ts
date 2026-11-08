@@ -26,6 +26,8 @@ import {
 import { canChangeStatus, meetingEndsAt, STATUS_LABELS } from '../models/meeting-status';
 
 export const MEETING_NOT_FOUND = 'Reunión no encontrada.';
+export const JOIN_URL_REQUIRED = 'Con una cuenta personal de Microsoft debes indicar el enlace de la reunión.';
+export const JOIN_URL_NOT_ALLOWED = 'Con una cuenta laboral o educativa el enlace lo genera Microsoft Teams; no envíes joinUrl.';
 export const FORBIDDEN_MESSAGE = 'No tienes permisos para realizar esta acción.';
 
 type Tx = Prisma.TransactionClient;
@@ -54,12 +56,22 @@ export class MeetingsService {
     const project = dto.projectId ? await this.assertCanScheduleFor(user, dto.projectId) : null;
     const participants = await this.loadParticipants(user, dto.participantIds, project?.id ?? null);
 
+    // ADR 0014: el enlace lo genera Teams (cuenta laboral o educativa) o lo indica el organizador (personal).
+    const accountType = await this.teams.accountTypeOf(user.id);
+    if (accountType === 'WORK_OR_SCHOOL' && dto.joinUrl !== null) {
+      throw new BadRequestException({ message: 'Datos inválidos.', errors: [JOIN_URL_NOT_ALLOWED] });
+    }
+    if (accountType === 'PERSONAL' && dto.joinUrl === null) {
+      throw new BadRequestException({ message: 'Datos inválidos.', errors: [JOIN_URL_REQUIRED] });
+    }
+
     const info: MeetingInfo = {
       reason: dto.reason,
       startsAt: dto.startsAt,
       durationMinutes: dto.durationMinutes,
       organizerName: user.fullName,
-      joinUrl: null,
+      // Con cuenta personal el enlace ya se conoce y va en el cuerpo del evento.
+      joinUrl: accountType === 'PERSONAL' ? dto.joinUrl : null,
       projectTitle: project?.title ?? null,
     };
 
@@ -70,8 +82,9 @@ export class MeetingsService {
       startsAt: dto.startsAt,
       durationMinutes: dto.durationMinutes,
       attendees: participants.map((p) => ({ email: p.email, name: p.fullName })),
+      joinUrl: accountType === 'PERSONAL' ? dto.joinUrl : null,
     });
-    info.joinUrl = event.joinUrl;
+    info.joinUrl = event.joinUrl; // personal: es el mismo enlace del organizador
 
     // 2) Registro local + avisos en una transacción; si falla, se cancela el evento de Teams.
     let meetingId: string;

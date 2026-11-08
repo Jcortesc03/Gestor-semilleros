@@ -15,7 +15,7 @@ export class TeamsMeetingsService {
   ) {}
 
   /**
-   * Crea el evento con enlace de Teams. Responde 503 si la integración no está configurada,
+   * Crea el evento con enlace de Teams (o con el `joinUrl` del organizador si es cuenta personal). Responde 503 si la integración no está configurada,
    * 409 si el organizador no tiene cuenta vinculada y 502/422 si Microsoft falla.
    */
   async create(organizerId: string, input: OnlineEventInput): Promise<OnlineEvent> {
@@ -29,6 +29,11 @@ export class TeamsMeetingsService {
       this.logger.warn(`No se pudo crear la reunión en Teams: ${String((error as Error).message)}`);
       throw new BadGatewayException('No se pudo crear la reunión en Microsoft Teams; inténtalo de nuevo.');
     }
+  }
+
+  /** Tipo de la cuenta de Microsoft vinculada del organizador (`null` si no tiene). */
+  accountTypeOf(organizerId: string) {
+    return this.accounts.accountTypeOf(organizerId);
   }
 
   /** Cancela el evento en Teams (avisa a los invitados). Devuelve false si no se pudo. */

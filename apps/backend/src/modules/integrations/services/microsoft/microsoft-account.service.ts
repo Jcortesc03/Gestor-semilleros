@@ -10,7 +10,14 @@ import type { MicrosoftConfig } from '../../../../config/microsoft.config.types'
 import { PrismaService } from '../../../../database/prisma.service';
 import { TokenCipher } from '../../models/token-cipher';
 import { createPkcePair } from './microsoft-oauth.client';
-import { MicrosoftAuthError, type MicrosoftProfile, type MicrosoftTokens } from './microsoft.types';
+import {
+  accountKindFromTenantId,
+  MicrosoftAuthError,
+  tenantIdFromIdToken,
+  type MicrosoftAccountKind,
+  type MicrosoftProfile,
+  type MicrosoftTokens,
+} from './microsoft.types';
 
 /** Tokens de inyección (las pruebas los reemplazan por implementaciones falsas). */
 export const MICROSOFT_CONFIG = Symbol('MICROSOFT_CONFIG');
@@ -45,6 +52,8 @@ export interface MicrosoftLinkStatus {
   linked: boolean;
   email: string | null;
   linkedAt: string | null;
+  /** Tipo de cuenta vinculada (`null` si no hay cuenta). */
+  accountType: MicrosoftAccountKind | null;
 }
 
 /**
@@ -72,14 +81,21 @@ export class MicrosoftAccountService {
   async status(userId: string): Promise<MicrosoftLinkStatus> {
     const account = await this.prisma.microsoftAccount.findUnique({
       where: { userId },
-      select: { email: true, linkedAt: true },
+      select: { email: true, linkedAt: true, accountType: true },
     });
     return {
       configured: this.configured,
       linked: account !== null,
       email: account?.email ?? null,
       linkedAt: account?.linkedAt.toISOString() ?? null,
+      accountType: account?.accountType ?? null,
     };
+  }
+
+  /** Tipo de la cuenta vinculada del usuario (`null` si no tiene cuenta). */
+  async accountTypeOf(userId: string): Promise<MicrosoftAccountKind | null> {
+    const account = await this.prisma.microsoftAccount.findUnique({ where: { userId }, select: { accountType: true } });
+    return account?.accountType ?? null;
   }
 
   /** URL de Microsoft a la que se envía al usuario para dar su consentimiento. */
@@ -114,9 +130,13 @@ export class MicrosoftAccountService {
     });
     if (owner && owner.userId !== userId) throw new ConflictException(ACCOUNT_TAKEN);
 
+    const tid = tenantIdFromIdToken(tokens.idToken);
+    if (tid === null) this.logger.warn('La respuesta de token no trajo un id_token legible; se asume una cuenta laboral o educativa.');
+
     const data = {
       microsoftUserId: profile.id,
       email: profile.email,
+      accountType: accountKindFromTenantId(tid),
       ...this.encryptTokens(tokens),
     };
     await this.prisma.microsoftAccount.upsert({

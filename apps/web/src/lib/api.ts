@@ -86,17 +86,20 @@ export function createApiRequest(
       throw new ApiError(0);
     }
 
+    // FormData (subidas multipart) se envía tal cual: el navegador añade el Content-Type con su boundary.
+    const isForm = options.body instanceof FormData;
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (options.body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
+    const payload = isForm ? options.body : options.body === undefined ? undefined : JSON.stringify(options.body);
+
     let response: Response;
     try {
       response = await fetcher(path, {
         method: options.method ?? 'GET',
         credentials: 'same-origin',
         cache: 'no-store',
-        headers: {
-          Accept: 'application/json',
-          ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
-        },
-        ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+        headers,
+        ...(payload === undefined ? {} : { body: payload as BodyInit }),
       });
     } catch {
       throw new ApiError(0);

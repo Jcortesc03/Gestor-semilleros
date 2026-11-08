@@ -60,7 +60,7 @@ describe('loadMicrosoftConfig', () => {
     });
 
     expect(config).toEqual({
-      tenantId: 'organizations',
+      tenantId: 'common',
       clientId: 'cliente',
       clientSecret: CLIENT_SECRET,
       redirectUri: 'https://api.example.test/callback',

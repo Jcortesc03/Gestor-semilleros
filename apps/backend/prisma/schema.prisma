@@ -599,6 +599,12 @@ model MeetingParticipant {
   @@map("meeting_participants")
 }
 
+/// Tipo de cuenta de Microsoft vinculada (ADR 0014).
+enum MicrosoftAccountType {
+  WORK_OR_SCHOOL
+  PERSONAL
+}
+
 /// Cuenta de Microsoft vinculada (OAuth delegado con Microsoft Graph, ADR 0007). Los tokens se
 /// guardan cifrados con AES-256-GCM (MICROSOFT_TOKEN_ENCRYPTION_KEY); nunca en claro.
 model MicrosoftAccount {
@@ -610,6 +616,8 @@ model MicrosoftAccount {
   refreshTokenEncrypted String   @map("refresh_token_encrypted")
   accessTokenExpiresAt  DateTime @map("access_token_expires_at")
   scopes                String
+  /// Tipo de cuenta según el `tid` del token de identidad (ADR 0014).
+  accountType           MicrosoftAccountType @default(WORK_OR_SCHOOL) @map("account_type")
   linkedAt              DateTime @default(now()) @map("linked_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 

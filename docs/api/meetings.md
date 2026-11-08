@@ -1,6 +1,6 @@
 # API de reuniones (Microsoft Teams)
 
-> **Estado:** implementado en `apps/backend/src/modules/meetings/` (con la parte de Microsoft en `apps/backend/src/modules/integrations/`) y cubierto por `apps/backend/test/meetings.e2e-spec.ts`. Los parsers de entrada tienen pruebas unitarias (`dtos/meeting.dto.spec.ts`). Decisión: [ADR 0007](../decisions/0007-reuniones-con-microsoft-teams.md).
+> **Estado:** implementado en `apps/backend/src/modules/meetings/` (con la parte de Microsoft en `apps/backend/src/modules/integrations/`) y cubierto por `apps/backend/test/meetings.e2e-spec.ts`. Los parsers de entrada tienen pruebas unitarias (`dtos/meeting.dto.spec.ts`). Decisiones: [ADR 0007](../decisions/0007-reuniones-con-microsoft-teams.md) y [ADR 0014](../decisions/0014-cuentas-personales-de-microsoft.md) (`joinUrl` según el tipo de cuenta, implementado).
 > Vinculación de la cuenta de Microsoft: [`microsoft.md`](microsoft.md). Avisos y preferencias: [`notification-preferences.md`](notification-preferences.md). Proyectos y participantes: [`projects.md`](projects.md). Autenticación: [`auth.md`](auth.md).
 
 Todas las rutas requieren una sesión válida (cookie de Auth.js). El prefijo global es `/api`.
@@ -104,6 +104,13 @@ Mensajes de participantes (`400`, tras validar el cuerpo):
 - `Indica al menos un participante distinto del organizador.`
 - `Todos los participantes deben ser usuarios activos y miembros activos del proyecto.` (con proyecto)
 - `Alguno de los participantes no existe o no está activo.` (sin proyecto)
+
+### Enlace de la reunión según el tipo de cuenta ([ADR 0014](../decisions/0014-cuentas-personales-de-microsoft.md))
+
+| Cuenta del organizador | `joinUrl` en el cuerpo | Resultado |
+| --- | --- | --- |
+| `WORK_OR_SCHOOL` | No se admite (`400`) | Evento con Teams; Microsoft genera el enlace |
+| `PERSONAL` | **Obligatorio**: `https://…`, hasta 2048 caracteres (`400` si falta o no es válido) | Evento en Outlook sin reunión en línea, con el enlace en la ubicación y en el cuerpo; `joinUrl` se guarda tal cual |
 
 ### Ejemplo
 

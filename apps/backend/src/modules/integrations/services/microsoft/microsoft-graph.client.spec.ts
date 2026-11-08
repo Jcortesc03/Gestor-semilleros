@@ -51,6 +51,26 @@ describe('MicrosoftGraphClient', () => {
   });
 
   describe('createOnlineEvent', () => {
+    it('cuenta laboral: pide la reunión de Teams y no envía ubicación', async () => {
+      fetchFn.mockResolvedValue(jsonResponse({ id: 'ev-w', onlineMeeting: { joinUrl: 'https://teams.example.test/j' } }, 201));
+      await client.createOnlineEvent(TOKEN, input);
+      const sent = JSON.parse((fetchFn.mock.calls[0] as [string, RequestInit])[1].body as string) as Record<string, unknown>;
+      expect(sent).toMatchObject({ isOnlineMeeting: true, onlineMeetingProvider: 'teamsForBusiness' });
+      expect(sent).not.toHaveProperty('location');
+    });
+
+    it('cuenta personal: sin Teams, con el enlace en la ubicación y sin exigir enlace de Teams', async () => {
+      fetchFn.mockResolvedValue(jsonResponse({ id: 'ev-p', webLink: 'https://outlook.example.test/ev-p' }, 201));
+      const link = 'https://meet.example.test/sala';
+      const event = await client.createOnlineEvent(TOKEN, { ...input, body: `Texto ${link}`, joinUrl: link });
+      expect(event).toEqual({ eventId: 'ev-p', joinUrl: link, webLink: 'https://outlook.example.test/ev-p' });
+      const sent = JSON.parse((fetchFn.mock.calls[0] as [string, RequestInit])[1].body as string) as Record<string, unknown>;
+      expect(sent).not.toHaveProperty('isOnlineMeeting');
+      expect(sent).not.toHaveProperty('onlineMeetingProvider');
+      expect(sent.location).toEqual({ displayName: link });
+      expect((sent.body as { content: string }).content).toContain(link);
+    });
+
     it('envía el evento con el cuerpo, headers y zona UTC exactos', async () => {
       fetchFn.mockResolvedValue(
         jsonResponse({ id: 'ev-1', webLink: 'https://outlook.example.test/ev-1', onlineMeeting: { joinUrl: 'https://teams.example.test/join' } }, 201),

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   changeMeetingStatus, createMeeting, getMeeting, getMeetingProjects, getMeetings, getMicrosoftConnectUrl,
-  getMicrosoftStatus, getProjectMembers, setMeetingRecording, unlinkMicrosoft,
+  getMicrosoftStatus, getProjectMembers, parseMicrosoftStatus, setMeetingRecording, unlinkMicrosoft,
 } from '../src/features/meetings/api.ts';
 
 function mockApiRequest(response: unknown) {
@@ -25,6 +25,25 @@ test('reads Microsoft status and validates its shape', async () => {
   assert.equal((await getMicrosoftStatus(mock.request)).linked, false);
   assert.equal(mock.calls[0].path, '/api/integrations/microsoft/status');
   await assert.rejects(() => getMicrosoftStatus(mockApiRequest({ configured: 'yes' }).request));
+});
+
+test('reads accountType from status: WORK_OR_SCHOOL, PERSONAL, or null when absent or null', async () => {
+  const base = { configured: true, linked: true, email: 'tutor@example.test', linkedAt: '2026-11-06T15:00:00.000Z' };
+  const work = mockApiRequest({ ...base, accountType: 'WORK_OR_SCHOOL' });
+  assert.equal((await getMicrosoftStatus(work.request)).accountType, 'WORK_OR_SCHOOL');
+  assert.equal((await getMicrosoftStatus(mockApiRequest({ ...base, accountType: 'PERSONAL' }).request)).accountType, 'PERSONAL');
+  assert.equal((await getMicrosoftStatus(mockApiRequest({ ...base, accountType: null }).request)).accountType, null);
+  assert.equal((await getMicrosoftStatus(mockApiRequest(base).request)).accountType, null);
+  assert.equal(parseMicrosoftStatus({ configured: false, linked: false, email: null, linkedAt: null }).accountType, null);
+  assert.throws(() => parseMicrosoftStatus({ ...base, accountType: 'OTRO' }));
+  assert.throws(() => parseMicrosoftStatus({ ...base, accountType: 1 }));
+});
+
+test('sends joinUrl in the create body only when provided', async () => {
+  const mock = mockApiRequest(meeting);
+  const body = { reason: 'Revisión', startsAt: '2026-11-20T20:00:00.000Z', durationMinutes: 60, projectId: null, participantIds: ['u-2'], joinUrl: 'https://meet.example.test/abc' };
+  await createMeeting(mock.request, body);
+  assert.deepEqual(mock.calls[0].options, { method: 'POST', body });
 });
 
 test('asks the connect URL in JSON format and only accepts https', async () => {

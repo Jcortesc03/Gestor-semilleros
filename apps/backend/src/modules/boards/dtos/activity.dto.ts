@@ -39,6 +39,15 @@ export interface AttachmentLinkDto {
   url: string;
 }
 
+/** Cuerpo validado para adjuntar un documento del proyecto a una actividad (ADR 0013). */
+export interface AttachmentDocumentDto {
+  documentId: string;
+}
+
+export type AttachmentDto =
+  | ({ kind: 'LINK' } & AttachmentLinkDto)
+  | ({ kind: 'DOCUMENT' } & AttachmentDocumentDto);
+
 const MAX_TITLE_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 5000;
 const MAX_URL_LENGTH = 2048;
@@ -226,4 +235,28 @@ export function parseAttachmentLink(input: unknown): ValidationResult<Attachment
 
   if (errors.length > 0) return fail(errors);
   return ok({ url: url as string });
+}
+
+/**
+ * Valida un adjunto: `{ kind: "LINK", url }` o `{ kind: "DOCUMENT", documentId }`.
+ * Sin `kind` se interpreta como enlace (compatibilidad con `{ url }`).
+ */
+export function parseAttachment(input: unknown): ValidationResult<AttachmentDto> {
+  const body = asObject(input);
+  if (body === null) return fail(['El cuerpo debe ser un objeto JSON.']);
+
+  const { kind, ...rest } = body;
+  if (kind === undefined || kind === 'LINK') {
+    const link = parseAttachmentLink(rest);
+    return link.ok ? ok({ kind: 'LINK', url: link.value.url }) : link;
+  }
+  if (kind !== 'DOCUMENT') return fail(['kind no es válido. Valores permitidos: LINK, DOCUMENT.']);
+
+  const errors: string[] = [];
+  const unknownFields = unknownFieldsError(rest, ['documentId']);
+  if (unknownFields !== null) errors.push(unknownFields);
+  if (rest.documentId === undefined) errors.push('documentId es obligatorio.');
+  else if (!isUuid(rest.documentId)) errors.push('documentId debe ser un UUID válido.');
+  if (errors.length > 0) return fail(errors);
+  return ok({ kind: 'DOCUMENT', documentId: rest.documentId as string });
 }

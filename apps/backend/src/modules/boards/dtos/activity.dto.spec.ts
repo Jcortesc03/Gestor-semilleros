@@ -1,6 +1,7 @@
 import {
   parseApproval,
   parseAssignee,
+  parseAttachment,
   parseAttachmentLink,
   parseCreateActivity,
   parseUpdateActivity,
@@ -230,5 +231,30 @@ describe('parseAttachmentLink', () => {
     expect(linkErrors({ url: 'https://example.test', kind: 'LINK' })).toEqual([
       'Campos no permitidos: kind.',
     ]);
+  });
+});
+
+describe('parseAttachment', () => {
+  const DOC_ID = '3f1b6f1e-9d2a-4c3b-8a7e-0f1d2c3b4a59';
+  const errors = (input: unknown) => {
+    const result = parseAttachment(input);
+    return result.ok ? [] : result.errors;
+  };
+
+  it('acepta enlaces con o sin kind', () => {
+    expect(parseAttachment({ kind: 'LINK', url: 'https://example.test/a' })).toEqual({ ok: true, value: { kind: 'LINK', url: 'https://example.test/a' } });
+    expect(parseAttachment({ url: 'https://example.test/a' })).toEqual({ ok: true, value: { kind: 'LINK', url: 'https://example.test/a' } });
+  });
+
+  it('acepta documentos', () => {
+    expect(parseAttachment({ kind: 'DOCUMENT', documentId: DOC_ID })).toEqual({ ok: true, value: { kind: 'DOCUMENT', documentId: DOC_ID } });
+  });
+
+  it('valida kind, documentId y campos extra', () => {
+    expect(errors({ kind: 'OTRO' })).toEqual(['kind no es válido. Valores permitidos: LINK, DOCUMENT.']);
+    expect(errors({ kind: 'DOCUMENT' })).toEqual(['documentId es obligatorio.']);
+    expect(errors({ kind: 'DOCUMENT', documentId: 'x' })).toEqual(['documentId debe ser un UUID válido.']);
+    expect(errors({ kind: 'DOCUMENT', documentId: DOC_ID, url: 'https://example.test' })).toEqual(['Campos no permitidos: url.']);
+    expect(errors({ kind: 'LINK', documentId: DOC_ID })).toContain('Campos no permitidos: documentId.');
   });
 });

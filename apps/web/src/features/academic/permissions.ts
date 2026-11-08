@@ -15,6 +15,8 @@ export interface AcademicPermissions {
   manageBoards: boolean;
   manageActivities: boolean;
   review: boolean;
+  /** Eliminar documentos de cualquier autor: tutor activo del proyecto o quien gestiona (`docs/api/documents.md`). */
+  deleteAnyDocument: boolean;
 }
 
 export function resolvePermissions(user: CurrentUser, members: Member[]): AcademicPermissions {
@@ -33,6 +35,7 @@ export function resolvePermissions(user: CurrentUser, members: Member[]): Academ
     manageBoards: isAdmin || isTutor,
     manageActivities: isAdmin || isTutor || isLeader,
     review: isAdmin || isTutor,
+    deleteAnyDocument: isProjectAuthority || isTutor,
   };
 }
 
