@@ -101,6 +101,7 @@ Detalles de la imagen:
 - **Volúmenes:** `postgres-data` (base de datos) y `whatsapp-sessions`, montado en `/app/whatsapp_sessions`. Si cambias `WHATSAPP_SESSION_NAME`, ajusta esa ruta en el compose.
 - **Tamaño (~876 MB):** la imagen incluye el CLI de Prisma para poder migrar al arrancar. En la imagen, `prisma` se mueve a dependencias de producción solo durante la construcción; el `package.json` del repositorio no cambia.
 - **Documentos:** configura las variables `S3_*` de AWS en `docker/.env.prod`. nginx admite subidas de hasta 26 MB.
+- **Probar sin AWS:** el perfil `s3-local` añade un RustFS interno. En `docker/.env.prod` usa `S3_ENDPOINT=http://s3:9000`, `S3_FORCE_PATH_STYLE=true` y `S3_CREATE_BUCKET=true`, define un usuario y una clave en `S3_ACCESS_KEY_ID` y `S3_SECRET_ACCESS_KEY` (RustFS las toma como su administrador) y levanta con `--profile s3-local`. La consola queda en `http://127.0.0.1:${S3_CONSOLE_PORT}` (9001 por defecto; cámbialo si `pnpm db:up` ya ocupa ese puerto).
 - **HTTPS:** el compose no lo gestiona. Pon un proxy o balanceador con TLS delante del puerto publicado y usa esa URL pública en Google y Microsoft.
 - **Copias de seguridad:** no están automatizadas. Por ejemplo: `dc exec postgres pg_dump -U semilleros semilleros > respaldo.sql`.
 

@@ -1,5 +1,5 @@
 import { createReadStream, existsSync } from 'node:fs';
-import { Controller, Get, Inject, NotFoundException, StreamableFile, UseGuards } from '@nestjs/common';
+import { Controller, Get, Header, Inject, NotFoundException, StreamableFile, UseGuards } from '@nestjs/common';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { SessionGuard } from '../../../common/guards/session.guard';
@@ -30,6 +30,8 @@ export class WhatsAppController {
 
   /** PNG del QR a escanear desde WhatsApp → Dispositivos vinculados. */
   @Get('qr')
+  // El QR caduca a los pocos segundos: el navegador no debe reutilizar una imagen anterior.
+  @Header('Cache-Control', 'no-store')
   qr(): StreamableFile {
     const path = this.gateway?.qrImagePath();
     if (!path || !existsSync(path)) throw new NotFoundException('No hay un QR pendiente de escanear.');

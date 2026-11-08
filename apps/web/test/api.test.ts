@@ -158,3 +158,7 @@ test('ApiError ignora los mensajes por defecto de NestJS en inglés', () => {
   assert.equal(new ApiError(403, { message: 'Forbidden resource' }).message, 'No tienes permiso para realizar esta acción.');
   assert.equal(new ApiError(403, { message: 'Solo el tutor del proyecto puede aprobar.' }).message, 'Solo el tutor del proyecto puede aprobar.');
 });
+
+test('ApiError da un mensaje claro para 413 sin cuerpo JSON (lo corta el proxy)', () => {
+  assert.equal(new ApiError(413).message, 'El archivo supera el tamaño máximo permitido.');
+});

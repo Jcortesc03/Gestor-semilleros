@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { listProjects, createProject, listBoards, createActivity, approveActivity, addAttachment, parseProject } from '../src/features/academic/api.ts';
+import { listProjects, createProject, listBoards, createActivity, approveActivity, addAttachment, parseProject, parseActivity } from '../src/features/academic/api.ts';
 
 const project = {
   id: '00000000-0000-0000-0000-000000000010', title: 'Proyecto', description: null, status: 'ACTIVE',
@@ -51,4 +51,12 @@ test('attachment adapter rejects unsafe protocols before making a request', asyn
   const request = async () => { called = true; return activity; };
   assert.throws(() => addAttachment(request, activity.id, 'javascript:alert(1)'), /http o https/i);
   assert.equal(called, false);
+});
+
+test('parseActivity lee los encargados con la forma real del backend ({ id, fullName })', () => {
+  const parsed = parseActivity({
+    ...activity,
+    assignees: [{ id: '00000000-0000-0000-0000-000000000031', fullName: 'Estudiante Encargado' }],
+  });
+  assert.deepEqual(parsed.assignees, [{ user: { id: '00000000-0000-0000-0000-000000000031', fullName: 'Estudiante Encargado' } }]);
 });

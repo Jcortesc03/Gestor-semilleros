@@ -44,6 +44,26 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      s3:
+        condition: service_started
+        required: false   # solo existe con el perfil s3-local
+
+  # S3 compatible local (RustFS) para probar el despliegue sin AWS. Opcional:
+  #   docker compose ... --profile s3-local up -d --build
+  # En producción con AWS S3 no actives el perfil y deja S3_ENDPOINT vacío.
+  s3:
+    image: rustfs/rustfs:1.0.4
+    profiles: ["s3-local"]
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY_ID:?Define S3_ACCESS_KEY_ID en docker/.env.prod}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_ACCESS_KEY:?Define S3_SECRET_ACCESS_KEY en docker/.env.prod}
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      # Consola web solo en la máquina local: http://127.0.0.1:${S3_CONSOLE_PORT:-9001}
+      - "127.0.0.1:${S3_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - s3-data:/data
 
   web:
     build:
@@ -62,3 +82,4 @@ services:
 volumes:
   postgres-data:
   whatsapp-sessions:
+  s3-data:
