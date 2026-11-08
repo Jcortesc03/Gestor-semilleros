@@ -32,7 +32,8 @@ export function createAuthConfig(env: AppEnv, auth: AuthService): ExpressAuthCon
       },
       authorize: async (credentials) => {
         const user = await auth.authenticateWithPassword(credentials);
-        return user ? { id: user.id, email: user.email, name: user.fullName } : null;
+        return user ? { id: user.id, email: user.email, name: user.fullName,
+          ...(user.passwordResetAt ? { passwordResetVersion: user.passwordResetAt } : {}) } : null;
       },
     }),
   ];
@@ -72,11 +73,14 @@ export function createAuthConfig(env: AppEnv, auth: AuthService): ExpressAuthCon
           const resolved =
             account.provider === 'google' ? await auth.resolveGoogleUser(profile as GoogleProfile) : null;
           token.sub = resolved?.id ?? user.id;
+          const version = resolved?.passwordResetAt ?? user.passwordResetVersion;
+          if (typeof version === 'number') token.passwordResetVersion = version;
         }
         return token;
       },
       async session({ session, token }) {
         if (token.sub) session.user.id = token.sub;
+        if (typeof token.passwordResetVersion === 'number') session.passwordResetVersion = token.passwordResetVersion;
         return session;
       },
     },

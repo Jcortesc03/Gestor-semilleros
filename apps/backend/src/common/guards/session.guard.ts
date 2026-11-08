@@ -32,6 +32,9 @@ export class SessionGuard implements CanActivate {
 
     const user = await this.auth.findActiveUser(userId);
     if (!user) throw new UnauthorizedException('Sesión no válida o expirada.');
+    if ((session?.passwordResetVersion ?? 0) !== (user.passwordResetAt ?? 0)) {
+      throw new UnauthorizedException('Sesión no válida o expirada.');
+    }
 
     if (user.mustChangePassword) {
       const allowed = this.reflector.getAllAndOverride<boolean | undefined>(ALLOW_PASSWORD_CHANGE_KEY, [

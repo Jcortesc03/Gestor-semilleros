@@ -5,11 +5,16 @@ import { MeController } from './controllers/me.controller';
 import { AUTH_CONFIG, createAuthConfig } from './services/auth-config.factory';
 import { AuthService } from './services/auth.service';
 import { PasswordService } from './services/password.service';
+import { PasswordRecoveryController } from './controllers/password-recovery.controller';
+import { PasswordRecoveryService } from './services/password-recovery.service';
+import { PASSWORD_RECOVERY_MAILER, PasswordRecoveryMailer } from './services/password-recovery-mailer';
 
 @Module({
-  controllers: [MeController],
+  controllers: [MeController, PasswordRecoveryController],
   providers: [
     PasswordService,
+    PasswordRecoveryService,
+    { provide: PASSWORD_RECOVERY_MAILER, useClass: PasswordRecoveryMailer },
     AuthService,
     SessionGuard,
     {
