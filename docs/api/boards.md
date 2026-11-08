@@ -353,7 +353,7 @@ Solo `manageActivities`. Devuelve la actividad actualizada con código `200` (no
 
 ### Adjuntos
 
-Hoy solo se pueden crear adjuntos de tipo **`LINK`** mediante la API; `DOCUMENT` existe en el modelo pero requiere el módulo de documentos/S3. Cada adjunto es un enlace **o** un documento, nunca ambos (RN-49b).
+Se pueden crear adjuntos de tipo **`LINK`** (enlace) y **`DOCUMENT`** (documento del proyecto, ver [`documents.md`](documents.md)). Cada adjunto es un enlace **o** un documento, nunca ambos (RN-49b).
 
 #### `POST /api/activities/:activityId/attachments`
 
@@ -361,21 +361,24 @@ Permitido a `manageActivities` **o** a un encargado de la actividad.
 
 | Campo | Tipo | Obligatorio | Reglas |
 | --- | --- | --- | --- |
-| `url` | string | Sí | Se recorta; máximo 2048 caracteres; debe ser un enlace `http` o `https` válido. |
+| `kind` | `LINK` \| `DOCUMENT` | No | Si se omite se interpreta como `LINK`. |
+| `url` | string | Con `LINK` | Se recorta; máximo 2048 caracteres; debe ser un enlace `http` o `https` válido. |
+| `documentId` | UUID | Con `DOCUMENT` | Documento del **mismo proyecto** que no esté eliminado; si no, `400`. |
 
 ```json
-{ "url": "https://example.test/documento.pdf" }
+{ "kind": "LINK", "url": "https://example.test/documento.pdf" }
+{ "kind": "DOCUMENT", "documentId": "00000000-0000-0000-0000-000000000070" }
 ```
 
 | Código | Cuándo | Cuerpo |
 | --- | --- | --- |
-| `201` | Adjunto creado | `ActivityResponseDto` con el nuevo adjunto (`kind: "LINK"`, `documentId: null`). |
+| `201` | Adjunto creado | `ActivityResponseDto` con el nuevo adjunto (`kind: "LINK"` con `documentId: null`, o `kind: "DOCUMENT"` con `url: null` y `document`). |
 | `400` | Datos inválidos | `{ message: "Datos inválidos.", errors: string[] }` |
 | `401` | Sin sesión o sesión expirada | `{ message: "Sesión no válida o expirada." }` |
 | `403` | No gestiona actividades ni es encargado | `{ message: "No tienes permisos para realizar esta acción." }` |
 | `404` | Actividad no visible | `{ message: "Actividad no encontrada." }` |
 
-Mensajes de validación exactos: `url es obligatoria.`, `url admite como máximo 2048 caracteres.`, `url debe ser un enlace http(s) válido.`
+Mensajes de validación exactos: `url es obligatoria.`, `url admite como máximo 2048 caracteres.`, `url debe ser un enlace http(s) válido.`, `kind no es válido. Valores permitidos: LINK, DOCUMENT.`, `documentId es obligatorio.`, `documentId debe ser un UUID válido.`, `documentId debe ser un documento del mismo proyecto que no esté eliminado.`
 
 `AttachmentResponseDto` dentro de la actividad:
 
@@ -385,10 +388,13 @@ Mensajes de validación exactos: `url es obligatoria.`, `url admite como máximo
   "kind": "LINK",
   "url": "https://example.test/documento.pdf",
   "documentId": null,
+  "document": null,
   "createdBy": { "id": "00000000-0000-0000-0000-000000000030", "fullName": "Tutor de Ejemplo" },
   "createdAt": "2026-11-06T15:00:00.000Z"
 }
 ```
+
+En un adjunto `DOCUMENT`, `url` es `null` y `document` vale `{ "id": "uuid", "fileName": "informe.pdf", "format": "PDF", "sizeBytes": 183042 }`.
 
 #### `DELETE /api/activities/:activityId/attachments/:attachmentId`
 
@@ -416,7 +422,6 @@ Permitido a `manageActivities` **o** a un encargado. Devuelve la actividad actua
 
 ## Pendiente
 
-- **Adjuntos de tipo `DOCUMENT`**: no hay endpoint para subir documentos ni integrar S3. `ActivityAttachment` ya admite `kind: DOCUMENT` y `documentId`, pero crear uno requiere el módulo de documentos (P-14, P-15).
 - **Notificaciones**: no se avisa al encargado asignado, al tutor que debe aprobar ni al autor de cambios de estado (P-16).
 - **Historial de aprobaciones**: solo se guarda el estado actual con quién y cuándo (P-12); no hay historial ni observaciones/motivo de rechazo.
 - **Paginación y filtros**: los listados de tableros y actividades no paginan ni filtran por estado, responsable, encargado, fecha o texto. No hay ordenación configurable.

@@ -19,13 +19,17 @@ import { createTestApp, resetDatabase } from './helpers';
 
 /** OAuth falso: el `code` lleva el correo de la cuenta de Microsoft que se vincula. */
 class FakeOAuth implements MicrosoftOAuth {
+  /** `tid` del id_token que devuelve el intercambio; null = sin id_token. */
+  tid: string | null = 'f8cdef31-a31e-4b4a-93e4-5f571e91255a';
   refreshError: Error | null = null;
   refreshed = 0;
   authorizeUrl(state: string, challenge: string) {
     return `https://login.example.test/authorize?state=${encodeURIComponent(state)}&challenge=${challenge}`;
   }
   async exchangeCode(code: string): Promise<MicrosoftTokens> {
-    return { accessToken: `at:${code}`, refreshToken: `rt:${code}`, expiresAt: new Date(Date.now() + 3_600_000), scopes: 'Calendars.ReadWrite' };
+    const part = (v: unknown) => Buffer.from(JSON.stringify(v)).toString('base64url');
+    const idToken = this.tid === null ? null : `${part({ alg: 'none' })}.${part({ tid: this.tid })}.firma`;
+    return { accessToken: `at:${code}`, refreshToken: `rt:${code}`, expiresAt: new Date(Date.now() + 3_600_000), scopes: 'Calendars.ReadWrite', idToken };
   }
   async refresh(refreshToken: string): Promise<MicrosoftTokens> {
     if (this.refreshError) throw this.refreshError;
@@ -50,7 +54,7 @@ class FakeCalendar implements TeamsCalendar {
     if (this.failWith) throw this.failWith;
     this.created.push({ token, input });
     const n = this.created.length;
-    return { eventId: `evento-${n}`, joinUrl: `https://teams.example.test/reunion-${n}`, webLink: null };
+    return { eventId: `evento-${n}`, joinUrl: input.joinUrl ?? `https://teams.example.test/reunion-${n}`, webLink: null };
   }
   async cancelEvent(token: string, eventId: string, comment: string) {
     this.cancelled.push({ token, eventId, comment });
@@ -130,11 +134,12 @@ describe('Reuniones con Microsoft Teams (e2e)', () => {
         linked: false,
         email: null,
         linkedAt: null,
+        accountType: null,
       });
 
       const res = await link('tutor', 'tutor.ms@example.test');
       expect(res.status).toBe(200);
-      expect(res.body).toMatchObject({ configured: true, linked: true, email: 'tutor.ms@example.test' });
+      expect(res.body).toMatchObject({ configured: true, linked: true, email: 'tutor.ms@example.test', accountType: 'WORK_OR_SCHOOL' });
 
       const stored = await world.prisma.microsoftAccount.findUniqueOrThrow({ where: { userId: world.ids.tutor } });
       expect(stored.accessTokenEncrypted).not.toContain('tutor.ms');
@@ -173,6 +178,23 @@ describe('Reuniones con Microsoft Teams (e2e)', () => {
   });
 
   describe('crear reuniones', () => {
+    it('detecta la cuenta personal por el tid, la guarda (también al re-vincular) y status la informa', async () => {
+      oauth.tid = '9188040d-6c67-4c5b-b112-36a304b66dad';
+      const res = await link('tutor', 'tutor.personal@outlook.test');
+      expect(res.body).toMatchObject({ linked: true, accountType: 'PERSONAL' });
+      const stored = await world.prisma.microsoftAccount.findUniqueOrThrow({ where: { userId: world.ids.tutor } });
+      expect(stored.accountType).toBe('PERSONAL');
+      expect((await (await world.as('tutor')).get('/api/integrations/microsoft/status')).body.accountType).toBe('PERSONAL');
+
+      oauth.tid = 'f8cdef31-a31e-4b4a-93e4-5f571e91255a';
+      expect((await link('tutor', 'tutor.personal@outlook.test')).body.accountType).toBe('WORK_OR_SCHOOL');
+    });
+
+    it('sin id_token se asume cuenta laboral o educativa', async () => {
+      oauth.tid = null;
+      expect((await link('tutor')).body.accountType).toBe('WORK_OR_SCHOOL');
+    });
+
     it('exige la cuenta de Microsoft vinculada', async () => {
       const res = await create({}, 409);
       expect(res.message).toMatch(/Vincula tu cuenta de Microsoft/);
@@ -220,6 +242,50 @@ describe('Reuniones con Microsoft Teams (e2e)', () => {
       await world.prisma.notificationDelivery.updateMany({ where: { status: 'PENDING' }, data: { nextAttemptAt: new Date(0) } });
       await dispatch();
       expect(new Set(email.sent.map((s) => s.address))).toEqual(new Set([emailOf('leader'), emailOf('student'), emailOf('tutor')]));
+    });
+
+    describe('enlace de la reunión según el tipo de cuenta (ADR 0014)', () => {
+      const personalLink = 'https://meet.example.test/sala-abierta';
+      beforeEach(() => {
+        oauth.tid = '9188040d-6c67-4c5b-b112-36a304b66dad';
+      });
+      afterEach(() => {
+        oauth.tid = 'f8cdef31-a31e-4b4a-93e4-5f571e91255a';
+      });
+
+      it('cuenta personal sin joinUrl: 400 y no se crea nada', async () => {
+        await link('tutor');
+        const res = await create({}, 400);
+        expect(JSON.stringify(res)).toContain('Con una cuenta personal de Microsoft debes indicar el enlace de la reunión.');
+        expect(calendar.created).toHaveLength(0);
+        expect(await world.prisma.meeting.count()).toBe(0);
+      });
+
+      it('cuenta personal con joinUrl: crea la reunión con ese enlace y el evento lleva el enlace', async () => {
+        await link('tutor');
+        const meeting = await create({ joinUrl: personalLink });
+        expect(meeting.joinUrl).toBe(personalLink);
+        expect(calendar.created).toHaveLength(1);
+        expect(calendar.created[0].input.joinUrl).toBe(personalLink);
+        expect(calendar.created[0].input.body).toContain(personalLink);
+        await dispatch();
+        expect(email.sent[0].message.body).toContain(personalLink);
+      });
+
+      it('cuenta personal con un joinUrl inválido: 400', async () => {
+        await link('tutor');
+        await create({ joinUrl: 'http://inseguro.example.test' }, 400);
+      });
+
+      it('cuenta laboral con joinUrl: 400; sin joinUrl el flujo de Teams sigue igual', async () => {
+        oauth.tid = 'f8cdef31-a31e-4b4a-93e4-5f571e91255a';
+        await link('tutor');
+        await create({ joinUrl: personalLink }, 400);
+        expect(calendar.created).toHaveLength(0);
+        const meeting = await create({});
+        expect(meeting.joinUrl).toMatch(/^https:\/\/teams\.example\.test\/reunion-/);
+        expect(calendar.created[0].input.joinUrl ?? null).toBeNull();
+      });
     });
 
     it('si falta menos de una hora no programa recordatorios', async () => {

@@ -26,6 +26,20 @@ test('codifica las escrituras como JSON sin modificar el cuerpo original', async
   assert.deepEqual(body, { title: 'Proyecto de prueba' });
 });
 
+test('envía FormData tal cual y deja que el navegador fije el Content-Type', async () => {
+  const form = new FormData();
+  form.append('file', new File(['%PDF-1.4'], 'informe.pdf', { type: 'application/pdf' }));
+  const request = createApiRequest(async (_input, init) => {
+    assert.equal(init?.method, 'POST');
+    assert.ok(init?.body instanceof FormData);
+    assert.equal(init.body, form);
+    assert.equal(new Headers(init?.headers).get('Content-Type'), null);
+    assert.equal(new Headers(init?.headers).get('Accept'), 'application/json');
+    return Response.json({ id: 'document' }, { status: 201 });
+  });
+  assert.deepEqual(await request('/api/projects/project/documents', { method: 'POST', body: form }), { id: 'document' });
+});
+
 test('acepta borrado 204 sin intentar leer JSON', async () => {
   const request = createApiRequest(async (_input, init) => {
     assert.equal(init?.method, 'DELETE');

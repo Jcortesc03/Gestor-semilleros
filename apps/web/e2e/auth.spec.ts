@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { E2E_SEED_PASSWORD } from './backend-env.ts';
+import { E2E_SEED_PASSWORD, E2E_WEB_PORT } from './backend-env.ts';
 
 /** Usuarios ficticios de la seed de desarrollo (apps/backend/src/cli/seed-database.ts). */
 const TUTOR = { email: 'tutor@example.test', fullName: 'Tatiana Tutora Demo' };
@@ -75,7 +75,7 @@ test.describe('Inicio de sesión con Google', () => {
     if (!url) throw new Error('No hubo redirección a Google.');
     expect(url.host).toBe('accounts.google.com');
     expect(url.searchParams.get('client_id')).toBe('google-client-id-e2e');
-    expect(url.searchParams.get('redirect_uri')).toBe('http://localhost:5173/api/auth/callback/google');
+    expect(url.searchParams.get('redirect_uri')).toBe(`http://localhost:${E2E_WEB_PORT}/api/auth/callback/google`);
     expect(url.searchParams.get('scope')).toContain('email');
   });
 

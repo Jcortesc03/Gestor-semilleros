@@ -6,7 +6,8 @@ import { EnvValidationError } from './env';
 import { DEFAULT_MEETINGS_TIME_ZONE } from './microsoft.config.types';
 import type { MicrosoftConfig } from './microsoft.config.types';
 
-const DEFAULT_TENANT_ID = 'organizations';
+/** `common` admite cuentas laborales, educativas y personales (ADR 0014). */
+const DEFAULT_TENANT_ID = 'common';
 const TENANT_KEYWORDS = ['organizations', 'common'] as const;
 
 const GUID_PATTERN =

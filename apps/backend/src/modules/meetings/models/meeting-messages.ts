@@ -28,9 +28,10 @@ function details(info: MeetingInfo, timeZone: string): string {
   ].join('\n');
 }
 
-/** Cuerpo del evento en el calendario de Teams (antes de tener el enlace). */
+/** Cuerpo del evento en el calendario; con cuenta personal incluye el enlace indicado por el organizador. */
 export function teamsEventBody(info: MeetingInfo): string {
-  return `${info.reason}\n\nReunión agendada desde el Gestor de Semilleros${info.projectTitle ? ` para el proyecto ${info.projectTitle}` : ''}.`;
+  const link = info.joinUrl ? `\n\nEnlace de la reunión: ${info.joinUrl}` : '';
+  return `${info.reason}\n\nReunión agendada desde el Gestor de Semilleros${info.projectTitle ? ` para el proyecto ${info.projectTitle}` : ''}.${link}`;
 }
 
 export function invitationMessage(info: MeetingInfo, timeZone: string) {

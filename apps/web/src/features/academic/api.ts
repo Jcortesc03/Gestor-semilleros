@@ -1,5 +1,6 @@
 import type { ApiRequest } from '../../types/api.ts';
 import { ApiError, isRecord, parseArray } from '../../lib/api.ts';
+import type { DocumentFormat } from '../documents/api.ts';
 
 export type ProjectStatus = 'ACTIVE' | 'FINISHED' | 'CANCELLED';
 export type ProjectRole = 'TUTOR' | 'STUDENT' | 'STUDENT_LEADER';
@@ -10,7 +11,8 @@ export interface Project { id: string; title: string; description: string | null
 export interface Member { id: string; user: { id: string; fullName: string; email: string }; projectRole: ProjectRole; isPrimary: boolean; status: 'ACTIVE' | 'INACTIVE'; joinedAt: string; leftAt: string | null }
 export interface Board { id: string; projectId: string; title: string; dueDate: string; progressStatus: ProgressStatus; result: ResultStatus | null; responsibleTutor: { id: string; fullName: string }; responsibleStudent: { id: string; fullName: string }; activityCount: number; createdAt: string }
 export interface Activity { id: string; boardId: string; title: string; description: string | null; progressStatus: ProgressStatus; result: ResultStatus | null; approvalStatus: ApprovalStatus; approvedBy: { id: string; fullName: string } | null; approvedAt: string | null; author: { id: string; fullName: string }; assignees: Array<{ user: { id: string; fullName: string }; assignedAt: string }>; attachments: Attachment[]; createdAt: string; updatedAt: string }
-export interface Attachment { id: string; kind: 'LINK' | 'DOCUMENT'; url: string | null; documentId: string | null; createdBy: { id: string; fullName: string }; createdAt: string }
+export interface AttachmentDocument { id: string; fileName: string; format: DocumentFormat; sizeBytes: number }
+export interface Attachment { id: string; kind: 'LINK' | 'DOCUMENT'; url: string | null; documentId: string | null; document: AttachmentDocument | null; createdBy: { id: string; fullName: string }; createdAt: string }
 
 const text = (value: unknown): value is string => typeof value === 'string';
 const id = (value: unknown): value is string => text(value) && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -24,7 +26,8 @@ export function parseProject(value: unknown): Project { const v = object(value);
 export function parseMember(value: unknown): Member { const v = object(value); const u = object(v.user); if (!id(v.id) || !id(u.id) || !text(u.fullName) || !text(u.email)) throw new ApiError(0); return { id: v.id, user: { id: u.id, fullName: u.fullName, email: u.email }, projectRole: oneOf(v.projectRole, ['TUTOR', 'STUDENT', 'STUDENT_LEADER']), isPrimary: v.isPrimary === true, status: oneOf(v.status, ['ACTIVE', 'INACTIVE']), joinedAt: requiredText(v.joinedAt, 'joinedAt'), leftAt: v.leftAt === null || text(v.leftAt) ? v.leftAt : null }; }
 export function parseBoard(value: unknown): Board { const v = object(value); if (!id(v.id) || !id(v.projectId) || !text(v.title) || !text(v.dueDate)) throw new ApiError(0); return { id: v.id, projectId: v.projectId, title: v.title, dueDate: v.dueDate, progressStatus: oneOf(v.progressStatus, ['PENDING', 'IN_PROGRESS', 'DONE', 'CANCELLED']), result: v.result === null ? null : oneOf(v.result, ['SUCCESS', 'FAILURE']), responsibleTutor: person(v.responsibleTutor), responsibleStudent: person(v.responsibleStudent), activityCount: typeof v.activityCount === 'number' ? v.activityCount : 0, createdAt: requiredText(v.createdAt, 'createdAt') }; }
 export function parseActivity(value: unknown): Activity { const v = object(value); if (!id(v.id) || !id(v.boardId) || !text(v.title)) throw new ApiError(0); return { id: v.id, boardId: v.boardId, title: v.title, description: v.description === null || text(v.description) ? v.description : null, progressStatus: oneOf(v.progressStatus, ['PENDING', 'IN_PROGRESS', 'DONE', 'CANCELLED']), result: v.result === null ? null : oneOf(v.result, ['SUCCESS', 'FAILURE']), approvalStatus: oneOf(v.approvalStatus, ['PENDING', 'APPROVED', 'REJECTED']), approvedBy: v.approvedBy === null ? null : person(v.approvedBy), approvedAt: v.approvedAt === null || text(v.approvedAt) ? v.approvedAt : null, author: person(v.author), assignees: Array.isArray(v.assignees) ? v.assignees.map((a) => { const x = object(a); return { user: person(x.user), assignedAt: requiredText(x.assignedAt, 'assignedAt') }; }) : [], attachments: Array.isArray(v.attachments) ? v.attachments.map(parseAttachment) : [], createdAt: requiredText(v.createdAt, 'createdAt'), updatedAt: requiredText(v.updatedAt, 'updatedAt') }; }
-function parseAttachment(value: unknown): Attachment { const v = object(value); return { id: requiredId(v.id), kind: v.kind === 'DOCUMENT' ? 'DOCUMENT' : 'LINK', url: v.url === null || text(v.url) ? v.url : null, documentId: v.documentId === null || text(v.documentId) ? v.documentId : null, createdBy: person(v.createdBy), createdAt: requiredText(v.createdAt, 'createdAt') }; }
+function parseAttachment(value: unknown): Attachment { const v = object(value); return { id: requiredId(v.id), kind: v.kind === 'DOCUMENT' ? 'DOCUMENT' : 'LINK', url: v.url === null || text(v.url) ? v.url : null, documentId: v.documentId === null || text(v.documentId) ? v.documentId : null, document: v.document === null || v.document === undefined ? null : parseAttachmentDocument(v.document), createdBy: person(v.createdBy), createdAt: requiredText(v.createdAt, 'createdAt') }; }
+function parseAttachmentDocument(value: unknown): AttachmentDocument { const v = object(value); if (typeof v.sizeBytes !== 'number') throw new ApiError(0); return { id: requiredId(v.id), fileName: requiredText(v.fileName, 'fileName'), format: oneOf(v.format, ['PDF', 'WORD', 'EXCEL', 'IMAGE'] as const), sizeBytes: v.sizeBytes }; }
 const path = (...parts: string[]) => parts.map((part) => encodeURIComponent(part)).join('/');
 const write = async <T>(request: ApiRequest, url: string, body: unknown, parser: (v: unknown) => T) => parser(await request(url, { method: 'POST', body }));
 
@@ -50,6 +53,8 @@ export const addAssignee = (request: ApiRequest, activityId: string, userId: str
 export const removeAssignee = (request: ApiRequest, activityId: string, userId: string) => request(`/api/activities/${path(activityId)}/assignees/${path(userId)}`, { method: 'DELETE' }).then(parseActivity);
 export const addAttachment = (request: ApiRequest, activityId: string, url: string) => {
   try { const parsed = new URL(url); if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new Error(); } catch { throw new Error('El enlace debe usar http o https.'); }
-  return write(request, `/api/activities/${path(activityId)}/attachments`, { url }, parseActivity);
+  return write(request, `/api/activities/${path(activityId)}/attachments`, { kind: 'LINK', url }, parseActivity);
 };
+/** Adjunta un documento del mismo proyecto (`docs/api/documents.md`); el servidor valida pertenencia y permisos. */
+export const addDocumentAttachment = (request: ApiRequest, activityId: string, documentId: string) => write(request, `/api/activities/${path(activityId)}/attachments`, { kind: 'DOCUMENT', documentId }, parseActivity);
 export const removeAttachment = (request: ApiRequest, activityId: string, attachmentId: string) => request(`/api/activities/${path(activityId)}/attachments/${path(attachmentId)}`, { method: 'DELETE' }).then(parseActivity);

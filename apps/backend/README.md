@@ -21,7 +21,7 @@ Todos los comandos se ejecutan desde la **raíz del repositorio**, salvo que se 
 
 ```bash
 pnpm install                                    # dependencias del monorepo
-pnpm db:up                                      # PostgreSQL 18.6 local (docker/compose.yaml)
+pnpm db:up                                      # PostgreSQL 18.6 y S3 local RustFS (docker/compose.yaml)
 cp apps/backend/.env.example apps/backend/.env  # completa AUTH_SECRET (openssl rand -base64 32)
 pnpm db:migrate                                 # aplica las migraciones y genera el cliente Prisma
 SEED_PASSWORD='Semilla-Local-2026' pnpm db:seed # opcional: datos de desarrollo (fish: env SEED_PASSWORD=… pnpm db:seed)
@@ -31,6 +31,7 @@ pnpm --filter @gestor-semilleros/backend dev    # API con recarga en http://loca
 - `pnpm dev` (sin filtro) arranca a la vez el backend y la web mediante Turborepo.
 - La seed crea un usuario por rol (`admin@example.test`, `encargado.area@`, `decano@`, `tutor@`, `lider@`, `estudiante@`), todos con la contraseña de `SEED_PASSWORD`. Debe cumplir la política del [ADR 0011](../../docs/decisions/0011-gestion-de-usuarios.md): 10–256 caracteres, con al menos una letra y un número, distinta del correo. La seed es idempotente y se niega a correr con `NODE_ENV=production`.
 - Para crear un administrador real: `ADMIN_EMAIL=… ADMIN_FULL_NAME=… ADMIN_PASSWORD=… pnpm --filter @gestor-semilleros/backend admin:create`.
+- **Documentos (S3):** con los valores de `.env.example` el backend usa el RustFS local y crea solo el bucket `semilleros-documentos`. La consola de RustFS está en `http://localhost:9001` (usuario `semilleros`, clave `semilleros-local`). Sin variables `S3_*`, la API arranca igual, pero subir y descargar documentos responde 503 ([ADR 0013](../../docs/decisions/0013-documentos-en-s3.md)).
 - Otros comandos de base de datos: `pnpm db:studio`, `pnpm db:logs`, `pnpm db:down`, y en el paquete `db:status`, `db:validate` y `db:reset` (`db:reset` **borra** los datos locales).
 - Guía detallada de la base de datos: [`docs/database/local-setup.md`](../../docs/database/local-setup.md).
 
@@ -62,6 +63,7 @@ pnpm --filter @gestor-semilleros/backend start         # node dist/main, puerto 
 - **Mismo origen:** sirve la web y `/api` bajo el mismo dominio, porque las cookies de sesión lo requieren. Ver el modo 2 de [`apps/web/README.md`](../web/README.md#2-producción-sin-docker).
 - **Detrás de un proxy:** usa `AUTH_TRUST_HOST=true` y reenvía `Host` (con puerto) y `X-Forwarded-Proto`.
 - **Google y Microsoft:** registra las URI de redirección con el dominio público: `https://DOMINIO/api/auth/callback/google` y `https://DOMINIO/api/integrations/microsoft/callback`.
+- **Documentos:** define `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID` y `S3_SECRET_ACCESS_KEY` de AWS. `S3_ENDPOINT` solo hace falta con un servidor compatible. Si hay un proxy delante, debe aceptar cuerpos de al menos 26 MB.
 - **WhatsApp (Baileys):** guarda su sesión en `<WHATSAPP_SESSION_NAME>_sessions/`, relativo al directorio de trabajo. Mantén esa carpeta persistente y trátala como un secreto.
 - Usa un gestor de procesos (systemd, pm2…) para reiniciar el proceso si cae.
 
@@ -98,6 +100,7 @@ Detalles de la imagen:
 - **Ejecución:** corre como el usuario `node`, en el puerto 3000. Tiene un healthcheck sobre `/api/auth/providers`.
 - **Volúmenes:** `postgres-data` (base de datos) y `whatsapp-sessions`, montado en `/app/whatsapp_sessions`. Si cambias `WHATSAPP_SESSION_NAME`, ajusta esa ruta en el compose.
 - **Tamaño (~876 MB):** la imagen incluye el CLI de Prisma para poder migrar al arrancar. En la imagen, `prisma` se mueve a dependencias de producción solo durante la construcción; el `package.json` del repositorio no cambia.
+- **Documentos:** configura las variables `S3_*` de AWS en `docker/.env.prod`. nginx admite subidas de hasta 26 MB.
 - **HTTPS:** el compose no lo gestiona. Pon un proxy o balanceador con TLS delante del puerto publicado y usa esa URL pública en Google y Microsoft.
 - **Copias de seguridad:** no están automatizadas. Por ejemplo: `dc exec postgres pg_dump -U semilleros semilleros > respaldo.sql`.
 

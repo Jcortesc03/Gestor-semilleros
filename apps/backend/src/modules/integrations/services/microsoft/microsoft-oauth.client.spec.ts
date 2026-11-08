@@ -72,6 +72,7 @@ describe('MicrosoftOAuthClient', () => {
         refresh_token: 'refresco-1',
         expires_in: 3600,
         scope: 'User.Read Calendars.ReadWrite',
+        id_token: 'a.b.c',
       }),
     );
     const before = Date.now();
@@ -97,6 +98,7 @@ describe('MicrosoftOAuthClient', () => {
     expect(tokens.accessToken).toBe('acceso-1');
     expect(tokens.refreshToken).toBe('refresco-1');
     expect(tokens.scopes).toBe('User.Read Calendars.ReadWrite');
+    expect(tokens.idToken).toBe('a.b.c');
     expect(tokens.expiresAt.getTime()).toBeGreaterThanOrEqual(before + 3600_000);
     expect(tokens.expiresAt.getTime()).toBeLessThanOrEqual(Date.now() + 3600_000);
   });

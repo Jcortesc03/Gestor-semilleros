@@ -124,7 +124,7 @@ CHECK: solo la columna de destino que corresponde a `audience_type` tiene valor,
 
 **`notification_deliveries`**: `id` PK · `dispatch_id` FK NN · `user_id` FK NN · `channel` NN · `status` NN (`DeliveryStatus`: `PENDING`, `SENT`, `FAILED`, `SKIPPED`) · `attempts` NN (≥ 0, CHECK) · `last_error?` · `next_attempt_at` NN · `sent_at?` · `created_at` · `updated_at`. UQ (`dispatch_id`, `user_id`, `channel`); índice (`status`, `next_attempt_at`).
 
-**`microsoft_accounts`**: `user_id` PK FK→users (CASCADE) · `microsoft_user_id` NN UQ · `email` NN · `access_token_encrypted` NN · `refresh_token_encrypted` NN · `access_token_expires_at` NN · `scopes` NN · `linked_at` · `updated_at`. Tokens cifrados con AES-256-GCM (ADR 0007).
+**`microsoft_accounts`**: `user_id` PK FK→users (CASCADE) · `microsoft_user_id` NN UQ · `email` NN · `access_token_encrypted` NN · `refresh_token_encrypted` NN · `access_token_expires_at` NN · `scopes` NN · `account_type` NN (`MicrosoftAccountType`: `WORK_OR_SCHOOL`, `PERSONAL`; por defecto `WORK_OR_SCHOOL`; ADR 0014) · `linked_at` · `updated_at`. Tokens cifrados con AES-256-GCM (ADR 0007).
 
 ### Reuniones y recordatorios
 

@@ -17,12 +17,13 @@ export const MAX_PARTICIPANTS = 100;
 const MAX_REASON_LENGTH = 200;
 const MAX_COMMENT_LENGTH = 500;
 const MAX_RECORDING_URL_LENGTH = 2000;
+export const MAX_JOIN_URL_LENGTH = 2048;
 const DEFAULT_LIMIT = 50;
 const MIN_LIMIT = 1;
 const MAX_LIMIT = 100;
 const MIN_START_OFFSET_MS = 60_000;
 
-const CREATE_ALLOWED_FIELDS = ['reason', 'startsAt', 'durationMinutes', 'projectId', 'participantIds'] as const;
+const CREATE_ALLOWED_FIELDS = ['reason', 'startsAt', 'durationMinutes', 'projectId', 'participantIds', 'joinUrl'] as const;
 const CHANGE_STATUS_ALLOWED_FIELDS = ['status', 'comment'] as const;
 const RECORDING_ALLOWED_FIELDS = ['recordingUrl'] as const;
 const LIST_ALLOWED_FIELDS = ['status', 'from', 'to', 'limit'] as const;
@@ -45,6 +46,7 @@ const FUTURE_ERROR = 'startsAt debe ser una fecha futura.';
 const DURATION_ERROR = `durationMinutes debe ser un entero entre ${MIN_DURATION} y ${MAX_DURATION}.`;
 const PROJECT_ERROR = 'projectId debe ser un UUID.';
 const PARTICIPANTS_ERROR = `participantIds debe ser una lista de 1 a ${MAX_PARTICIPANTS} UUID de usuarios.`;
+const JOIN_URL_ERROR = `joinUrl debe ser un enlace https:// de hasta ${MAX_JOIN_URL_LENGTH} caracteres.`;
 const STATUS_ERROR = 'status debe ser IN_PROGRESS, FINISHED o CANCELLED.';
 const COMMENT_ERROR = `comment admite como máximo ${MAX_COMMENT_LENGTH} caracteres.`;
 const RECORDING_ERROR = 'recordingUrl debe ser una URL http(s) válida o null.';
@@ -61,6 +63,8 @@ export interface CreateMeetingDto {
   durationMinutes: number;
   projectId: string | null;
   participantIds: string[];
+  /** Enlace aportado por el organizador (obligatorio con cuenta personal, prohibido con laboral). */
+  joinUrl: string | null;
 }
 
 /** Estados que se pueden fijar manualmente (el alta crea `SCHEDULED`). */
@@ -196,6 +200,16 @@ export function parseCreateMeeting(input: unknown, now: Date = new Date()): Vali
     }
   }
 
+  let joinUrl: string | null = null;
+  if (body.joinUrl !== undefined && body.joinUrl !== null) {
+    const raw = body.joinUrl;
+    if (typeof raw === 'string' && raw.length <= MAX_JOIN_URL_LENGTH && isHttpUrl(raw) && new URL(raw).protocol === 'https:') {
+      joinUrl = raw;
+    } else {
+      errors.push(JOIN_URL_ERROR);
+    }
+  }
+
   if (errors.length > 0) return fail(errors);
   return ok({
     reason,
@@ -203,6 +217,7 @@ export function parseCreateMeeting(input: unknown, now: Date = new Date()): Vali
     durationMinutes,
     projectId,
     participantIds,
+    joinUrl,
   });
 }
 

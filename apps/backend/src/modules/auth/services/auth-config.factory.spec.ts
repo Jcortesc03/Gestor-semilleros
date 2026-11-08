@@ -14,6 +14,7 @@ const env: AppEnv = {
   notifications: loadNotificationsConfig({}),
   microsoft: null,
   meetingsTimeZone: 'America/Bogota',
+  storage: null,
 };
 
 const dbUser: AuthUser = { id: 'interno-1', email: 'ana@example.test', fullName: 'Ana', roles: ['STUDENT'], mustChangePassword: false };

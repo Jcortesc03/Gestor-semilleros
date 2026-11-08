@@ -68,8 +68,25 @@ describe('parseCreateMeeting', () => {
         durationMinutes: 60,
         projectId: PROJECT_ID,
         participantIds: [USER_A, USER_B],
+        joinUrl: null,
       },
     });
+  });
+
+  describe('joinUrl', () => {
+    it('es opcional y acepta un enlace https', () => {
+      const result = parseCreateMeeting({ ...validCreate, joinUrl: 'https://meet.example.test/sala' }, NOW);
+      expect(result.ok && result.value.joinUrl).toBe('https://meet.example.test/sala');
+    });
+
+    it.each([['http://meet.example.test/sala'], ['sala'], [123], ['https://x.test/' + 'a'.repeat(2048)]])(
+      'rechaza %p',
+      (joinUrl) => {
+        const result = parseCreateMeeting({ ...validCreate, joinUrl }, NOW);
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.errors.join(' ')).toMatch(/joinUrl/);
+      },
+    );
   });
 
   it('usa null como projectId cuando está ausente o es null', () => {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Button, EmptyState, ErrorNotice, Field, LoadingState, PanelCard } from '../../components/WorkspaceUi.tsx';
 import type { Activity, Board, Member } from './api.ts';
+import type { ProjectDocumentsState } from '../documents/index.ts';
 import { ActivityCard } from './ActivityCard.tsx';
 import type { ActivityActions } from './ActivityCard.tsx';
 
@@ -15,10 +16,11 @@ interface ActivityListProps extends ActivityActions {
   canManage: boolean;
   canReview: boolean;
   busy: boolean;
+  documents: ProjectDocumentsState;
   onCreate: (title: string, description: string | null) => Promise<boolean>;
 }
 
-export function ActivityList({ board, activities, status, error, students, currentUserId, canManage, canReview, busy, onCreate, ...actions }: ActivityListProps) {
+export function ActivityList({ board, activities, status, error, students, currentUserId, canManage, canReview, busy, documents, onCreate, ...actions }: ActivityListProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
 
@@ -43,7 +45,7 @@ export function ActivityList({ board, activities, status, error, students, curre
         {status === 'ready' && activities.length > 0 && (
           <div className="grid gap-4 lg:grid-cols-2">
             {activities.map((item) => (
-              <ActivityCard key={item.id} activity={item} students={students} currentUserId={currentUserId} canManage={canManage} canReview={canReview} busy={busy} {...actions} />
+              <ActivityCard key={item.id} activity={item} students={students} currentUserId={currentUserId} canManage={canManage} canReview={canReview} busy={busy} documents={documents} {...actions} />
             ))}
           </div>
         )}

@@ -92,7 +92,7 @@
 | RN-61 | El sistema guarda los metadatos y la referencia de acceso del archivo, no el binario. | ✅ |
 | RN-62 | Web y móvil no acceden directamente al almacenamiento; el backend media el acceso. | ✅ (AGENTS.md) |
 | RN-63 | Todo documento pertenece siempre a un proyecto y, opcionalmente, se adjunta a actividades (P-15). | ✅ |
-| RN-64 | El tamaño máximo y la validación del tipo real de archivo están por definir. | ❓ |
+| RN-64 | Máximo 25 MB por archivo; el tipo real se valida por la firma de los primeros bytes y debe coincidir con la extensión y el formato. | ✅ ([ADR 0013](../decisions/0013-documentos-en-s3.md)) |
 | RN-65 | De cada documento se guarda la clave de almacenamiento (`storage_key`) de S3; el backend genera el enlace de acceso (P-15, DB-08). | ✅ |
 
 ## 8. Reuniones

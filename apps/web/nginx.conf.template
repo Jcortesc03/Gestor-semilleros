@@ -9,7 +9,7 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    client_max_body_size 10m;
+    client_max_body_size 26m;  # 25 MB por documento (ADR 0013) + margen del multipart
 
     # Cabeceras de seguridad básicas. No se define CSP para no bloquear Google ni Montserrat local.
     # Por la herencia de add_header de nginx, se repiten en las ubicaciones que definen sus propias cabeceras.

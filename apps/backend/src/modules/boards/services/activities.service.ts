@@ -6,7 +6,7 @@ import { can, type ProjectAccess } from '../../projects';
 import type {
   ApprovalDto,
   AssigneeDto,
-  AttachmentLinkDto,
+  AttachmentDto,
   CreateActivityDto,
   UpdateActivityDto,
 } from '../dtos/activity.dto';
@@ -18,7 +18,12 @@ const activityInclude = {
   author: userRef,
   approvedBy: userRef,
   assignees: { select: { user: userRef }, orderBy: { assignedAt: 'asc' } },
-  attachments: { include: { createdBy: userRef }, orderBy: { createdAt: 'asc' } },
+  attachments: {
+    include: {
+      createdBy: userRef,
+      document: { select: { id: true, fileName: true, format: true, sizeBytes: true } },
+    },
+    orderBy: { createdAt: 'asc' } },
 } as const;
 type ActivityRecord = Prisma.ActivityGetPayload<{ include: typeof activityInclude }>;
 
@@ -39,6 +44,7 @@ const toResponse = (a: ActivityRecord): ActivityResponseDto => ({
     kind: t.kind,
     url: t.url,
     documentId: t.documentId,
+    document: t.document ? { ...t.document, sizeBytes: Number(t.document.sizeBytes) } : null,
     createdBy: t.createdBy,
     createdAt: t.createdAt.toISOString(),
   })),
@@ -167,14 +173,27 @@ export class ActivitiesService {
     return this.load(activityId);
   }
 
-  // ─── Adjuntos (enlaces) ─────────────────────────────────────
+  // ─── Adjuntos (enlaces y documentos) ─────────────────────────────────────
 
-  async addLink(user: AuthUser, activityId: string, dto: AttachmentLinkDto): Promise<ActivityResponseDto> {
-    const { access, isAssignee } = await this.work.activity(user, activityId);
+  async addAttachment(user: AuthUser, activityId: string, dto: AttachmentDto): Promise<ActivityResponseDto> {
+    const { access, isAssignee, projectId } = await this.work.activity(user, activityId);
     this.assert(this.canAttach(access, isAssignee));
-    await this.prisma.activityAttachment.create({
-      data: { activityId, kind: 'LINK', url: dto.url, createdById: user.id },
-    });
+    if (dto.kind === 'LINK') {
+      await this.prisma.activityAttachment.create({
+        data: { activityId, kind: 'LINK', url: dto.url, createdById: user.id },
+      });
+    } else {
+      const document = await this.prisma.document.count({ where: { id: dto.documentId, projectId, deletedAt: null } });
+      if (document === 0) {
+        throw new BadRequestException({
+          message: 'Datos inválidos.',
+          errors: ['documentId debe ser un documento del mismo proyecto que no esté eliminado.'],
+        });
+      }
+      await this.prisma.activityAttachment.create({
+        data: { activityId, kind: 'DOCUMENT', documentId: dto.documentId, createdById: user.id },
+      });
+    }
     return this.load(activityId);
   }
 

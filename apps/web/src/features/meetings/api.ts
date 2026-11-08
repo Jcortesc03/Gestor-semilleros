@@ -4,11 +4,16 @@ import type { ApiRequest } from '../../types/api.ts';
 export const MEETING_STATUSES = ['SCHEDULED', 'IN_PROGRESS', 'FINISHED', 'CANCELLED'] as const;
 export type MeetingStatus = (typeof MEETING_STATUSES)[number];
 
+export const MICROSOFT_ACCOUNT_TYPES = ['WORK_OR_SCHOOL', 'PERSONAL'] as const;
+export type MicrosoftAccountType = (typeof MICROSOFT_ACCOUNT_TYPES)[number];
+
 export interface MicrosoftStatus {
   configured: boolean;
   linked: boolean;
   email: string | null;
   linkedAt: string | null;
+  /** `null` si no hay cuenta vinculada o la respuesta no lo trae (ADR 0014). */
+  accountType: MicrosoftAccountType | null;
 }
 
 export interface MeetingPerson { id: string; fullName: string }
@@ -39,6 +44,8 @@ export interface CreateMeetingInput {
   durationMinutes: number;
   projectId?: string | null;
   participantIds: string[];
+  /** Solo con cuenta personal de Microsoft; con cuenta laboral o educativa no se envía (ADR 0014). */
+  joinUrl?: string;
 }
 
 export interface MeetingFilters { status?: MeetingStatus; from?: string; to?: string; limit?: number }
@@ -46,6 +53,11 @@ export interface MeetingFilters { status?: MeetingStatus; from?: string; to?: st
 function fail(): never { throw new ApiError(0); }
 function str(value: unknown): string { if (typeof value !== 'string') fail(); return value; }
 function nullableStr(value: unknown): string | null { if (value === null || value === undefined) return null; return str(value); }
+function accountType(value: unknown): MicrosoftAccountType | null {
+  if (value === null || value === undefined) return null;
+  if (!(MICROSOFT_ACCOUNT_TYPES as readonly unknown[]).includes(value)) fail();
+  return value as MicrosoftAccountType;
+}
 function bool(value: unknown): boolean { if (typeof value !== 'boolean') fail(); return value; }
 function record(value: unknown): Record<string, unknown> { if (!isRecord(value)) fail(); return value; }
 
@@ -62,7 +74,13 @@ function parseStatus(value: unknown): MeetingStatus {
 
 export function parseMicrosoftStatus(value: unknown): MicrosoftStatus {
   const r = record(value);
-  return { configured: bool(r.configured), linked: bool(r.linked), email: nullableStr(r.email), linkedAt: nullableStr(r.linkedAt) };
+  return {
+    configured: bool(r.configured),
+    linked: bool(r.linked),
+    email: nullableStr(r.email),
+    linkedAt: nullableStr(r.linkedAt),
+    accountType: accountType(r.accountType),
+  };
 }
 
 export function parseMeeting(value: unknown): Meeting {

@@ -18,7 +18,7 @@ import type { AuthUser } from '../../auth';
 import {
   parseApproval,
   parseAssignee,
-  parseAttachmentLink,
+  parseAttachment,
   parseCreateActivity,
   parseUpdateActivity,
 } from '../dtos/activity.dto';
@@ -78,8 +78,8 @@ export class ActivitiesController {
   }
 
   @Post('activities/:activityId/attachments')
-  addLink(@CurrentUser() user: AuthUser, @Param('activityId', uuid) activityId: string, @Body() body: unknown) {
-    return this.activities.addLink(user, activityId, validated(parseAttachmentLink(body)));
+  addAttachment(@CurrentUser() user: AuthUser, @Param('activityId', uuid) activityId: string, @Body() body: unknown) {
+    return this.activities.addAttachment(user, activityId, validated(parseAttachment(body)));
   }
 
   @Delete('activities/:activityId/attachments/:attachmentId')
