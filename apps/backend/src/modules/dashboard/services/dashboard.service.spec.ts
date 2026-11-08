@@ -3,7 +3,7 @@ import type { Role } from '../../../generated/prisma/enums';
 import type { AuthUser } from '../../auth';
 import { DashboardService } from './dashboard.service';
 
-const usuario = (roles: Role[]): AuthUser => ({ id: 'u1', email: 'u1@example.test', fullName: 'Usuario de Prueba', roles });
+const usuario = (roles: Role[]): AuthUser => ({ id: 'u1', email: 'u1@example.test', fullName: 'Usuario de Prueba', roles, mustChangePassword: false });
 const NOW = new Date('2026-11-07T15:00:00.000Z');
 
 function setup() {

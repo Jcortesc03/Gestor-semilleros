@@ -14,6 +14,7 @@ type ProyectoSimulado = {
 const PROYECTO_ID = 'proyecto-1';
 
 const usuario = (roles: Role[], id = 'usuario-1'): AuthUser => ({
+  mustChangePassword: false,
   id,
   email: `${id}@example.test`,
   fullName: 'Usuario de Prueba',

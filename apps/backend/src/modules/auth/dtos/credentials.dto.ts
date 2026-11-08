@@ -1,3 +1,5 @@
+import { MAX_PASSWORD_LENGTH } from '../models/password-policy';
+
 /** Credenciales de inicio de sesión ya validadas y normalizadas. */
 export interface CredentialsDto {
   email: string;
@@ -6,8 +8,7 @@ export interface CredentialsDto {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_EMAIL_LENGTH = 254;
-/** Límite superior para evitar hashes costosos con entradas enormes. */
-export const MAX_PASSWORD_LENGTH = 256;
+export { MAX_PASSWORD_LENGTH };
 
 /** Normaliza un correo para búsquedas: sin espacios y en minúsculas. */
 export function normalizeEmail(email: string): string {

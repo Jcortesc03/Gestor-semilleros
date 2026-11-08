@@ -15,16 +15,22 @@ export interface UserDirectoryQuery {
   /** Rol global exigido, o `null` para cualquiera. */
   role: Role | null;
   limit: number;
+  /** Filtro de estado pedido por un administrador, o `null` si no se envió (solo activos, sin campo `status`). */
+  status: UserStatusFilter | null;
 }
+
+export const USER_STATUS_FILTERS = ['ACTIVE', 'INACTIVE', 'ALL'] as const;
+export type UserStatusFilter = (typeof USER_STATUS_FILTERS)[number];
 
 export const DEFAULT_DIRECTORY_LIMIT = 20;
 export const MAX_DIRECTORY_LIMIT = 50;
 export const MIN_SEARCH_LENGTH = 2;
 export const MAX_SEARCH_LENGTH = 100;
 
-const ALLOWED_FIELDS = ['search', 'role', 'limit'] as const;
+const ALLOWED_FIELDS = ['search', 'role', 'limit', 'status'] as const;
 const SEARCH_ERROR = `search debe tener entre ${MIN_SEARCH_LENGTH} y ${MAX_SEARCH_LENGTH} caracteres.`;
 const ROLE_ERROR = `role debe ser uno de: ${Object.values(Role).join(', ')}.`;
+const STATUS_ERROR = `status debe ser uno de: ${USER_STATUS_FILTERS.join(', ')}.`;
 const LIMIT_ERROR = `limit debe ser un entero entre 1 y ${MAX_DIRECTORY_LIMIT}.`;
 
 /**
@@ -64,6 +70,13 @@ export function parseUserDirectoryQuery(input: unknown): ValidationResult<UserDi
     else limit = parsed;
   }
 
+  let status: UserStatusFilter | null = null;
+  if (query.status !== undefined) {
+    const parsed = typeof query.status === 'string' ? USER_STATUS_FILTERS.find((s) => s === query.status) : undefined;
+    if (parsed === undefined) errors.push(STATUS_ERROR);
+    else status = parsed;
+  }
+
   if (errors.length > 0) return fail(errors);
-  return ok({ search, role, limit });
+  return ok({ search, role, limit, status });
 }

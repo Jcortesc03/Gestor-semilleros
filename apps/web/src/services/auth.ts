@@ -85,18 +85,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function parseCurrentUser(payload: unknown): CurrentUser {
   if (!isRecord(payload)) throw new AuthError('invalid-response');
 
-  const { id, email, fullName, roles } = payload;
+  // Compatibilidad: si `mustChangePassword` falta en la respuesta se trata como `false`.
+  const { id, email, fullName, roles, mustChangePassword } = payload;
   if (
     typeof id !== 'string' ||
     typeof email !== 'string' ||
     typeof fullName !== 'string' ||
     !Array.isArray(roles) ||
-    !roles.every((role) => typeof role === 'string')
+    !roles.every((role) => typeof role === 'string') ||
+    (mustChangePassword !== undefined && typeof mustChangePassword !== 'boolean')
   ) {
     throw new AuthError('invalid-response');
   }
 
-  return { id, email, fullName, roles };
+  return { id, email, fullName, roles, mustChangePassword: mustChangePassword === true };
 }
 
 function hasErrorQuery(responseUrl: string): boolean {

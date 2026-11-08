@@ -16,7 +16,7 @@ const env: AppEnv = {
   meetingsTimeZone: 'America/Bogota',
 };
 
-const dbUser: AuthUser = { id: 'interno-1', email: 'ana@example.test', fullName: 'Ana', roles: ['STUDENT'] };
+const dbUser: AuthUser = { id: 'interno-1', email: 'ana@example.test', fullName: 'Ana', roles: ['STUDENT'], mustChangePassword: false };
 
 function fakeAuth(googleUser: AuthUser | null = dbUser) {
   return {

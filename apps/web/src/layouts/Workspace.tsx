@@ -6,6 +6,7 @@ import { createApiRequest } from '../lib/api';
 import { roleLabel } from '../lib/roles';
 import { BrandMark } from '../components/BrandMark';
 import { AlertMessage } from '../components/AlertMessage';
+import { ChangePasswordPage } from '../pages/ChangePasswordPage';
 import { Button, PanelCard } from '../components/WorkspaceUi';
 import { AcademicWorkspace } from '../features/academic';
 import { DashboardWorkspace } from '../features/dashboard';
@@ -35,6 +36,8 @@ function getInitials(user: CurrentUser): string {
 export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, error }: WorkspaceProps) {
   const [page, setPage] = useState<Page>('account');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordChanged, setPasswordChanged] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const mounted = useRef(true);
   useEffect(() => {
@@ -54,7 +57,7 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
     // GET /api/meetings admite cualquier sesión válida (docs/api/meetings.md).
     items.push({ key: 'meetings', label: 'Reuniones', icon: CalendarClock });
     if (user.roles.some((role) => role === 'ADMIN' || role === 'AREA_MANAGER')) items.push({ key: 'institution', label: 'Áreas y facultades', icon: Building2 });
-    if (user.roles.includes('ADMIN')) items.push({ key: 'users', label: 'Crear usuarios', icon: Users });
+    if (user.roles.includes('ADMIN')) items.push({ key: 'users', label: 'Usuarios', icon: Users });
     items.push({ key: 'announcements', label: 'Novedades', icon: Megaphone });
     items.push({ key: 'preferences', label: 'Mis notificaciones', icon: Settings });
     if (user.roles.includes('ADMIN')) items.push({ key: 'whatsapp', label: 'Estado de WhatsApp', icon: MessageCircle });
@@ -147,12 +150,25 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
           {error && <AlertMessage message={error} />}
           {page === 'account' ? <>
             <DashboardWorkspace user={user} request={request} onNavigate={goTo} />
-            <PanelCard title={`Hola, ${user.fullName}`} action={<Button variant="secondary" onClick={onRefresh}>Actualizar cuenta</Button>}>
+            <PanelCard title={`Hola, ${user.fullName}`} action={<>
+              <Button variant="secondary" onClick={onRefresh}>Actualizar cuenta</Button>
+              <Button variant="secondary" onClick={() => { setPasswordChanged(false); setChangingPassword(true); }}>Cambiar contraseña</Button>
+            </>}>
               <dl className="grid gap-6 sm:grid-cols-2">
                 <div className="min-w-0"><dt className="text-sm text-navy/70">Correo electrónico</dt><dd className="mt-1 break-all font-semibold text-navy">{user.email}</dd></div>
                 <div className="min-w-0"><dt className="text-sm text-navy/70">Roles asignados</dt><dd className="mt-1 font-semibold text-navy">{user.roles.map(roleLabel).join(' · ') || 'Sin roles asignados'}</dd></div>
               </dl>
             </PanelCard>
+            {passwordChanged && <AlertMessage variant="plain" message="Tu contraseña se actualizó." />}
+            {changingPassword && (
+              <ChangePasswordPage
+                mode="voluntary"
+                email={user.email}
+                request={request}
+                onCancel={() => setChangingPassword(false)}
+                onChanged={() => { setChangingPassword(false); setPasswordChanged(true); }}
+              />
+            )}
           </> : page === 'academic'
             ? <AcademicWorkspace user={user} request={request} />
             : page === 'meetings'

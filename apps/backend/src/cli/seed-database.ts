@@ -4,7 +4,7 @@
  * Todos los datos son ficticios (dominio example.test).
  */
 import type { PrismaService } from '../database/prisma.service';
-import type { PasswordService } from '../modules/auth';
+import { passwordPolicyErrors, type PasswordService } from '../modules/auth';
 import type { Role } from '../generated/prisma/enums';
 import type { TransactionClient } from '../generated/prisma/internal/prismaNamespace';
 
@@ -40,19 +40,21 @@ export interface SeedSummary {
   project: string;
 }
 
-const MIN_PASSWORD_LENGTH = 8;
-const MAX_PASSWORD_LENGTH = 256;
-
 export type SeedPasswordResult = { ok: true; value: string } | { ok: false; error: string };
 
-/** Valida SEED_PASSWORD (obligatoria, 8–256 caracteres). Nunca incluye la contraseña en el error. */
+/**
+ * Valida SEED_PASSWORD con la política de contraseñas del ADR 0011 (10–256, letra y número,
+ * distinta del correo). Nunca incluye la contraseña en el error.
+ */
 export function parseSeedPassword(raw: string | undefined): SeedPasswordResult {
   if (raw === undefined || raw === '') {
-    return { ok: false, error: 'SEED_PASSWORD es obligatoria (entre 8 y 256 caracteres).' };
+    return { ok: false, error: 'SEED_PASSWORD es obligatoria (entre 10 y 256 caracteres, con letra y número).' };
   }
-  if (raw.length < MIN_PASSWORD_LENGTH || raw.length > MAX_PASSWORD_LENGTH) {
-    return { ok: false, error: `SEED_PASSWORD debe tener entre ${MIN_PASSWORD_LENGTH} y ${MAX_PASSWORD_LENGTH} caracteres.` };
-  }
+  // La seed usa la misma contraseña para todos los correos: se comprueba contra cada uno.
+  const errors = new Set(
+    [undefined, ...SEED_USERS.map((u) => u.email)].flatMap((email) => passwordPolicyErrors(raw, email)),
+  );
+  if (errors.size > 0) return { ok: false, error: `SEED_PASSWORD no es válida: ${[...errors].join(' ')}` };
   return { ok: true, value: raw };
 }
 
@@ -65,7 +67,7 @@ export async function seedDatabase(prisma: PrismaService, passwords: PasswordSer
       const user = await tx.user.upsert({
         where: { email: seed.email },
         create: { email: seed.email, fullName: seed.fullName, passwordHash, status: 'ACTIVE' },
-        update: { fullName: seed.fullName, passwordHash, status: 'ACTIVE' },
+        update: { fullName: seed.fullName, passwordHash, status: 'ACTIVE', mustChangePassword: false },
       });
       ids.set(seed.email, user.id);
       for (const role of seed.roles) {

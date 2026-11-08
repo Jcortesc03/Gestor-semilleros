@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../src/database/prisma.service';
+import { PasswordService } from '../src/modules/auth';
 import { createTestApp, createUser, loginWithPassword, newAgent, resetDatabase, sessionCookie } from './helpers';
 
 const PASSWORD = 'Clave-Prueba-123';
@@ -64,6 +65,7 @@ describe('Autenticación (e2e)', () => {
         email: 'tutor@example.test',
         fullName: 'Tutor de Prueba',
         roles: expect.arrayContaining(['TUTOR', 'DEAN']),
+        mustChangePassword: false,
       });
       expect(me.body).not.toHaveProperty('passwordHash');
 
@@ -156,6 +158,110 @@ describe('Autenticación (e2e)', () => {
       const { body } = await agent.get('/api/auth/csrf').expect(200);
       await agent.post('/api/auth/signout').type('form').send({ csrfToken: body.csrfToken }).expect(302);
       await agent.get('/api/me').expect(401);
+    });
+  });
+
+  describe('Cambio de contraseña obligatorio y PUT /api/me/password', () => {
+    const TEMPORARY = 'Temporal-2026';
+    const FRESH = 'Nueva-Clave-2026';
+    const PASSWORD_CHANGE_REQUIRED = {
+      message: 'Debes cambiar tu contraseña antes de continuar.',
+      code: 'PASSWORD_CHANGE_REQUIRED',
+    };
+
+    async function pendingAgent() {
+      const user = await createUser(app, { email: 'ana@example.test', password: TEMPORARY, roles: ['TUTOR'] });
+      await prisma.user.update({ where: { id: user.id }, data: { mustChangePassword: true } });
+      const agent = newAgent(app);
+      await loginWithPassword(agent, 'ana@example.test', TEMPORARY);
+      return { agent, user };
+    }
+
+    it('GET /api/me sigue disponible e informa mustChangePassword', async () => {
+      const { agent } = await pendingAgent();
+      const me = await agent.get('/api/me').expect(200);
+      expect(me.body.mustChangePassword).toBe(true);
+    });
+
+    it('el resto de endpoints protegidos responden 403 PASSWORD_CHANGE_REQUIRED, también las escrituras', async () => {
+      const { agent } = await pendingAgent();
+      for (const route of ['/api/projects', '/api/dashboard', '/api/announcements', '/api/users', '/api/me/notification-preferences']) {
+        const res = await agent.get(route).expect(403);
+        expect(res.body).toEqual(PASSWORD_CHANGE_REQUIRED);
+      }
+      expect((await agent.post('/api/projects').send({}).expect(403)).body).toEqual(PASSWORD_CHANGE_REQUIRED);
+    });
+
+    it('cerrar sesión sigue funcionando (Auth.js no pasa por SessionGuard)', async () => {
+      const { agent } = await pendingAgent();
+      const { body } = await agent.get('/api/auth/csrf').expect(200);
+      await agent.post('/api/auth/signout').type('form').send({ csrfToken: body.csrfToken }).expect(302);
+      await agent.get('/api/me').expect(401);
+    });
+
+    it('cambiar la contraseña levanta la restricción y la nueva contraseña sirve para entrar', async () => {
+      const { agent, user } = await pendingAgent();
+      await agent.put('/api/me/password').send({ currentPassword: TEMPORARY, newPassword: FRESH }).expect(204);
+
+      expect((await agent.get('/api/me').expect(200)).body.mustChangePassword).toBe(false);
+      await agent.get('/api/projects').expect(200);
+      const stored = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+      expect(stored.mustChangePassword).toBe(false);
+      expect(stored.passwordHash).toMatch(/^\$argon2id\$/);
+
+      const relogin = newAgent(app);
+      await loginWithPassword(relogin, 'ana@example.test', FRESH);
+      await relogin.get('/api/projects').expect(200);
+      const old = await loginWithPassword(newAgent(app), 'ana@example.test', TEMPORARY);
+      expect(old.headers.location).toContain('error=CredentialsSignin');
+    });
+
+    it('un usuario normal también puede cambiar su contraseña', async () => {
+      await createUser(app, { email: 'ana@example.test', password: PASSWORD });
+      const agent = newAgent(app);
+      await loginWithPassword(agent, 'ana@example.test', PASSWORD);
+      await agent.put('/api/me/password').send({ currentPassword: PASSWORD, newPassword: FRESH }).expect(204);
+      await loginWithPassword(newAgent(app), 'ana@example.test', FRESH).then((r) => expect(r.headers.location).not.toContain('error='));
+    });
+
+    it('403 si la contraseña actual no es correcta y no cambia nada', async () => {
+      const { agent, user } = await pendingAgent();
+      const res = await agent.put('/api/me/password').send({ currentPassword: 'incorrecta-123', newPassword: FRESH }).expect(403);
+      expect(res.body.message).toBe('La contraseña actual no es correcta.');
+      expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).mustChangePassword).toBe(true);
+    });
+
+    it('400 con la política, la actual obligatoria y que la nueva sea distinta', async () => {
+      const { agent } = await pendingAgent();
+      const put = (body: Record<string, unknown>) => agent.put('/api/me/password').send(body);
+
+      for (const newPassword of ['corta1', 'SoloLetrasLargas', '12345678901', 'ana@example.test', 'ANA@example.test']) {
+        const res = await put({ currentPassword: TEMPORARY, newPassword }).expect(400);
+        expect(res.body.message).toBe('Datos inválidos.');
+        expect(res.body.errors.length).toBeGreaterThan(0);
+      }
+      expect((await put({ newPassword: FRESH }).expect(400)).body.errors).toEqual(['currentPassword es obligatorio.']);
+      expect((await put({ currentPassword: TEMPORARY, newPassword: TEMPORARY }).expect(400)).body.errors).toEqual([
+        'La nueva contraseña debe ser distinta de la actual.',
+      ]);
+      expect((await put({ currentPassword: TEMPORARY }).expect(400)).body.errors).toEqual(['newPassword es obligatorio.']);
+      expect((await put({ currentPassword: TEMPORARY, newPassword: FRESH, extra: 1 }).expect(400)).body.errors[0]).toMatch(/Campos no permitidos/);
+    });
+
+    it('401 sin sesión', async () => {
+      await request(app.getHttpServer()).put('/api/me/password').send({ newPassword: FRESH }).expect(401);
+    });
+
+    it('quien solo usaba Google puede crear su contraseña sin indicar la actual', async () => {
+      const user = await createUser(app, { email: 'google@example.test', password: null });
+      const agent = newAgent(app);
+      // Sin contraseña no hay inicio con credenciales: se simula una sesión ya abierta antes de perderla.
+      await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await app.get(PasswordService).hash('Inicial-Clave-1') } });
+      await loginWithPassword(agent, 'google@example.test', 'Inicial-Clave-1');
+      await prisma.user.update({ where: { id: user.id }, data: { passwordHash: null } });
+
+      await agent.put('/api/me/password').send({ newPassword: FRESH }).expect(204);
+      expect((await prisma.user.findUniqueOrThrow({ where: { id: user.id } })).passwordHash).not.toBeNull();
     });
   });
 

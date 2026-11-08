@@ -24,7 +24,9 @@ El alcance, los módulos y el estado se documentan en `README.md`; no los repita
 - **Web ([ADR 0008](docs/decisions/0008-aplicacion-web-y-sistema-visual.md)):** React + Vite + Tailwind y Montserrat local. Login (correo y Google), paneles por rol, proyectos, tableros, reuniones, novedades y preferencias contra la API real; ver [`apps/web/README.md`](apps/web/README.md) y [el relevo](docs/handoffs/2026-11-07-frontend.md). Sin datos simulados ni permisos inventados.
 - **Directorio, catálogos y panel ([ADR 0009](docs/decisions/0009-directorio-catalogos-y-paneles.md)):** `GET /api/users` (Admin, Decano, Tutor), `GET /api/areas`, `GET /api/faculties` y `GET /api/dashboard` (una sección por rol; el encargado de área ve sus áreas asignadas).
 - **Reglas de dominio resueltas ([ADR 0010](docs/decisions/0010-reglas-pendientes-resueltas.md)):** administración de áreas, facultades, encargados y decanos; encargado de área con los permisos del decano en sus áreas; aprobación solo en `DONE`; límites del tutor; responsables de tablero; publicación de novedades por rol.
-- **No implementado:** documentos (S3), recordatorios, resto de la gestión de usuarios, autenticación móvil, Docker de despliegue ni CI/CD.
+- **Gestión de usuarios ([ADR 0011](docs/decisions/0011-gestion-de-usuarios.md)):** editar, desactivar y reactivar usuarios, contraseña temporal con cambio obligatorio, cambio de la contraseña propia y política de contraseñas (10–256, letra y número, distinta del correo). Migración `users_must_change_password`.
+- **Despliegue con contenedores ([ADR 0012](docs/decisions/0012-despliegue-con-contenedores.md)):** `apps/backend/Dockerfile` (node:24-alpine, migra al arrancar), `apps/web/Dockerfile` (nginx:1.29-alpine con proxy de `/api`) y `docker/compose.prod.yaml`. Guías por modo en `apps/backend/README.md` y `apps/web/README.md`.
+- **No implementado:** documentos (S3), recordatorios, recuperación de contraseña olvidada, límite de intentos de inicio de sesión, autenticación móvil, HTTPS/infraestructura de producción concreta ni CI/CD.
 
 Por lo tanto:
 
@@ -70,7 +72,9 @@ Si dos fuentes se contradicen, **detente y reporta**; no elijas una por tu cuent
 
 **Web aprobada** ([ADR 0008](docs/decisions/0008-aplicacion-web-y-sistema-visual.md)): React/React DOM 19.3.1, Vite 8.3.6, Tailwind CSS y `@tailwindcss/vite` 4.3.4, `@vitejs/plugin-react` 6.2.1, Montserrat local (`@fontsource/montserrat` 5.3.0) e iconos `lucide-react` 1.68.0. Sin biblioteca de componentes, router ni estado global adicional. Pruebas: runner de Node 24 (adaptadores), Vitest 5.1.0 + Testing Library (componentes) y Playwright 1.65.0 (E2E). Frontlipe implementa las vistas y la guía específica del proyecto prevalece sobre preferencias visuales genéricas.
 
-**Pendiente de definición:** versión de Turborepo (`latest`, fijada solo por el lockfile), linting y formato, CI/CD, infraestructura de despliegue, contratos de API de los demás módulos, autenticación móvil, permisos por rol y preguntas abiertas del dominio (`docs/domain/business-rules.md`).
+**Contenedores** ([ADR 0012](docs/decisions/0012-despliegue-con-contenedores.md)): `node:24-alpine` y `nginx:1.29-alpine`.
+
+**Pendiente de definición:** versión de Turborepo (`latest`, fijada solo por el lockfile), linting y formato, CI/CD, infraestructura de producción concreta (HTTPS, dominio, copias de seguridad), contratos de API de los demás módulos, autenticación móvil, permisos por rol y preguntas abiertas del dominio (`docs/domain/business-rules.md`).
 
 No fijes versiones ni agregues herramientas para cubrir estos pendientes sin aprobación.
 
@@ -167,10 +171,10 @@ El workspace contiene `@gestor-semilleros/backend` y la primera entrega de `@ges
 | `pnpm --filter @gestor-semilleros/web test:e2e` | Playwright contra el backend real y la base aislada `semilleros_web_e2e_test` (requiere `pnpm db:up` y los puertos 3000/5173 libres). |
 | `pnpm --filter @gestor-semilleros/web dev` | Vite en `127.0.0.1:5173`; proxy `/api` al backend local en el puerto 3000. |
 | `pnpm --filter @gestor-semilleros/backend admin:create` | ✅ Crea un administrador (`ADMIN_EMAIL`, `ADMIN_FULL_NAME`, `ADMIN_PASSWORD`). |
-| `pnpm db:seed` | ✅ Siembra datos de **desarrollo** (`src/cli/seed.ts`): un usuario por tipo (`admin@example.test`, `encargado.area@`, `decano@`, `tutor@`, `lider@`, `estudiante@`), área, facultad y un proyecto demo. Requiere `SEED_PASSWORD` (8–256 caracteres), es idempotente y se niega a correr con `NODE_ENV=production`. Ej.: `SEED_PASSWORD='…' pnpm db:seed` (fish: anteponer `env`). |
+| `pnpm db:seed` | ✅ Siembra datos de **desarrollo** (`src/cli/seed.ts`): un usuario por tipo (`admin@example.test`, `encargado.area@`, `decano@`, `tutor@`, `lider@`, `estudiante@`), área, facultad y un proyecto demo. Requiere `SEED_PASSWORD` (política del ADR 0011: 10–256, letra y número), es idempotente y se niega a correr con `NODE_ENV=production`. Ej.: `SEED_PASSWORD='…' pnpm db:seed` (fish: anteponer `env`). |
 | `pnpm test:e2e` | ✅ Pruebas de la API contra `TEST_DATABASE_URL` (requiere `pnpm db:up`). |
 | `pnpm lint` | Configurado; ningún paquete lo implementa (herramienta pendiente). |
-| Docker de despliegue | **Pendiente** de configuración. |
+| `docker compose -f docker/compose.prod.yaml --env-file docker/.env.prod up -d --build` | ✅ Despliegue completo (PostgreSQL + backend + web nginx) en `WEB_PORT` (8080). Plantilla: `docker/env.prod.example`. |
 
 Reglas:
 

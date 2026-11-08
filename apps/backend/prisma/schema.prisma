@@ -149,16 +149,18 @@ enum DeliveryStatus {
 // ─────────────────────────────────────────────────────────────
 
 model User {
-  id           String     @id @default(uuid()) @db.Uuid
-  fullName     String     @map("full_name")
-  email        String     @unique
+  id                 String     @id @default(uuid()) @db.Uuid
+  fullName           String     @map("full_name")
+  email              String     @unique
   /// Hash Argon2id. Nulo si el usuario solo inicia sesión con Google.
-  passwordHash String?    @map("password_hash")
+  passwordHash       String?    @map("password_hash")
   /// Teléfono en formato E.164 para las copias por WhatsApp (CHECK en SQL). Opcional.
-  phone        String?
-  status       UserStatus @default(ACTIVE)
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
+  phone              String?
+  status             UserStatus @default(ACTIVE)
+  /// Contraseña temporal fijada por un administrador: el usuario debe cambiarla antes de continuar (ADR 0011).
+  mustChangePassword Boolean    @default(false) @map("must_change_password")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
 
   roles               UserRole[]
   managedAreas        AreaManager[]

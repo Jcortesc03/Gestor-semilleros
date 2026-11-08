@@ -4,6 +4,7 @@ import type { ProjectAccessService } from './project-access.service';
 import { ProjectsService } from './projects.service';
 
 const usuario: AuthUser = {
+  mustChangePassword: false,
   id: 'usuario-1',
   email: 'usuario-1@example.test',
   fullName: 'Usuario de Prueba',

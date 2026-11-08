@@ -5,8 +5,8 @@ import type { CurrentUser } from '../../../src/types/auth.ts';
 export const uuid = (n: number) => `00000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
 export const iso = '2026-11-06T15:00:00.000Z';
 
-export const admin: CurrentUser = { id: uuid(900), email: 'admin@example.test', fullName: 'Admin', roles: ['ADMIN'] };
-export const student: CurrentUser = { id: uuid(31), email: 'est@example.test', fullName: 'Estudiante de Ejemplo', roles: ['STUDENT'] };
+export const admin: CurrentUser = { id: uuid(900), email: 'admin@example.test', fullName: 'Admin', roles: ['ADMIN'], mustChangePassword: false };
+export const student: CurrentUser = { id: uuid(31), email: 'est@example.test', fullName: 'Estudiante de Ejemplo', roles: ['STUDENT'], mustChangePassword: false };
 
 export const makeProject = (n: number, title: string) => ({
   id: uuid(n), title, description: null, status: 'ACTIVE',

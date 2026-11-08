@@ -40,8 +40,14 @@ Todas las rutas protegidas usan `SessionGuard`, que:
 `200`:
 
 ```json
-{ "id": "uuid", "email": "usuario@example.test", "fullName": "Nombre", "roles": ["TUTOR"] }
+{ "id": "uuid", "email": "usuario@example.test", "fullName": "Nombre", "roles": ["TUTOR"], "mustChangePassword": false }
 ```
+
+### Cambio de contraseña obligatorio ([ADR 0011](../decisions/0011-gestion-de-usuarios.md))
+
+> **Estado:** implementado en `SessionGuard`; las dos rutas exentas se marcan con el decorador `@AllowPendingPasswordChange()` (`common/decorators/allow-password-change.decorator.ts`). Cubierto por `auth.e2e-spec.ts` y `session.guard.spec.ts`.
+
+Si `mustChangePassword` es `true`, todos los endpoints protegidos salvo `GET /api/me` y `PUT /api/me/password` responden `403 { message: "Debes cambiar tu contraseña antes de continuar.", code: "PASSWORD_CHANGE_REQUIRED" }`. Cerrar sesión (`POST /api/auth/signout`) siempre está permitido.
 
 ## Pendiente
 

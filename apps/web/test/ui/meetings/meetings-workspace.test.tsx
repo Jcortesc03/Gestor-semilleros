@@ -6,8 +6,8 @@ import { MeetingsWorkspace } from '../../../src/features/meetings';
 import { ApiError } from '../../../src/lib/api';
 import type { ApiRequest } from '../../../src/types/api';
 
-const tutor = { id: 'u-1', email: 'tutor@example.test', fullName: 'Tutor', roles: ['TUTOR'] };
-const student = { id: 'u-9', email: 'est@example.test', fullName: 'Estudiante', roles: ['STUDENT'] };
+const tutor = { id: 'u-1', email: 'tutor@example.test', fullName: 'Tutor', roles: ['TUTOR'], mustChangePassword: false };
+const student = { id: 'u-9', email: 'est@example.test', fullName: 'Estudiante', roles: ['STUDENT'], mustChangePassword: false };
 const linked = { configured: true, linked: true, email: 'tutor@example.test', linkedAt: '2026-11-06T15:00:00.000Z' };
 const unlinked = { configured: true, linked: false, email: null, linkedAt: null };
 const meeting = {

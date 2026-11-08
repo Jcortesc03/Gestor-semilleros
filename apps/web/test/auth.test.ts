@@ -8,6 +8,7 @@ const USER: CurrentUser = {
   email: 'ana@example.test',
   fullName: 'Ana de Prueba',
   roles: ['TUTOR'],
+  mustChangePassword: false,
 };
 
 interface RecordedCall {
@@ -67,6 +68,27 @@ test('getCurrentUser consulta /api/me con cookies de mismo origen y devuelve el 
   assert.equal(calls[0]?.init.method, 'GET');
   assert.equal(calls[0]?.init.credentials, 'same-origin');
   assert.equal(calls[0]?.init.cache, 'no-store');
+});
+
+test('getCurrentUser conserva mustChangePassword y trata su ausencia como false', async () => {
+  const forced = createAuthClient(createFetcher(() => jsonResponse({ ...USER, mustChangePassword: true })).fetcher);
+  assert.equal((await forced.getCurrentUser())?.mustChangePassword, true);
+
+  const { mustChangePassword: _omitted, ...withoutFlag } = USER;
+  const legacy = createAuthClient(createFetcher(() => jsonResponse(withoutFlag)).fetcher);
+  assert.equal((await legacy.getCurrentUser())?.mustChangePassword, false);
+});
+
+test('getCurrentUser rechaza un mustChangePassword que no es booleano', async () => {
+  const { fetcher } = createFetcher(() => jsonResponse({ ...USER, mustChangePassword: 'si' }));
+
+  await assert.rejects(
+    () => createAuthClient(fetcher).getCurrentUser(),
+    (error: unknown) => {
+      assertAuthError(error, 'invalid-response');
+      return true;
+    },
+  );
 });
 
 test('getCurrentUser interpreta 401 como ausencia de sesión', async () => {

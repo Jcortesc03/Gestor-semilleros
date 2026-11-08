@@ -14,6 +14,17 @@ async function signInAs(page: Page, email: string): Promise<void> {
   await expect(page).toHaveURL(/\/panel/);
 }
 
+async function signOut(page: Page): Promise<void> {
+  await page.getByRole('button', { name: /cerrar sesión/i }).first().click();
+  await expect(page).toHaveURL(/\/login/);
+}
+
+/** Navega con el menú lateral, como lo haría una persona. */
+async function openSection(page: Page, label: string): Promise<void> {
+  await page.getByRole('complementary').getByRole('button', { name: label }).click();
+  await expect(page.getByRole('heading', { level: 1, name: label })).toBeVisible();
+}
+
 test.describe('Reglas del ADR 0010 contra el backend real', () => {
   test('el administrador crea y elimina un área desde «Áreas y facultades»', async ({ page }) => {
     const name = `Área E2E ${Date.now()}`;
@@ -74,34 +85,37 @@ test.describe('Reglas del ADR 0010 contra el backend real', () => {
     }
   });
 
-  test('cada cargo solo ve sus áreas y facultades en la web', async ({ page, browser }) => {
+  test('cada cargo solo ve sus áreas y facultades en la web', async ({ page }) => {
     // El administrador crea un área y una facultad ajenas al encargado y al decano sembrados.
-    const admin = await browser.newPage();
-    await signInAs(admin, 'admin@example.test');
     const stamp = Date.now();
-    const area = await (await admin.request.post('/api/areas', { data: { name: `Área ajena ${stamp}` } })).json() as { id: string; name: string };
-    const faculty = await (await admin.request.post('/api/faculties', { data: { name: `Facultad ajena ${stamp}` } })).json() as { id: string; name: string };
+    await signInAs(page, 'admin@example.test');
+    const area = await (await page.request.post('/api/areas', { data: { name: `Área ajena ${stamp}` } })).json() as { id: string; name: string };
+    const faculty = await (await page.request.post('/api/faculties', { data: { name: `Facultad ajena ${stamp}` } })).json() as { id: string; name: string };
+    await signOut(page);
 
     try {
       await signInAs(page, 'encargado.area@example.test');
-      await page.goto('/panel#academic');
+      await openSection(page, 'Proyectos y actividades');
       const areaSelect = page.getByLabel('Área del nuevo proyecto');
       await expect(areaSelect.locator('option', { hasText: SEED_AREA })).toHaveCount(1);
       await expect(areaSelect.locator('option', { hasText: area.name })).toHaveCount(0);
-      await page.goto('/panel#institution');
+      await openSection(page, 'Áreas y facultades');
       await expect(page.getByText(SEED_AREA).first()).toBeVisible();
       await expect(page.getByText(area.name)).toHaveCount(0);
-      await page.getByRole('button', { name: /cerrar sesión/i }).first().click();
+      await signOut(page);
 
       await signInAs(page, 'decano@example.test');
-      await page.goto('/panel#academic');
+      await openSection(page, 'Proyectos y actividades');
       const faculties = page.getByRole('group', { name: 'Facultades del nuevo proyecto' });
       await expect(faculties.getByLabel('Facultad de Ingeniería (demo)')).toBeVisible();
       await expect(faculties.getByLabel(faculty.name)).toHaveCount(0);
+      await signOut(page);
     } finally {
-      await admin.request.delete(`/api/areas/${area.id}`);
-      await admin.request.delete(`/api/faculties/${faculty.id}`);
-      await admin.close();
+      // Limpieza con la sesión del administrador (la misma página, sin un segundo contexto).
+      await page.context().clearCookies();
+      await signInAs(page, 'admin@example.test');
+      await page.request.delete(`/api/areas/${area.id}`);
+      await page.request.delete(`/api/faculties/${faculty.id}`);
     }
   });
 });

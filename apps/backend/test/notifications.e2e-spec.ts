@@ -313,6 +313,14 @@ describe('Novedades, notificaciones y copias por correo/WhatsApp (e2e)', () => {
       expect(await dispatch()).toEqual({ sent: 3, retrying: 0, failed: 0, skipped: 1, deferred: 0 });
     });
 
+    it('un usuario desactivado no recibe copias externas ni aparece como destinatario (ADR 0011)', async () => {
+      await (await world.as('admin')).post(`/api/users/${world.ids.student}/deactivate`).expect(200);
+      const created = await publish('dean', { audiences: [{ type: 'PROJECT', projectId }] });
+      expect(created.queuedDeliveries).toBe(3);
+      expect(await dispatch()).toEqual({ sent: 3, retrying: 0, failed: 0, skipped: 0, deferred: 0 });
+      expect(email.sent.map((s) => s.address)).not.toContain(emailOf('student'));
+    });
+
     it('el tutor elimina sus propias novedades, no las ajenas', async () => {
       const created = await publish('tutor', { audiences: [{ type: 'PROJECT', projectId }] });
       await (await world.as('tutor2')).delete(`/api/announcements/${created.id}`).expect(404);

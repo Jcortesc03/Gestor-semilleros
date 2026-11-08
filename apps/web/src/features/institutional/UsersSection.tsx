@@ -1,90 +1,39 @@
-import { useState } from 'react';
-import type { FormEvent } from 'react';
-import { CheckCircle2, UserPlus } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import type { CurrentUser } from '../../types/auth.ts';
 import type { ApiRequest } from '../../types/api.ts';
-import { Button, ErrorNotice, Field, PanelCard } from '../../components/WorkspaceUi';
-import { createInstitutionalUser, type CreateUserInput, type GlobalRole } from './api';
-import { hasRole, ROLE_OPTIONS, SelectField, Unavailable } from './shared';
+import { EmptyState, PanelCard } from '../../components/WorkspaceUi';
+import { CreateUserForm } from './CreateUserForm';
+import { UserDetailPanel } from './UserDetailPanel';
+import { UserDirectory } from './UserDirectory';
+import { hasRole, Unavailable } from './shared';
 
-interface UserFormState {
-  email: string;
-  fullName: string;
-  role: GlobalRole;
-  password: string;
-}
-
-const INITIAL_FORM: UserFormState = { email: '', fullName: '', role: 'STUDENT', password: '' };
-
+/** Gestión de cuentas (ADR 0011): solo administradores. */
 export function UsersSection({ user, request }: { user: CurrentUser; request: ApiRequest }) {
   if (!hasRole(user, 'ADMIN')) {
-    return <Unavailable title="Alta de usuarios" description="Solo un administrador puede crear cuentas." />;
+    return <Unavailable title="Gestión de usuarios" description="Solo un administrador puede crear y gestionar cuentas." />;
   }
-  return <UserForm request={request} />;
+  return <UserManagement user={user} request={request} />;
 }
 
-function UserForm({ request }: { request: ApiRequest }) {
-  const [form, setForm] = useState<UserFormState>(INITIAL_FORM);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<unknown>();
-  const [createdEmail, setCreatedEmail] = useState<string>();
-
-  function update<K extends keyof UserFormState>(key: K, value: UserFormState[K]) {
-    setForm((current) => ({ ...current, [key]: value }));
-  }
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (busy) return;
-    const input: CreateUserInput = {
-      email: form.email.trim(),
-      fullName: form.fullName.trim(),
-      roles: [form.role],
-      ...(form.password ? { password: form.password } : {}),
-    };
-    setBusy(true);
-    setError(undefined);
-    setCreatedEmail(undefined);
-    try {
-      const created = await createInstitutionalUser(request, input);
-      setCreatedEmail(created.email);
-    } catch (cause) {
-      setError(cause);
-    } finally {
-      // La contraseña nunca se conserva en la pantalla después de un intento.
-      setBusy(false);
-      setForm((current) => ({ ...current, password: '' }));
-    }
-  }
+function UserManagement({ user, request }: { user: CurrentUser; request: ApiRequest }) {
+  const [selectedId, setSelectedId] = useState<string>();
+  const [refreshToken, setRefreshToken] = useState(0);
+  // Cualquier cambio (alta, edición, estado) vuelve a consultar el listado con sus filtros actuales.
+  const refresh = useCallback(() => setRefreshToken((token) => token + 1), []);
 
   return (
-    <PanelCard title="Crear cuenta institucional" action={<UserPlus aria-hidden="true" className="size-5 text-gold" />}>
-      <p className="mb-6 max-w-2xl text-sm leading-relaxed text-navy/75">
-        El primer administrador se autoriza por separado desde la terminal. Si omites la contraseña, la cuenta queda disponible
-        únicamente con Google cuando ese proveedor esté configurado.
-      </p>
-      <form className="grid gap-5 sm:grid-cols-2" onSubmit={submit}>
-        <Field required type="email" label="Correo institucional" value={form.email} onChange={(e) => update('email', e.target.value)} />
-        <Field required label="Nombre completo" value={form.fullName} onChange={(e) => update('fullName', e.target.value)} />
-        <SelectField label="Rol global" value={form.role} options={ROLE_OPTIONS} onChange={(role) => update('role', role)} />
-        <Field
-          type="password"
-          label="Contraseña opcional"
-          hint="Se limpia después de cada intento; mínimo 8 caracteres si la usas."
-          value={form.password}
-          onChange={(e) => update('password', e.target.value)}
-        />
-        <div className="sm:col-span-2">
-          <Button type="submit" disabled={busy}>{busy ? 'Creando…' : 'Crear cuenta'}</Button>
-        </div>
-      </form>
-      {error !== undefined && <div className="mt-5"><ErrorNotice error={error} /></div>}
-      {createdEmail !== undefined && (
-        <p className="mt-5 flex items-center gap-2 rounded-lg bg-canvas p-4 text-sm font-semibold">
-          <CheckCircle2 aria-hidden="true" className="size-5 text-gold" />
-          Cuenta creada para {createdEmail}.
-        </p>
-      )}
-    </PanelCard>
+    <div className="space-y-6">
+      <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+        <UserDirectory request={request} selectedId={selectedId} refreshToken={refreshToken} onSelect={setSelectedId} />
+        {selectedId ? (
+          <UserDetailPanel key={selectedId} userId={selectedId} currentUserId={user.id} request={request} onChanged={refresh} />
+        ) : (
+          <PanelCard title="Detalle del usuario">
+            <EmptyState title="Ningún usuario seleccionado" description="Elige una persona de la lista para editar su nombre, roles, estado o contraseña." />
+          </PanelCard>
+        )}
+      </div>
+      <CreateUserForm request={request} onCreated={refresh} />
+    </div>
   );
 }

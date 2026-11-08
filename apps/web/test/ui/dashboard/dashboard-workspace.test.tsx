@@ -30,7 +30,7 @@ function fake(sections: unknown[] | Error, extra: { meetings?: unknown; news?: u
     throw new ApiError(404);
   });
 }
-const user = (roles: string[]) => ({ id: 'u-1', email: 'x@example.test', fullName: 'Persona', roles });
+const user = (roles: string[]) => ({ id: 'u-1', email: 'x@example.test', fullName: 'Persona', roles, mustChangePassword: false });
 const mount = (roles: string[], request: ApiRequest, onNavigate = vi.fn()) =>
   render(<StrictMode><DashboardWorkspace user={user(roles)} request={request} onNavigate={onNavigate} /></StrictMode>);
 

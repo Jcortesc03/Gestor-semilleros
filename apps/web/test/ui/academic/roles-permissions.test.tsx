@@ -6,10 +6,10 @@ import type { CurrentUser } from '../../../src/types/auth.ts';
 import { fakeRequest, makeActivity, makeBoard, makeMember, makeProject, uuid } from './fixtures';
 
 /** Usuarios ficticios: no representan personas reales. */
-const areaManager: CurrentUser = { id: uuid(40), email: 'encargado@example.test', fullName: 'Encargado de Ejemplo', roles: ['AREA_MANAGER'] };
-const tutor: CurrentUser = { id: uuid(30), email: 'tutor@example.test', fullName: 'Tutor de Ejemplo', roles: ['TUTOR'] };
-const admin: CurrentUser = { id: uuid(900), email: 'admin@example.test', fullName: 'Admin', roles: ['ADMIN'] };
-const dean: CurrentUser = { id: uuid(41), email: 'decano@example.test', fullName: 'Diego Decano', roles: ['DEAN'] };
+const areaManager: CurrentUser = { id: uuid(40), email: 'encargado@example.test', fullName: 'Encargado de Ejemplo', roles: ['AREA_MANAGER'], mustChangePassword: false };
+const tutor: CurrentUser = { id: uuid(30), email: 'tutor@example.test', fullName: 'Tutor de Ejemplo', roles: ['TUTOR'], mustChangePassword: false };
+const admin: CurrentUser = { id: uuid(900), email: 'admin@example.test', fullName: 'Admin', roles: ['ADMIN'], mustChangePassword: false };
+const dean: CurrentUser = { id: uuid(41), email: 'decano@example.test', fullName: 'Diego Decano', roles: ['DEAN'], mustChangePassword: false };
 
 const p1 = makeProject(10, 'Semillero de robótica');
 const b1 = makeBoard(40, p1.id, 'Entrega del protocolo');

@@ -6,6 +6,8 @@ export interface AuthUser {
   email: string;
   fullName: string;
   roles: Role[];
+  /** Contraseña temporal pendiente de cambio (ADR 0011). */
+  mustChangePassword: boolean;
 }
 
 /** Perfil mínimo que entrega Google tras el inicio de sesión OAuth. */

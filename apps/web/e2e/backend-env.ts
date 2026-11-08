@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { parseEnv } from 'node:util';
 
 /** Contraseña sintética de la seed en la base E2E aislada. No es un secreto real. */
-export const E2E_SEED_PASSWORD = 'semilla-e2e-sintetica';
+export const E2E_SEED_PASSWORD = 'semilla-e2e-2026';
 export const E2E_DATABASE_NAME = 'semilleros_web_e2e_test';
 
 const DEFAULT_TEST_DATABASE_URL = 'postgresql://semilleros:semilleros@localhost:5432/semilleros_test?schema=public';

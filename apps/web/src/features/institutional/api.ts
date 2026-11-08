@@ -20,6 +20,25 @@ export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
 export interface CreateUserInput { email: string; fullName: string; roles: GlobalRole[]; password?: string }
 export interface CreatedUser { id: string; email: string; fullName: string; status: string; roles: string[]; hasPassword: boolean; createdAt: string }
 
+/** Estado de una cuenta (`docs/api/users.md`, gestión de usuarios). */
+export const USER_STATUSES = ['ACTIVE', 'INACTIVE'] as const;
+export type UserStatus = (typeof USER_STATUSES)[number];
+/** Filtro de `GET /api/users?status=`; el servidor usa `ACTIVE` por defecto. */
+export type UserStatusFilter = UserStatus | 'ALL';
+
+/** Fila del listado de administración: datos del directorio más el estado. */
+export interface AdminUserListItem { id: string; fullName: string; email: string; roles: GlobalRole[]; status: UserStatus }
+/** `UserDetail`: nunca incluye la contraseña ni su hash. */
+export interface UserDetail extends AdminUserListItem {
+  hasPassword: boolean;
+  mustChangePassword: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface ListUsersQuery { search?: string; role?: GlobalRole; status: UserStatusFilter; limit?: number }
+/** Actualización parcial de `PATCH /api/users/:id`: solo se envían los campos que cambian. */
+export interface UpdateUserInput { fullName?: string; roles?: GlobalRole[] }
+
 export interface AnnouncementAudience {
   type: (typeof AUDIENCE_TYPES)[number];
   role?: string;
@@ -156,6 +175,57 @@ function parseWhatsAppStatus(value: unknown): WhatsAppStatus {
 
 export async function createInstitutionalUser(request: ApiRequest, body: CreateUserInput): Promise<CreatedUser> {
   return parseUser(await request('/api/users', { method: 'POST', body }));
+}
+
+function parseAdminUser(value: unknown): AdminUserListItem {
+  const v = record(value);
+  return {
+    id: stringValue(v.id),
+    fullName: stringValue(v.fullName),
+    email: stringValue(v.email),
+    roles: parseArray(v.roles, (item) => oneOf(GLOBAL_ROLES, item)),
+    status: oneOf(USER_STATUSES, v.status),
+  };
+}
+
+function parseUserDetail(value: unknown): UserDetail {
+  const v = record(value);
+  return {
+    ...parseAdminUser(v),
+    hasPassword: booleanValue(v.hasPassword),
+    mustChangePassword: booleanValue(v.mustChangePassword),
+    createdAt: stringValue(v.createdAt),
+    updatedAt: stringValue(v.updatedAt),
+  };
+}
+
+/** `GET /api/users` para administración: el filtro de estado siempre se envía de forma explícita. */
+export async function listInstitutionalUsers(request: ApiRequest, query: ListUsersQuery): Promise<AdminUserListItem[]> {
+  const params = new URLSearchParams();
+  if (query.search) params.set('search', query.search);
+  if (query.role) params.set('role', query.role);
+  params.set('status', query.status);
+  if (query.limit !== undefined) params.set('limit', String(query.limit));
+  return parseArray(await request(`/api/users?${params.toString()}`), parseAdminUser);
+}
+
+export async function getInstitutionalUser(request: ApiRequest, id: string): Promise<UserDetail> {
+  return parseUserDetail(await request(`/api/users/${encodeURIComponent(id)}`));
+}
+
+export async function updateInstitutionalUser(request: ApiRequest, id: string, body: UpdateUserInput): Promise<UserDetail> {
+  return parseUserDetail(await request(`/api/users/${encodeURIComponent(id)}`, { method: 'PATCH', body }));
+}
+
+/** Desactiva o reactiva: `POST /api/users/:id/deactivate` o `/activate`. */
+export async function setInstitutionalUserActive(request: ApiRequest, id: string, active: boolean): Promise<UserDetail> {
+  const action = active ? 'activate' : 'deactivate';
+  return parseUserDetail(await request(`/api/users/${encodeURIComponent(id)}/${action}`, { method: 'POST' }));
+}
+
+/** Fija una contraseña temporal: el usuario deberá cambiarla en su próximo inicio de sesión (204). */
+export async function setTemporaryPassword(request: ApiRequest, id: string, password: string): Promise<void> {
+  await request(`/api/users/${encodeURIComponent(id)}/password`, { method: 'PUT', body: { password } });
 }
 
 export async function getAnnouncements(request: ApiRequest, query: AnnouncementQuery = {}): Promise<Announcement[]> {

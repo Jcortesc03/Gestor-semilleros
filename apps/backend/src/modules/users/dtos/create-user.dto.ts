@@ -1,5 +1,5 @@
 import { Role } from '../../../generated/prisma/enums';
-import { normalizeEmail } from '../../auth';
+import { normalizeEmail, passwordPolicyErrors } from '../../auth';
 
 /** Cuerpo validado de POST /api/users. */
 export interface CreateUserDto {
@@ -15,9 +15,6 @@ export type ValidationResult<T> = { ok: true; value: T } | { ok: false; errors: 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_EMAIL_LENGTH = 254;
 const MAX_NAME_LENGTH = 150;
-// Política provisional de contraseñas (no definida en el dominio; ver ADR 0003).
-export const MIN_PASSWORD_LENGTH = 8;
-export const MAX_PASSWORD_LENGTH = 256;
 const VALID_ROLES = new Set<string>(Object.values(Role));
 const ALLOWED_FIELDS = new Set(['email', 'fullName', 'roles', 'password']);
 
@@ -64,10 +61,10 @@ export function parseCreateUser(input: unknown): ValidationResult<CreateUserDto>
   if (body.password !== undefined && body.password !== null) {
     if (typeof body.password !== 'string') {
       errors.push('password debe ser texto.');
-    } else if (body.password.length < MIN_PASSWORD_LENGTH || body.password.length > MAX_PASSWORD_LENGTH) {
-      errors.push(`password debe tener entre ${MIN_PASSWORD_LENGTH} y ${MAX_PASSWORD_LENGTH} caracteres.`);
     } else {
-      password = body.password;
+      const policy = passwordPolicyErrors(body.password, email);
+      if (policy.length > 0) errors.push(...policy.map((e) => e.replace('La contraseña', 'password')));
+      else password = body.password;
     }
   }
 

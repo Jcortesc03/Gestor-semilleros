@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { LoginPage } from './pages/LoginPage';
 import { Workspace } from './layouts/Workspace';
+import { ChangePasswordPage } from './pages/ChangePasswordPage';
+import { createApiRequest } from './lib/api';
 import { AuthError, authErrorFromUrl, createAuthClient } from './services/auth';
 import type { AuthProviders } from './services/auth';
 import type { Credentials, CurrentUser } from './types/auth';
@@ -11,6 +13,7 @@ type Session =
   | { status: 'ready'; user: CurrentUser | null };
 
 const auth = createAuthClient();
+const apiRequest = createApiRequest(globalThis.fetch);
 
 function messageFor(error: unknown): string {
   return error instanceof AuthError
@@ -89,6 +92,17 @@ export function App() {
     }
   }
 
+  /** Recarga la sesión tras cambiar la contraseña temporal; si falla, ofrece reintentar. */
+  async function reloadSession(): Promise<void> {
+    try {
+      const user = await auth.getCurrentUser();
+      setSession({ status: 'ready', user });
+      showRoute(user ? '/panel' : '/login');
+    } catch {
+      setSession({ status: 'unavailable' });
+    }
+  }
+
   async function signOut(): Promise<void> {
     if (pending) return;
     setPending(true);
@@ -138,6 +152,20 @@ export function App() {
             </button>
           )}
         </section>
+      </main>
+    );
+  }
+
+  if (session.user?.mustChangePassword) {
+    return (
+      <main className="grid min-h-dvh place-items-center overflow-x-clip bg-canvas px-5 py-10 text-navy sm:px-8">
+        <ChangePasswordPage
+          mode="required"
+          email={session.user.email}
+          request={apiRequest}
+          onChanged={() => void reloadSession()}
+          onSignOut={() => void signOut()}
+        />
       </main>
     );
   }

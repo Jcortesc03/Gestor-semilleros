@@ -82,7 +82,7 @@ flowchart LR
 - El **backend (NestJS)** aplica **MVC**: modelos y reglas de negocio en el dominio, controladores para la API y vistas en los clientes.
 - **Prisma** es el ORM del backend y el único punto de acceso a **PostgreSQL**.
 - **PostgreSQL** almacena los datos estructurados; **AWS S3** guarda documentos e imágenes.
-- El despliegue se realizará con **Docker**. Existe el Compose de PostgreSQL local; los Dockerfiles y el Compose de despliegue aún no existen.
+- El despliegue se realiza con **Docker** ([ADR 0012](docs/decisions/0012-despliegue-con-contenedores.md)): `docker/compose.prod.yaml` levanta PostgreSQL, el backend y la web (nginx). Guías por modo en [`apps/backend/README.md`](apps/backend/README.md) y [`apps/web/README.md`](apps/web/README.md).
 
 <a id="caracteristicas"></a>
 
@@ -124,7 +124,7 @@ Solo se listan como definidas las decisiones ya tomadas. El resto permanece **po
 | Documentos e imágenes | AWS S3 | ✅ Definido |
 | Autenticación y autorización | Auth.js | ✅ Definido |
 | Arquitectura | MVC | ✅ Definido |
-| Despliegue | Docker | ✅ Definido (solo PostgreSQL local; despliegue pendiente) |
+| Despliegue | Docker | ✅ PostgreSQL local y despliegue completo con `docker/compose.prod.yaml` |
 | Gestor de paquetes | pnpm | ✅ Definido |
 | Herramientas del monorepo | Turborepo | ✅ Definido |
 | Pruebas | Jest + Supertest | ✅ Definido e implementado en el backend |
@@ -143,7 +143,7 @@ La estructura de carpetas está creada; solo el backend contiene código (`apps/
 │   ├── web/        # React
 │   └── mobile/     # React Native
 ├── packages/       # types · validation · utils
-├── docker/         # PostgreSQL local (compose.yaml)
+├── docker/         # PostgreSQL local (compose.yaml) y despliegue (compose.prod.yaml)
 ├── docs/           # arquitectura · dominio · base de datos · API · ADRs
 ├── scripts/        # utilidades del monorepo
 ├── package.json    # workspace y scripts raíz
@@ -190,7 +190,7 @@ Versiones registradas en [ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorn
 
 3. **Configurar las variables de entorno:** `cp apps/backend/.env.example apps/backend/.env`. Ver [Variables de entorno](#variables-entorno).
 
-4. **Levantar la base de datos y aplicar las migraciones:** `pnpm db:up` y luego `pnpm db:migrate`. La guía completa está en [`docs/database/local-setup.md`](docs/database/local-setup.md). La configuración de Docker para despliegue sigue pendiente.
+4. **Levantar la base de datos y aplicar las migraciones:** `pnpm db:up` y luego `pnpm db:migrate`. La guía completa está en [`docs/database/local-setup.md`](docs/database/local-setup.md). Para ejecutar cada aplicación en desarrollo, producción o con Docker, ver [`apps/backend/README.md`](apps/backend/README.md) y [`apps/web/README.md`](apps/web/README.md).
 
 5. **Crear usuarios de desarrollo** (opcional): `SEED_PASSWORD='…' pnpm db:seed` crea un usuario por tipo con una contraseña común (en fish: anteponer `env`). Los usuarios sembrados son **solo para desarrollo**. Alternativa mínima: `admin:create` ([`docs/api/users.md`](docs/api/users.md#primer-administrador)).
 
@@ -286,7 +286,7 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 - [x] Permisos por proyecto (proyectos, tableros y actividades)
 - [ ] Resto de la gestión de usuarios
 - [ ] CI/CD
-- [ ] Configuración de Docker para desarrollo y despliegue
+- [x] Configuración de Docker para desarrollo y despliegue
 - [ ] MVP del backend (módulos de dominio)
 - [ ] MVP de la aplicación web
 - [ ] MVP de la aplicación móvil

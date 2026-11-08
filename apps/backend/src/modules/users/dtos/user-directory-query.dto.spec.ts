@@ -6,17 +6,25 @@ function errorsOf(input: unknown): string[] {
 }
 
 describe('parseUserDirectoryQuery', () => {
+  it.each(['ACTIVE', 'INACTIVE', 'ALL'])('acepta status=%s', (status) => {
+    expect(parseUserDirectoryQuery({ status })).toMatchObject({ ok: true, value: { status } });
+  });
+
+  it.each(['active', 'TODOS', '', 5])('rechaza status inválido (%p)', (status) => {
+    expect(errorsOf({ status }).join(' ')).toMatch(/status debe ser uno de/);
+  });
+
   it('usa valores por defecto cuando no hay parámetros', () => {
     expect(parseUserDirectoryQuery({})).toEqual({
       ok: true,
-      value: { search: null, role: null, limit: DEFAULT_DIRECTORY_LIMIT },
+      value: { search: null, role: null, limit: DEFAULT_DIRECTORY_LIMIT, status: null },
     });
   });
 
   it('recorta la búsqueda y convierte el límite a número', () => {
     expect(parseUserDirectoryQuery({ search: '  Ana  ', role: 'TUTOR', limit: '5' })).toEqual({
       ok: true,
-      value: { search: 'Ana', role: 'TUTOR', limit: 5 },
+      value: { search: 'Ana', role: 'TUTOR', limit: 5, status: null },
     });
   });
 

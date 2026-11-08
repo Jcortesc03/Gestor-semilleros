@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import type { PrismaService } from '../../../database/prisma.service';
 import { AuthService } from './auth.service';
 import { PasswordService } from './password.service';
@@ -8,6 +9,7 @@ type FakeUser = {
   fullName: string;
   status: 'ACTIVE' | 'INACTIVE';
   passwordHash: string | null;
+  mustChangePassword: boolean;
   roles: { role: 'ADMIN' | 'TUTOR' | 'STUDENT' }[];
 };
 
@@ -18,6 +20,8 @@ function setup(users: FakeUser[]) {
         users.find((u) => u.email.toLowerCase() === where.email.equals.toLowerCase()) ?? null,
       ),
       findUnique: jest.fn(async ({ where }: { where: { id: string } }) => users.find((u) => u.id === where.id) ?? null),
+      findUniqueOrThrow: jest.fn(async ({ where }: { where: { id: string } }) => users.find((u) => u.id === where.id)),
+      update: jest.fn(async () => ({})),
     },
   };
   const passwords = new PasswordService();
@@ -38,6 +42,7 @@ describe('AuthService', () => {
     fullName: 'Ana Prueba',
     status: 'ACTIVE',
     passwordHash: hash,
+    mustChangePassword: false,
     roles: [{ role: 'TUTOR' }],
     ...over,
   });
@@ -50,6 +55,7 @@ describe('AuthService', () => {
         email: 'ana@example.test',
         fullName: 'Ana Prueba',
         roles: ['TUTOR', 'ADMIN'],
+        mustChangePassword: false,
       });
     });
 
@@ -112,6 +118,61 @@ describe('AuthService', () => {
       await expect(service.findActiveUser('u1')).resolves.toMatchObject({ id: 'u1' });
       await expect(service.findActiveUser('u2')).resolves.toBeNull();
       await expect(service.findActiveUser('u3')).resolves.toBeNull();
+    });
+  });
+
+  describe('changeOwnPassword', () => {
+    const errorsOf = async (promise: Promise<unknown>) => {
+      const error = (await promise.catch((e: unknown) => e)) as BadRequestException;
+      expect(error).toBeInstanceOf(BadRequestException);
+      return (error.getResponse() as { errors: string[] }).errors;
+    };
+
+    it('guarda el nuevo hash y apaga mustChangePassword', async () => {
+      const { service, prisma, passwords } = setup([user({ mustChangePassword: true })]);
+      await service.changeOwnPassword('u1', { currentPassword: 'Clave-123', newPassword: 'Nueva-Clave-456' });
+
+      const [{ data }] = prisma.user.update.mock.calls[0] as unknown as [{ data: { passwordHash: string; mustChangePassword: boolean } }];
+      expect(data.mustChangePassword).toBe(false);
+      await expect(passwords.verify(data.passwordHash, 'Nueva-Clave-456')).resolves.toBe(true);
+    });
+
+    it('exige la contraseña actual si ya existe una', async () => {
+      const { service, prisma } = setup([user()]);
+      expect(await errorsOf(service.changeOwnPassword('u1', { currentPassword: null, newPassword: 'Nueva-Clave-456' }))).toEqual([
+        'currentPassword es obligatorio.',
+      ]);
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('responde 403 si la contraseña actual no coincide', async () => {
+      const { service, prisma } = setup([user()]);
+      await expect(
+        service.changeOwnPassword('u1', { currentPassword: 'incorrecta', newPassword: 'Nueva-Clave-456' }),
+      ).rejects.toMatchObject({ message: 'La contraseña actual no es correcta.' });
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('aplica la política (incluida la igualdad con el correo)', async () => {
+      const { service } = setup([user()]);
+      expect(await errorsOf(service.changeOwnPassword('u1', { currentPassword: 'Clave-123', newPassword: 'corta' }))).toHaveLength(2);
+      expect(
+        await errorsOf(service.changeOwnPassword('u1', { currentPassword: 'Clave-123', newPassword: 'ANA@example.test' })),
+      ).toEqual(expect.arrayContaining([expect.stringContaining('igual al correo')]));
+    });
+
+    it('exige que la nueva sea distinta de la actual', async () => {
+      const same = await new PasswordService().hash('Misma-Clave-1');
+      const { service } = setup([user({ passwordHash: same })]);
+      expect(await errorsOf(service.changeOwnPassword('u1', { currentPassword: 'Misma-Clave-1', newPassword: 'Misma-Clave-1' }))).toEqual([
+        'La nueva contraseña debe ser distinta de la actual.',
+      ]);
+    });
+
+    it('no exige la actual a quien no tiene contraseña (solo Google)', async () => {
+      const { service, prisma } = setup([user({ passwordHash: null })]);
+      await service.changeOwnPassword('u1', { currentPassword: null, newPassword: 'Nueva-Clave-456' });
+      expect(prisma.user.update).toHaveBeenCalledTimes(1);
     });
   });
 });

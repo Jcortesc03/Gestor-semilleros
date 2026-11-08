@@ -2,7 +2,7 @@
  * Siembra datos de desarrollo: un usuario de cada tipo y un proyecto demo (ver seed-database.ts).
  * Es idempotente: se puede ejecutar varias veces. Rechaza ejecutarse con NODE_ENV=production.
  *
- * La contraseña común se lee de SEED_PASSWORD (8–256 caracteres) y nunca se imprime.
+ * La contraseña común se lee de SEED_PASSWORD (política del ADR 0011: 10–256 caracteres, con letra y número) y nunca se imprime.
  *
  * Uso: SEED_PASSWORD='...' pnpm db:seed
  */

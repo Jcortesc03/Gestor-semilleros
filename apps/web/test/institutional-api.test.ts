@@ -12,6 +12,11 @@ import {
   createAnnouncement,
   listProjectsForAudience,
   whatsappQrUrl,
+  listInstitutionalUsers,
+  getInstitutionalUser,
+  updateInstitutionalUser,
+  setInstitutionalUserActive,
+  setTemporaryPassword,
 } from '../src/features/institutional/api.ts';
 
 function mockApiRequest(response: unknown) {
@@ -124,4 +129,58 @@ test('a dean who is also a tutor merges both sources without duplicates', async 
   assert.deepEqual(await listProjectsForAudience(request, { visible: true, tutored: true }), [
     { id: 'p-1', title: 'Uno' }, { id: 'p-2', title: 'Dos' }, { id: 'p-3', title: 'Tres' },
   ]);
+});
+
+const adminUser = { id: 'u-2', fullName: 'Ana Pérez', email: 'ana@example.test', roles: ['STUDENT'], status: 'ACTIVE' };
+const adminDetail = {
+  ...adminUser, hasPassword: true, mustChangePassword: false,
+  createdAt: '2026-01-10T10:00:00.000Z', updatedAt: '2026-01-10T10:00:00.000Z',
+};
+
+test('lists users for administration always sending the explicit status filter', async () => {
+  const mock = mockApiRequest([adminUser]);
+  const result = await listInstitutionalUsers(mock.request, { search: 'ana p', role: 'STUDENT', status: 'ALL', limit: 50 });
+  assert.equal(mock.calls[0].path, '/api/users?search=ana+p&role=STUDENT&status=ALL&limit=50');
+  assert.deepEqual(result, [adminUser]);
+  const defaults = mockApiRequest([]);
+  await listInstitutionalUsers(defaults.request, { status: 'INACTIVE' });
+  assert.equal(defaults.calls[0].path, '/api/users?status=INACTIVE');
+});
+
+test('rejects a list item with a status outside the contract', async () => {
+  const mock = mockApiRequest([{ ...adminUser, status: 'SUSPENDED' }]);
+  await assert.rejects(() => listInstitutionalUsers(mock.request, { status: 'ALL' }));
+});
+
+test('gets the user detail with an encoded id and validates the flags', async () => {
+  const mock = mockApiRequest(adminDetail);
+  const result = await getInstitutionalUser(mock.request, 'u/2');
+  assert.equal(mock.calls[0].path, '/api/users/u%2F2');
+  assert.equal(result.mustChangePassword, false);
+  const broken = mockApiRequest({ ...adminDetail, hasPassword: 'yes' });
+  await assert.rejects(() => getInstitutionalUser(broken.request, 'u-2'));
+});
+
+test('patches only the sent fields of the user', async () => {
+  const mock = mockApiRequest({ ...adminDetail, roles: ['TUTOR'] });
+  const result = await updateInstitutionalUser(mock.request, 'u-2', { roles: ['TUTOR'] });
+  assert.deepEqual(mock.calls[0], { path: '/api/users/u-2', options: { method: 'PATCH', body: { roles: ['TUTOR'] } } });
+  assert.deepEqual(result.roles, ['TUTOR']);
+});
+
+test('deactivates and reactivates through the action routes', async () => {
+  const off = mockApiRequest({ ...adminDetail, status: 'INACTIVE' });
+  const result = await setInstitutionalUserActive(off.request, 'u-2', false);
+  assert.deepEqual(off.calls[0], { path: '/api/users/u-2/deactivate', options: { method: 'POST' } });
+  assert.equal(result.status, 'INACTIVE');
+  const on = mockApiRequest(adminDetail);
+  await setInstitutionalUserActive(on.request, 'u-2', true);
+  assert.equal(on.calls[0].path, '/api/users/u-2/activate');
+});
+
+test('sets a temporary password with the PUT contract and returns nothing', async () => {
+  const mock = mockApiRequest(undefined);
+  const result = await setTemporaryPassword(mock.request, 'u-2', 'Temporal-2026');
+  assert.deepEqual(mock.calls[0], { path: '/api/users/u-2/password', options: { method: 'PUT', body: { password: 'Temporal-2026' } } });
+  assert.equal(result, undefined);
 });

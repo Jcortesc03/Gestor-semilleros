@@ -4,9 +4,9 @@ import { UsersService } from './users.service';
 import { PasswordService } from '../../auth';
 
 const users = [
-  { id: 'u1', fullName: 'Ana Zambrano', email: 'ana.zambrano@example.test', roles: [{ role: 'TUTOR' as const }] },
-  { id: 'u2', fullName: 'José Álvarez', email: 'jose.alvarez@example.test', roles: [{ role: 'STUDENT' as const }, { role: 'DEAN' as const }] },
-  { id: 'u3', fullName: 'Muñoz Pardo', email: 'munoz@example.test', roles: [{ role: 'TUTOR' as const }] },
+  { id: 'u1', fullName: 'Ana Zambrano', email: 'ana.zambrano@example.test', status: 'ACTIVE' as const, roles: [{ role: 'TUTOR' as const }] },
+  { id: 'u2', fullName: 'José Álvarez', email: 'jose.alvarez@example.test', status: 'ACTIVE' as const, roles: [{ role: 'STUDENT' as const }, { role: 'DEAN' as const }] },
+  { id: 'u3', fullName: 'Muñoz Pardo', email: 'munoz@example.test', status: 'ACTIVE' as const, roles: [{ role: 'TUTOR' as const }] },
 ];
 
 function setup() {
@@ -15,14 +15,28 @@ function setup() {
   return { service: new UsersService(prisma as unknown as PrismaService, new PasswordService()), findMany };
 }
 
-const query = (overrides: Partial<{ search: string | null; role: 'TUTOR' | null; limit: number }> = {}) => ({
+const query = (overrides: Partial<{ search: string | null; role: 'TUTOR' | null; limit: number; status: 'ALL' | 'INACTIVE' | null }> = {}) => ({
   search: null,
   role: null,
   limit: 20,
+  status: null as 'ALL' | 'INACTIVE' | null,
   ...overrides,
 });
 
 describe('UsersService.listDirectory', () => {
+  it('con status ALL no filtra por estado e incluye el campo status', async () => {
+    const { service, findMany } = setup();
+    const result = await service.listDirectory(query({ status: 'ALL' }));
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
+    expect(result[0]).toMatchObject({ id: 'u1', status: 'ACTIVE' });
+  });
+
+  it('con status INACTIVE filtra solo inactivos', async () => {
+    const { service, findMany } = setup();
+    await service.listDirectory(query({ status: 'INACTIVE' }));
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { status: 'INACTIVE' } }));
+  });
+
   it('solo consulta usuarios activos y devuelve id, nombre, correo y roles', async () => {
     const { service, findMany } = setup();
     const result = await service.listDirectory(query());

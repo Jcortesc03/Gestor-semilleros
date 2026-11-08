@@ -7,6 +7,7 @@ import {
   type GlobalRole,
   type NotificationChannel,
   type NotificationKind,
+  type UserStatus,
 } from './api';
 
 export const ROLE_LABELS: Record<GlobalRole, string> = {
@@ -15,6 +16,11 @@ export const ROLE_LABELS: Record<GlobalRole, string> = {
   DEAN: 'Decano',
   TUTOR: 'Tutor',
   STUDENT: 'Estudiante',
+};
+
+export const USER_STATUS_LABELS: Record<UserStatus, string> = {
+  ACTIVE: 'Activo',
+  INACTIVE: 'Inactivo',
 };
 
 export const ANNOUNCEMENT_KIND_LABELS: Record<AnnouncementKind, string> = {
