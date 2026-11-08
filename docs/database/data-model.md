@@ -34,6 +34,7 @@
 | Documento | `documents` | Entidad |
 | Novedad | `announcements` | Entidad |
 | Audiencia de novedad | `announcement_audiences` | Asociativa con discriminador (DB-06) |
+| Adjunto de noticia | `announcement_attachments` | Entidad (ADR 0015) |
 | Reunión | `meetings` | Entidad |
 | Participante de reunión | `meeting_participants` | Asociativa |
 | Recordatorio | `reminders` | Entidad (provisional, P-19) |
@@ -114,6 +115,8 @@ La notificación es un tipo de novedad (P-16). No hay registro de lectura ni col
 **`announcement_audiences`**: `id` PK · `announcement_id` FK NN · `audience_type` NN (`AudienceType`) · `role?` (`Role`) · `faculty_id?` FK · `area_id?` FK · `project_id?` FK.
 CHECK: solo la columna de destino que corresponde a `audience_type` tiene valor, y ninguna si es `ALL` (DB-06).
 
+**`announcement_attachments`** (ADR 0015): `id` PK · `announcement_id` FK→announcements NN (`ON DELETE RESTRICT`: la novedad se elimina de forma lógica y los objetos de S3 se conservan) · `file_name` NN · `format` NN (`DocumentFormat`) · `mime_type` NN · `size_bytes` NN (BIGINT) · `storage_key` NN único (`announcements/<announcement_id>/<uuid>`) · `created_at`. Índice por `announcement_id`. Solo las novedades `NEWS` tienen adjuntos (hasta 5; regla aplicada por la API).
+
 ### Copias de novedades (ADR 0005)
 
 **`users.phone?`**: teléfono E.164 para WhatsApp. CHECK `users_phone_e164`.
@@ -167,6 +170,7 @@ erDiagram
 
     users ||--o{ announcements : publishes
     announcements ||--|{ announcement_audiences : targets
+    announcements ||--o{ announcement_attachments : has
     faculties |o--o{ announcement_audiences : ""
     areas |o--o{ announcement_audiences : ""
     projects |o--o{ announcement_audiences : ""

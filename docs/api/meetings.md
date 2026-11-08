@@ -1,6 +1,6 @@
 # API de reuniones (Microsoft Teams)
 
-> **Estado:** implementado en `apps/backend/src/modules/meetings/` (con la parte de Microsoft en `apps/backend/src/modules/integrations/`) y cubierto por `apps/backend/test/meetings.e2e-spec.ts`. Los parsers de entrada tienen pruebas unitarias (`dtos/meeting.dto.spec.ts`). Decisiones: [ADR 0007](../decisions/0007-reuniones-con-microsoft-teams.md) y [ADR 0014](../decisions/0014-cuentas-personales-de-microsoft.md) (`joinUrl` según el tipo de cuenta, implementado).
+> **Estado:** implementado en `apps/backend/src/modules/meetings/` (con la parte de Microsoft en `apps/backend/src/modules/integrations/`) y cubierto por `apps/backend/test/meetings.e2e-spec.ts`. Los parsers de entrada tienen pruebas unitarias (`dtos/meeting.dto.spec.ts`). Decisiones: [ADR 0007](../decisions/0007-reuniones-con-microsoft-teams.md) y [ADR 0014](../decisions/0014-cuentas-personales-de-microsoft.md) (`joinUrl` según el tipo de cuenta, implementado). Los roles `DEAN` y `AREA_MANAGER` para crear reuniones (ADR 0010 §10) están implementados.
 > Vinculación de la cuenta de Microsoft: [`microsoft.md`](microsoft.md). Avisos y preferencias: [`notification-preferences.md`](notification-preferences.md). Proyectos y participantes: [`projects.md`](projects.md). Autenticación: [`auth.md`](auth.md).
 
 Todas las rutas requieren una sesión válida (cookie de Auth.js). El prefijo global es `/api`.
@@ -13,7 +13,7 @@ Los cuerpos de error de validación son `{ message: "Datos inválidos.", errors:
 
 | Método y ruta | Permiso | Código de éxito |
 | --- | --- | --- |
-| `POST /api/meetings` | Rol `TUTOR` o `ADMIN`; con proyecto, tutor del proyecto o `ADMIN` | `201` |
+| `POST /api/meetings` | Rol `TUTOR`, `DEAN`, `AREA_MANAGER` o `ADMIN`; con proyecto, tutor del proyecto, decano de una facultad del proyecto, encargado de su área o `ADMIN` | `201` |
 | `GET /api/meetings` | Cualquier sesión válida (solo reuniones visibles) | `200` |
 | `GET /api/meetings/:id` | Organizador, participante o `ADMIN` | `200` |
 | `PATCH /api/meetings/:id/status` | Organizador o `ADMIN` | `200` |
@@ -66,9 +66,9 @@ Crea la reunión. Exige que el organizador tenga su cuenta de Microsoft vinculad
 
 ### Permisos
 
-1. Rol `TUTOR` o `ADMIN` (`RolesGuard`). Otro rol: `403`.
-2. Con `projectId`, se resuelve el acceso al proyecto con `ProjectAccessService` (las mismas reglas que en [`projects.md`](projects.md#acceso-y-visibilidad)): el usuario debe ser `ADMIN` o **tutor del proyecto**. Un decano o un participante con otro rol del proyecto recibe `403`; quien no puede ver el proyecto, o si este no existe o está eliminado, recibe `404`.
-3. Sin `projectId`, cualquier `TUTOR` o `ADMIN` puede invitar a usuarios activos del sistema.
+1. Rol `TUTOR`, `DEAN`, `AREA_MANAGER` o `ADMIN` (`RolesGuard`). Otro rol: `403` ([ADR 0010](../decisions/0010-reglas-pendientes-resueltas.md) §10).
+2. Con `projectId`, se resuelve el acceso al proyecto con `ProjectAccessService` (mismas reglas que en [`projects.md`](projects.md#acceso-y-visibilidad)). Puede crear el `ADMIN`, un **tutor activo del proyecto**, el **decano vigente** de una facultad del proyecto o el **encargado del área** del proyecto. Un participante con otro rol recibe `403`. Si el proyecto no es visible, no existe o está eliminado, `404`.
+3. Sin `projectId`, cualquier `TUTOR`, `DEAN`, `AREA_MANAGER` o `ADMIN` puede invitar a usuarios activos del sistema.
 
 ### Cuerpo (`application/json`)
 

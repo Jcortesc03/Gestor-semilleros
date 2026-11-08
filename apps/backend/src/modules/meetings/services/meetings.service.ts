@@ -12,7 +12,7 @@ import { PrismaService } from '../../../database/prisma.service';
 import type { Prisma } from '../../../generated/prisma/client';
 import type { AuthUser } from '../../auth';
 import { DeliveryDispatcher, NotificationDeliveryService, TeamsMeetingsService } from '../../integrations';
-import { isTutor, ProjectAccessService } from '../../projects';
+import { hasInstitutionalAuthority, isTutor, ProjectAccessService } from '../../projects';
 import type { ChangeMeetingStatusDto, CreateMeetingDto, ListMeetingsQuery, RecordingDto } from '../dtos/meeting.dto';
 import { meetingSelect, toMeetingResponse, type MeetingResponseDto } from '../dtos/meeting-response.dto';
 import {
@@ -211,10 +211,13 @@ export class MeetingsService {
 
   // ─── Reglas ──────────────────────────────────────────────────────────────
 
-  /** RN-73: el tutor (del proyecto) o el administrador agenda reuniones de un proyecto. */
+  /**
+   * RN-73 y ADR 0010 §10: agenda reuniones de un proyecto el administrador, un tutor activo,
+   * el decano vigente de una facultad del proyecto o el encargado de su área.
+   */
   private async assertCanScheduleFor(user: AuthUser, projectId: string): Promise<{ id: string; title: string }> {
     const access = await this.projectAccess.resolve(user, projectId);
-    if (!access.isAdmin && !isTutor(access)) throw new ForbiddenException(FORBIDDEN_MESSAGE);
+    if (!access.isAdmin && !isTutor(access) && !hasInstitutionalAuthority(access)) throw new ForbiddenException(FORBIDDEN_MESSAGE);
     return this.prisma.project.findUniqueOrThrow({ where: { id: projectId }, select: { id: true, title: true } });
   }
 

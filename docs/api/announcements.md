@@ -1,6 +1,6 @@
 # API de novedades y notificaciones
 
-> **Estado:** implementado en `apps/backend/src/modules/notifications/` y cubierto por `apps/backend/test/notifications.e2e-spec.ts`. Los parsers y el cálculo de permisos tienen además pruebas unitarias (`dtos/announcement.dto.spec.ts`, `models/publish-scope.spec.ts`). Decisión: [ADR 0005](../decisions/0005-notificaciones-y-copias-externas.md).
+> **Estado:** implementado en `apps/backend/src/modules/notifications/` y cubierto por `apps/backend/test/notifications.e2e-spec.ts`. Los parsers y el cálculo de permisos tienen además pruebas unitarias (`dtos/announcement.dto.spec.ts`, `models/publish-scope.spec.ts`). Los adjuntos de noticias ([ADR 0015](../decisions/0015-adjuntos-en-noticias.md)) están implementados y cubiertos por `apps/backend/test/announcements-attachments.e2e-spec.ts` y `models/announcement-attachments.spec.ts`. Decisión: [ADR 0005](../decisions/0005-notificaciones-y-copias-externas.md).
 > Preferencias y envío de copias: [`notification-preferences.md`](notification-preferences.md). Autenticación: [`auth.md`](auth.md). Proyectos y visibilidad: [`projects.md`](projects.md). Reglas de negocio: [`business-rules.md`](../domain/business-rules.md).
 
 Todas las rutas requieren una sesión válida (cookie de Auth.js). El prefijo global es `/api`.
@@ -116,7 +116,27 @@ Ese ejemplo solo es válido para un administrador o para un decano de la faculta
 
 Un tutor activo del proyecto puede publicar ese mismo cuerpo siempre que el `kind` no sea `NOTIFICATION` y la audiencia sea `{ "type": "PROJECT", "projectId": "…" }` de un proyecto suyo.
 
+### Noticias con archivos adjuntos ([ADR 0015](../decisions/0015-adjuntos-en-noticias.md))
+
+Solo para `kind: "NEWS"`: `POST /api/announcements` acepta también `multipart/form-data` con:
+
+- `data`: el **mismo cuerpo JSON** de arriba, como texto;
+- `files`: de 0 a 5 archivos (PDF, Word, Excel o imagen; 25 MB cada uno; firma validada como en [`documents.md`](documents.md)).
+
+| Regla | Error |
+| --- | --- |
+| Archivos con un `kind` distinto de `NEWS` | `400` (`errors`: «Solo las noticias (NEWS) admiten archivos adjuntos.») |
+| Más de 5 archivos | `400` |
+| Archivo de más de 25 MB | `413 { message: "El archivo supera el tamaño máximo de 25 MB." }` |
+| Formato no admitido o firma que no coincide | `400` con los mismos mensajes que los documentos |
+| S3 no configurado o caído | `503 { message: "El almacenamiento de documentos no está disponible." }` |
+
+Se valida todo (cuerpo, permisos y archivos) antes de guardar. Si falla la subida a S3, no se crea la novedad.
+
 ### Copias encoladas
+
+Si la noticia tiene adjuntos, el cuerpo de cada copia termina con «Incluye N archivo(s) adjunto(s): consúltalos en la plataforma.» ([ADR 0015](../decisions/0015-adjuntos-en-noticias.md)).
+
 
 Al publicar se encolan copias para los destinatarios según estas reglas:
 
@@ -182,6 +202,7 @@ Ejemplo de `400` con un destino inexistente:
   "content": "El seminario del viernes pasa a las 10:00.",
   "publishedAt": "2026-11-06T15:00:00.000Z",
   "author": { "id": "00000000-0000-0000-0000-000000000030", "fullName": "Decano de Ejemplo" },
+  "attachments": [{ "id": "uuid", "fileName": "convocatoria.pdf", "format": "PDF", "mimeType": "application/pdf", "sizeBytes": 183042 }],
   "audiences": [
     {
       "type": "FACULTY",
@@ -258,6 +279,10 @@ Devuelve una novedad visible para el usuario.
 | `400` | `id` no es UUID | `Validation failed (uuid is expected)` |
 | `401` | Sin sesión o sesión expirada | `{ message: "Sesión no válida o expirada." }` |
 | `404` | No existe, está eliminada o el usuario no puede verla | `{ message: "Novedad no encontrada." }` |
+
+## `GET /api/announcements/:id/attachments/:attachmentId/download`
+
+([ADR 0015](../decisions/0015-adjuntos-en-noticias.md)) Transmite el archivo con las mismas cabeceras que la descarga de documentos (`Content-Type`, `Content-Length`, `Content-Disposition` con `filename*`, `Cache-Control: private, no-store`). Con `?inline=true` usa `inline`. Responde `404` si la noticia no es visible para el usuario, está eliminada o el adjunto no le pertenece, y `503` si falla el almacenamiento.
 
 ## `GET /api/announcements/:id/deliveries`
 

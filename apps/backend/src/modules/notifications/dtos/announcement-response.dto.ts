@@ -1,4 +1,4 @@
-import type { AnnouncementKind, AudienceType, Role } from '../../../generated/prisma/enums';
+import type { AnnouncementKind, DocumentFormat, AudienceType, Role } from '../../../generated/prisma/enums';
 
 export interface AudienceResponseDto {
   type: AudienceType;
@@ -8,6 +8,14 @@ export interface AudienceResponseDto {
   project?: { id: string; title: string };
 }
 
+export interface AnnouncementAttachmentDto {
+  id: string;
+  fileName: string;
+  format: DocumentFormat;
+  mimeType: string;
+  sizeBytes: number;
+}
+
 export interface AnnouncementResponseDto {
   id: string;
   kind: AnnouncementKind;
@@ -15,6 +23,7 @@ export interface AnnouncementResponseDto {
   content: string;
   publishedAt: string;
   author: { id: string; fullName: string };
+  attachments: AnnouncementAttachmentDto[];
   audiences: AudienceResponseDto[];
 }
 
@@ -25,6 +34,10 @@ export const announcementSelect = {
   content: true,
   publishedAt: true,
   author: { select: { id: true, fullName: true } },
+  attachments: {
+    select: { id: true, fileName: true, format: true, mimeType: true, sizeBytes: true },
+    orderBy: { createdAt: 'asc' },
+  },
   audiences: {
     select: {
       audienceType: true,
@@ -43,6 +56,7 @@ interface AnnouncementRow {
   content: string;
   publishedAt: Date;
   author: { id: string; fullName: string };
+  attachments: { id: string; fileName: string; format: DocumentFormat; mimeType: string; sizeBytes: bigint }[];
   audiences: {
     audienceType: AudienceType;
     role: Role | null;
@@ -60,6 +74,7 @@ export function toAnnouncementResponse(row: AnnouncementRow): AnnouncementRespon
     content: row.content,
     publishedAt: row.publishedAt.toISOString(),
     author: row.author,
+    attachments: row.attachments.map((a) => ({ ...a, sizeBytes: Number(a.sizeBytes) })),
     audiences: row.audiences.map((a) => ({
       type: a.audienceType,
       ...(a.role ? { role: a.role } : {}),

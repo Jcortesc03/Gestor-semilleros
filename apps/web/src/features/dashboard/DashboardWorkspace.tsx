@@ -185,7 +185,7 @@ function renderSection(section: DashboardSection, onNavigate: (page: string) => 
   }
 }
 
-function MeetingsCard({ state, onNavigate }: { state: Remote<DashboardMeeting[]>; onNavigate: (page: string) => void }) {
+function MeetingsCard({ state, onNavigate, canCreate }: { state: Remote<DashboardMeeting[]>; onNavigate: (page: string) => void; canCreate: boolean }) {
   return (
     <section aria-labelledby="dash-meetings" className={card}>
       <h2 id="dash-meetings" className="flex items-center gap-2 text-xl font-bold tracking-tight text-navy"><CalendarClock aria-hidden="true" className="size-5" strokeWidth={1.75} />Próximas reuniones</h2>
@@ -199,7 +199,10 @@ function MeetingsCard({ state, onNavigate }: { state: Remote<DashboardMeeting[]>
               <p className="text-sm text-navy/70">{when(m.startsAt)}{m.project ? ` · ${m.project.title}` : ''}</p>
             </li>))}</ul>}
       </div>
-      <div className="mt-4"><Nav page="meetings" onNavigate={onNavigate}>Ver reuniones</Nav></div>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Nav page="meetings" onNavigate={onNavigate}>Ver reuniones</Nav>
+        {canCreate && <Button onClick={() => onNavigate('meetings')}>Nueva reunión</Button>}
+      </div>
     </section>
   );
 }
@@ -239,7 +242,7 @@ export function DashboardWorkspace({ user, request, onNavigate }: DashboardWorks
               {renderSection(section, onNavigate)}
             </section>))}
       <div className="grid min-w-0 gap-7 lg:grid-cols-2">
-        <MeetingsCard state={meetings} onNavigate={onNavigate} />
+        <MeetingsCard state={meetings} onNavigate={onNavigate} canCreate={['ADMIN', 'TUTOR', 'DEAN', 'AREA_MANAGER'].some((role) => user.roles.includes(role))} />
         <AnnouncementsCard state={news} onNavigate={onNavigate} />
       </div>
     </div>

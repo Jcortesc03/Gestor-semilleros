@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
+import type TestAgent from 'supertest/lib/agent';
 import { MicrosoftGraphError, MicrosoftAuthError } from '../src/modules/integrations/services/microsoft/microsoft.types';
 import {
   CHANNEL_SENDERS,
@@ -14,8 +15,8 @@ import {
   type OutboundMessage,
   type TeamsCalendar,
 } from '../src/modules/integrations';
-import { buildProject, buildWorld, type Person, type World } from './fixtures';
-import { createTestApp, resetDatabase } from './helpers';
+import { buildProject, buildWorld, PASSWORD, type Person, type World } from './fixtures';
+import { createTestApp, createUser, loginWithPassword, newAgent, resetDatabase } from './helpers';
 
 /** OAuth falso: el `code` lleva el correo de la cuenta de Microsoft que se vincula. */
 class FakeOAuth implements MicrosoftOAuth {
@@ -107,11 +108,14 @@ describe('Reuniones con Microsoft Teams (e2e)', () => {
   const dispatch = () => app.get(DeliveryDispatcher).runOnce();
 
   /** Vincula la cuenta de Microsoft de una persona siguiendo connect → callback. */
-  async function link(person: Person, msEmail = `ms.${emailOf(person)}`) {
-    const agent = await world.as(person);
+  async function linkWith(agent: TestAgent, msEmail: string) {
     const { url } = (await agent.get('/api/integrations/microsoft/connect?format=json').expect(200)).body as { url: string };
     const state = new URL(url).searchParams.get('state')!;
     return agent.get('/api/integrations/microsoft/callback').query({ code: msEmail, state });
+  }
+
+  async function link(person: Person, msEmail = `ms.${emailOf(person)}`) {
+    return linkWith(await world.as(person), msEmail);
   }
 
   const meetingBody = (over: Record<string, unknown> = {}) => ({
@@ -305,15 +309,38 @@ describe('Reuniones con Microsoft Teams (e2e)', () => {
       expect(await world.prisma.notificationDispatch.count()).toBe(0);
     });
 
-    it('solo tutores del proyecto (o el administrador) la agendan, con participantes del proyecto', async () => {
-      for (const p of ['tutor', 'tutor2', 'admin', 'dean'] as const) await link(p);
-      await create({}, 403, 'student');
-      await create({}, 403, 'dean');
-      await create({}, 404, 'tutor2'); // no participa en el proyecto
+    it('crean el administrador, el tutor del proyecto, el decano de su facultad y el encargado de su área', async () => {
+      for (const p of ['tutor', 'tutor2', 'admin', 'dean', 'otherDean', 'areaManager'] as const) await link(p);
+      await create({}, 403, 'student'); // rol sin permiso
+      await create({}, 404, 'tutor2'); // tutor ajeno al proyecto
+      await create({}, 404, 'otherDean'); // decano de otra facultad
       await create({}, 201, 'admin');
+      await create({}, 201, 'dean'); // decano de la facultad del proyecto
+      await create({}, 201, 'areaManager'); // encargado del área del proyecto
+
+      // Sin proyecto, cualquiera de los cuatro roles puede crear.
+      await create({ projectId: null }, 201, 'dean');
+      await create({ projectId: null }, 201, 'areaManager');
 
       const res = await create({ participantIds: [world.ids.outsider] }, 400);
       expect(res.errors).toEqual(['Todos los participantes deben ser usuarios activos y miembros activos del proyecto.']);
+    });
+
+    it('el encargado de otra área no puede crear con ese proyecto, pero sí sin proyecto', async () => {
+      const otherArea = await world.prisma.area.create({ data: { name: 'Otra área' } });
+      const otherManager = await createUser(app, {
+        email: 'encargado.otro@example.test',
+        password: PASSWORD,
+        roles: ['AREA_MANAGER'],
+      });
+      await world.prisma.areaManager.create({ data: { areaId: otherArea.id, userId: otherManager.id } });
+      const agent = newAgent(app);
+      await loginWithPassword(agent, 'encargado.otro@example.test', PASSWORD);
+      await linkWith(agent, 'ms.encargado.otro@example.test');
+
+      await agent.post('/api/meetings').send(meetingBody()).expect(404);
+      const meeting = await agent.post('/api/meetings').send(meetingBody({ projectId: null })).expect(201);
+      expect(meeting.body.project).toBeNull();
     });
 
     it('sin proyecto, el tutor invita a usuarios activos del sistema', async () => {

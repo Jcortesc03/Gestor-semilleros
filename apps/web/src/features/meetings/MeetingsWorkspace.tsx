@@ -12,7 +12,7 @@ import {
 } from './api';
 import type { Meeting, MeetingProject, MeetingStatus, MicrosoftAccountType, MicrosoftStatus, ProjectMember } from './api';
 
-export interface MeetingsWorkspaceProps { user: CurrentUser; request: ApiRequest }
+export interface MeetingsWorkspaceProps { user: CurrentUser; request: ApiRequest; initialProjectId?: string }
 
 const STATUS_LABELS: Record<MeetingStatus, string> = {
   SCHEDULED: 'Programada', IN_PROGRESS: 'En proceso', FINISHED: 'Finalizada', CANCELLED: 'Cancelada',
@@ -63,11 +63,11 @@ function useRemote<T>(load: () => Promise<T>, deps: readonly unknown[]): [Remote
   return [state, useCallback(() => setTick((n) => n + 1), [])];
 }
 
-export function MeetingsWorkspace({ user, request }: MeetingsWorkspaceProps) {
+export function MeetingsWorkspace({ user, request, initialProjectId }: MeetingsWorkspaceProps) {
   const [microsoft, reloadMicrosoft] = useRemote(() => getMicrosoftStatus(request), [request]);
   const [meetings, reloadMeetings] = useRemote(() => getMeetings(request), [request]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const canCreate = user.roles.includes('TUTOR') || user.roles.includes('ADMIN');
+  const canCreate = user.roles.includes('TUTOR') || user.roles.includes('ADMIN') || user.roles.includes('DEAN') || user.roles.includes('AREA_MANAGER');
   const linked = microsoft.phase === 'ready' && microsoft.data.linked;
 
   return (
@@ -79,6 +79,7 @@ export function MeetingsWorkspace({ user, request }: MeetingsWorkspaceProps) {
           request={request}
           linked={linked}
           accountType={microsoft.phase === 'ready' ? microsoft.data.accountType : null}
+          initialProjectId={initialProjectId}
           onCreated={(meeting) => { reloadMeetings(); setSelectedId(meeting.id); }}
         />
       )}
@@ -162,8 +163,8 @@ function MicrosoftPanel({ request, state, reload }: { request: ApiRequest; state
   );
 }
 
-function CreateMeeting({ user, request, linked, accountType, onCreated }: {
-  user: CurrentUser; request: ApiRequest; linked: boolean; accountType: MicrosoftAccountType | null; onCreated: (meeting: Meeting) => void;
+function CreateMeeting({ user, request, linked, accountType, initialProjectId, onCreated }: {
+  user: CurrentUser; request: ApiRequest; linked: boolean; accountType: MicrosoftAccountType | null; initialProjectId?: string; onCreated: (meeting: Meeting) => void;
 }) {
   const [projects] = useRemote<MeetingProject[]>(() => getMeetingProjects(request), [request]);
   const [reason, setReason] = useState('');
@@ -171,13 +172,17 @@ function CreateMeeting({ user, request, linked, accountType, onCreated }: {
   const [duration, setDuration] = useState('60');
   const [joinUrl, setJoinUrl] = useState('');
   const personal = accountType === 'PERSONAL';
-  const [projectId, setProjectId] = useState('');
+  const [projectId, setProjectId] = useState(initialProjectId ?? '');
   const [selected, setSelected] = useState<string[]>([]);
   const [picked, setPicked] = useState<DirectoryUser[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [created, setCreated] = useState(false);
   const [members, setMembers] = useState<Remote<ProjectMember[]> | null>(null);
+
+  useEffect(() => {
+    if (initialProjectId) setProjectId(initialProjectId);
+  }, [initialProjectId]);
 
   useEffect(() => {
     setSelected([]);

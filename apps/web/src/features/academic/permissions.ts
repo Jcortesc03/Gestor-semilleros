@@ -17,6 +17,8 @@ export interface AcademicPermissions {
   review: boolean;
   /** Eliminar documentos de cualquier autor: tutor activo del proyecto o quien gestiona (`docs/api/documents.md`). */
   deleteAnyDocument: boolean;
+  /** Crear reuniones de este proyecto: ADMIN, tutor activo, decano vigente o encargado del área (ADR 0010 §10). */
+  canCreateMeeting: boolean;
 }
 
 export function resolvePermissions(user: CurrentUser, members: Member[]): AcademicPermissions {
@@ -36,6 +38,7 @@ export function resolvePermissions(user: CurrentUser, members: Member[]): Academ
     manageActivities: isAdmin || isTutor || isLeader,
     review: isAdmin || isTutor,
     deleteAnyDocument: isProjectAuthority || isTutor,
+    canCreateMeeting: isProjectAuthority || isTutor,
   };
 }
 

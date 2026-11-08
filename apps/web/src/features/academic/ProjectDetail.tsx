@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Archive, Pencil } from 'lucide-react';
+import { Archive, CalendarClock, Pencil } from 'lucide-react';
 import { Button, Field, PanelCard, formatDate, inputClassName } from '../../components/WorkspaceUi.tsx';
 import type { ApiRequest } from '../../types/api.ts';
 import type { CurrentUser } from '../../types/auth.ts';
@@ -21,9 +21,12 @@ interface ProjectDetailProps {
   onSave: (changes: ProjectChanges) => Promise<boolean>;
   onDelete: () => void;
   onDocumentsChanged: () => void;
+  /** Si se omite, se deriva del rol global (ADMIN, DEAN, AREA_MANAGER o TUTOR); el backend valida la autoridad sobre el proyecto. */
+  canCreateMeeting?: boolean;
+  onCreateMeeting?: (projectId: string) => void;
 }
 
-export function ProjectDetail({ request, user, project, canManage, canDeleteAnyDocument, busy, onSave, onDelete, onDocumentsChanged }: ProjectDetailProps) {
+export function ProjectDetail({ request, user, project, canManage, canDeleteAnyDocument, busy, onSave, onDelete, onDocumentsChanged, canCreateMeeting, onCreateMeeting }: ProjectDetailProps) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(project.title);
   const [description, setDescription] = useState(project.description ?? '');
@@ -40,6 +43,8 @@ export function ProjectDetail({ request, user, project, canManage, canDeleteAnyD
     setEditing((current) => !current);
   };
 
+  const showCreateMeeting = (canCreateMeeting ?? ['ADMIN', 'DEAN', 'AREA_MANAGER', 'TUTOR'].some((role) => user.roles.includes(role))) && onCreateMeeting !== undefined;
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const saved = await onSave({ title: title.trim(), description: description.trim() || null, status, areaId, facultyIds });
@@ -53,6 +58,7 @@ export function ProjectDetail({ request, user, project, canManage, canDeleteAnyD
         action={(
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-gold/25 px-3 py-1 text-xs font-bold">{PROJECT_STATUS_LABELS[project.status]}</span>
+            {showCreateMeeting && <Button type="button" variant="secondary" onClick={() => onCreateMeeting(project.id)}><CalendarClock aria-hidden="true" className="size-4" />Nueva reunión</Button>}
             {canManage && <Button type="button" variant="secondary" onClick={startEditing}><Pencil aria-hidden="true" className="size-4" />Editar proyecto</Button>}
           </div>
         )}

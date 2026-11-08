@@ -17,6 +17,7 @@ import {
   updateInstitutionalUser,
   setInstitutionalUserActive,
   setTemporaryPassword,
+  announcementAttachmentUrl,
 } from '../src/features/institutional/api.ts';
 
 function mockApiRequest(response: unknown) {
@@ -176,6 +177,52 @@ test('deactivates and reactivates through the action routes', async () => {
   const on = mockApiRequest(adminDetail);
   await setInstitutionalUserActive(on.request, 'u-2', true);
   assert.equal(on.calls[0].path, '/api/users/u-2/activate');
+});
+
+test('parses announcement attachments and treats a missing list as empty', async () => {
+  const withFiles = mockApiRequest([{
+    ...announcement,
+    attachments: [{ id: 'att-1', fileName: 'convocatoria.pdf', format: 'PDF', mimeType: 'application/pdf', sizeBytes: 183042 }],
+  }]);
+  const [parsed] = await getAnnouncements(withFiles.request, { kind: 'NEWS' });
+  assert.deepEqual(parsed.attachments, [{ id: 'att-1', fileName: 'convocatoria.pdf', format: 'PDF', mimeType: 'application/pdf', sizeBytes: 183042 }]);
+  assert.equal(withFiles.calls[0].path, '/api/announcements?kind=NEWS');
+
+  const legacy = mockApiRequest([announcement]);
+  const [withoutList] = await getAnnouncements(legacy.request);
+  assert.deepEqual(withoutList.attachments, []);
+});
+
+test('rejects an attachment with a format or size outside the contract', async () => {
+  const badFormat = mockApiRequest([{ ...announcement, attachments: [{ id: 'att-1', fileName: 'x.zip', format: 'ZIP', mimeType: 'application/zip', sizeBytes: 10 }] }]);
+  await assert.rejects(() => getAnnouncements(badFormat.request));
+  const badSize = mockApiRequest([{ ...announcement, attachments: [{ id: 'att-1', fileName: 'x.pdf', format: 'PDF', mimeType: 'application/pdf', sizeBytes: -1 }] }]);
+  await assert.rejects(() => getAnnouncements(badSize.request));
+});
+
+test('builds the attachment download URL with encoded IDs and optional inline view', () => {
+  assert.equal(announcementAttachmentUrl('a-1', 'att-1'), '/api/announcements/a-1/attachments/att-1/download');
+  assert.equal(announcementAttachmentUrl('a/1', 'att 1', { inline: true }), '/api/announcements/a%2F1/attachments/att%201/download?inline=true');
+});
+
+test('publishes with files as multipart: JSON body in data and one entry per file in files', async () => {
+  const mock = mockApiRequest({ ...announcement, attachments: [] });
+  const files = [new File(['%PDF'], 'uno.pdf', { type: 'application/pdf' }), new File(['x'], 'dos.png', { type: 'image/png' })];
+  const body = { kind: 'NEWS' as const, title: 'Convocatoria', content: 'Detalles', audiences: [{ type: 'ALL' as const }] };
+  await createAnnouncement(mock.request, body, files);
+  const sent = mock.calls[0].options?.body;
+  assert.ok(sent instanceof FormData);
+  assert.equal(mock.calls[0].path, '/api/announcements');
+  assert.equal(mock.calls[0].options?.method, 'POST');
+  assert.deepEqual(JSON.parse(String(sent.get('data'))), body);
+  assert.deepEqual(sent.getAll('files').map((item) => (item as File).name), ['uno.pdf', 'dos.png']);
+});
+
+test('publishes without files as plain JSON', async () => {
+  const mock = mockApiRequest({ ...announcement, attachments: [] });
+  const body = { title: 'Sin archivos', content: 'Texto', audiences: [{ type: 'ALL' as const }] };
+  await createAnnouncement(mock.request, body, []);
+  assert.deepEqual(mock.calls[0].options, { method: 'POST', body });
 });
 
 test('sets a temporary password with the PUT contract and returns nothing', async () => {
