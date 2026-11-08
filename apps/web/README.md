@@ -82,6 +82,10 @@ Sección «Áreas y facultades» (`features/institution`), visible para administ
 
 El administrador lista, busca y filtra usuarios (activos, inactivos o todos), edita su nombre y roles, los desactiva o reactiva y les fija una contraseña temporal. Quien entra con una temporal ve primero «Cambia tu contraseña» y no puede usar nada más hasta cambiarla. Cualquier usuario puede cambiar la suya desde la tarjeta de su cuenta. Política: 10–256 caracteres, con al menos una letra y un número, distinta del correo ([ADR 0011](../../docs/decisions/0011-gestion-de-usuarios.md)).
 
+## Recuperar contraseña
+
+En el login, «Olvidé mi contraseña» pide el correo de la cuenta. El usuario recibe un código de 6 dígitos, lo verifica y después elige y confirma una nueva contraseña. El código vence en 10 minutos, permite 5 intentos y sirve una sola vez. Requiere SMTP y la migración `password_recovery` en el backend; no depende de las preferencias de notificaciones. Consulta [el contrato](../../docs/api/auth.md#recuperación-por-código-de-correo) y [ADR 0016](../../docs/decisions/0016-recuperacion-de-contrasena.md).
+
 ## Teléfono en preferencias
 
 Selecciona el país y escribe el número nacional en el segundo campo: el prefijo internacional se agrega automáticamente. El selector incluye los países latinoamericanos, Puerto Rico, Belice, Guyana y Surinam, además de Alemania, Australia, Canadá, China, España, Estados Unidos, Francia, India, Italia, Japón, Portugal, Reino Unido y Suiza. Para los países que comparten `+1`, el número nacional incluye el código de área.
