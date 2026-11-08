@@ -5,6 +5,20 @@
 
 La autenticación usa **Auth.js** (`@auth/express`) montado en NestJS con **sesión JWT en cookie** (`authjs.session-token`, `HttpOnly`). Solo pueden iniciar sesión usuarios que ya existen y están activos (RN-10). No hay autorregistro.
 
+## Recuperación por código de correo
+
+Desde «Olvidé mi contraseña» se solicita un código de 6 dígitos al correo de la cuenta activa con contraseña local. Vence a los 10 minutos desde la emisión, permite 5 intentos y sirve una sola vez ([ADR 0016](../decisions/0016-recuperacion-de-contrasena.md)).
+
+| Ruta pública | Cuerpo JSON | Resultado |
+| --- | --- | --- |
+| `POST /api/password-recovery/request` | `{ "email": "usuario@example.test" }` | `202 { "message": "Si el correo corresponde a una cuenta activa con contraseña, recibirás un código de recuperación." }` |
+| `POST /api/password-recovery/verify` | `{ "email": "usuario@example.test", "code": "123456" }` | `200 { "resetToken": "…" }`, autorización aleatoria; `400` si el código no es válido, venció, se verificó antes o agotó los intentos |
+| `POST /api/password-recovery/reset` | `{ "resetToken": "…", "newPassword": "…", "confirmation": "…" }` | `204`; `400` si la autorización o contraseña no es válida |
+
+El formulario de contraseña aparece solo después de verificar el código. El correo se normaliza sin espacios y sin distinguir mayúsculas. La nueva contraseña cumple el ADR 0011, debe ser distinta de la anterior y coincidir con la confirmación. La autorización vence junto con el código, no inicia sesión y revoca las sesiones anteriores al completar el cambio.
+
+Las solicitudes para cuentas desconocidas, inactivas o exclusivas de Google devuelven el mismo `202` sin enviar correo. Los reenvíos esperan 60 segundos; por IP se aceptan hasta 10 solicitudes en 10 minutos (límite en memoria del proceso). Los límites no cambian el mensaje público. SMTP entrega el código directamente, independientemente de `NOTIFICATIONS_AUTO_DISPATCH` y las preferencias de novedades. Sin SMTP no se envían ni se imprimen códigos.
+
 ## Proveedores
 
 | Proveedor | Requisitos para entrar |
