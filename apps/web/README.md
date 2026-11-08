@@ -82,6 +82,14 @@ Sección «Áreas y facultades» (`features/institution`), visible para administ
 
 El administrador lista, busca y filtra usuarios (activos, inactivos o todos), edita su nombre y roles, los desactiva o reactiva y les fija una contraseña temporal. Quien entra con una temporal ve primero «Cambia tu contraseña» y no puede usar nada más hasta cambiarla. Cualquier usuario puede cambiar la suya desde la tarjeta de su cuenta. Política: 10–256 caracteres, con al menos una letra y un número, distinta del correo ([ADR 0011](../../docs/decisions/0011-gestion-de-usuarios.md)).
 
+## Teléfono en preferencias
+
+Selecciona el país y escribe el número nacional en el segundo campo: el prefijo internacional se agrega automáticamente. El selector incluye los países latinoamericanos, Puerto Rico, Belice, Guyana y Surinam, además de Alemania, Australia, Canadá, China, España, Estados Unidos, Francia, India, Italia, Japón, Portugal, Reino Unido y Suiza. Para los países que comparten `+1`, el número nacional incluye el código de área.
+
+La web admite solo dígitos y las longitudes nacionales de líneas fijas y móviles del país seleccionado, tomadas de [libphonenumber](https://github.com/google/libphonenumber/blob/master/resources/PhoneNumberMetadata.xml) el 8 de noviembre de 2026. No comprueba que la línea exista ni que tenga WhatsApp. No agregues el prefijo internacional ni un código de salida; los ceros que forman parte del número nacional, como en Italia, se conservan.
+
+La API sigue recibiendo un único teléfono E.164. Borrar el número lo elimina; los teléfonos guardados, incluso de países fuera del selector, se conservan al cambiar únicamente las preferencias de notificación. En códigos compartidos como `+1`, el país no se puede recuperar con certeza solo a partir del prefijo.
+
 ## Diseño
 
 Tailwind CSS 4, Montserrat local y la [guía visual](../../skill/front/habilidades/design-taste-frontend/guia-estilos-proyecto.md). Frontlipe es responsable de las vistas. La [decisión técnica](../../docs/decisions/0008-aplicacion-web-y-sistema-visual.md) documenta versiones y límites.
