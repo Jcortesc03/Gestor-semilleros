@@ -11,5 +11,6 @@ import { FacultiesAdminService } from './services/faculties-admin.service';
   imports: [AuthModule],
   controllers: [CatalogsController, CatalogsAdminController],
   providers: [CatalogsService, AreasAdminService, FacultiesAdminService, RolesGuard],
+  exports: [CatalogsService],
 })
 export class FacultiesModule {}
