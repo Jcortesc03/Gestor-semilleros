@@ -1,5 +1,6 @@
 # Plantilla de nginx para la web (imagen nginx:1.29-alpine).
-# La imagen oficial sustituye solo ${BACKEND_URL} con envsubst; las variables de nginx ($uri, $host...) se conservan.
+# La imagen oficial sustituye con envsubst solo variables de entorno definidas (${BACKEND_URL}, ${NGINX_LOCAL_RESOLVERS});
+# las variables de nginx ($uri, $host...) se conservan.
 # Web y API comparten origen: /api/ va al backend y el resto son archivos estáticos de la SPA.
 
 # Protocolo original de la petición. Detrás de un proxy que termina TLS (p. ej. el borde de Railway)
@@ -28,9 +29,19 @@ server {
     # Por defecto, las respuestas no se cachean (index.html y fallback de la SPA).
     add_header Cache-Control "no-cache" always;
 
-    # API: se conserva la ruta completa (sin URI en proxy_pass, nginx reenvía la petición tal cual).
+    # DNS del contenedor (NGINX_LOCAL_RESOLVERS lo calcula la imagen a partir de /etc/resolv.conf).
+    # Con proxy_pass por variable, nginx vuelve a resolver el nombre del backend cada 10 s en lugar de
+    # fijar la IP al arrancar: si el backend se redespliega y cambia de IP (p. ej. la red privada de
+    # Railway), la web no se queda enviando peticiones a una IP vieja.
+    resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=on;
+    resolver_timeout 5s;
+
+    # API: se conserva la ruta completa (proxy_pass por variable y sin URI reenvía la petición tal cual).
     location /api/ {
-        proxy_pass ${BACKEND_URL};
+        set $backend_upstream "${BACKEND_URL}";
+        proxy_pass $backend_upstream;
+        # Si el backend no responde, fallar pronto (502/504) en lugar de dejar la web esperando un minuto.
+        proxy_connect_timeout 10s;
         proxy_http_version 1.1;
         proxy_set_header Host $http_host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
