@@ -159,34 +159,51 @@ model User {
   status             UserStatus @default(ACTIVE)
   /// Contraseña temporal fijada por un administrador: el usuario debe cambiarla antes de continuar (ADR 0011).
   mustChangePassword Boolean    @default(false) @map("must_change_password")
+  passwordResetAt    DateTime?  @map("password_reset_at")
   createdAt          DateTime   @default(now()) @map("created_at")
   updatedAt          DateTime   @updatedAt @map("updated_at")
 
-  roles               UserRole[]
-  managedAreas        AreaManager[]
-  deanships           FacultyDean[]
-  memberships         ProjectMember[]
-  createdProjects     Project[]                @relation("ProjectCreator")
-  tutoredBoards       Board[]                  @relation("BoardResponsibleTutor")
-  assignedBoards      Board[]                  @relation("BoardResponsibleStudent")
-  authoredActivities  Activity[]               @relation("ActivityAuthor")
-  approvedActivities  Activity[]               @relation("ActivityApprover")
-  activityAssignments ActivityAssignee[]       @relation("ActivityAssignee")
-  assignmentsGiven    ActivityAssignee[]       @relation("ActivityAssigner")
-  attachments         ActivityAttachment[]
-  documents           Document[]
-  announcements       Announcement[]
-  organizedMeetings   Meeting[]
-  meetings            MeetingParticipant[]
-  reminders           Reminder[]
-  notificationPrefs   NotificationPreference[]
-  deliveries          NotificationDelivery[]
-  microsoftAccount    MicrosoftAccount?
+  roles                 UserRole[]
+  managedAreas          AreaManager[]
+  deanships             FacultyDean[]
+  memberships           ProjectMember[]
+  createdProjects       Project[]                @relation("ProjectCreator")
+  tutoredBoards         Board[]                  @relation("BoardResponsibleTutor")
+  assignedBoards        Board[]                  @relation("BoardResponsibleStudent")
+  authoredActivities    Activity[]               @relation("ActivityAuthor")
+  approvedActivities    Activity[]               @relation("ActivityApprover")
+  activityAssignments   ActivityAssignee[]       @relation("ActivityAssignee")
+  assignmentsGiven      ActivityAssignee[]       @relation("ActivityAssigner")
+  attachments           ActivityAttachment[]
+  documents             Document[]
+  announcements         Announcement[]
+  organizedMeetings     Meeting[]
+  meetings              MeetingParticipant[]
+  reminders             Reminder[]
+  notificationPrefs     NotificationPreference[]
+  deliveries            NotificationDelivery[]
+  microsoftAccount      MicrosoftAccount?
+  passwordRecovery      PasswordRecovery?
+  enrollmentAuditEvents EnrollmentAuditEvent[]
 
   @@map("users")
 }
 
 /// DB-01
+model PasswordRecovery {
+  userId         String    @id @map("user_id") @db.Uuid
+  codeHash       String    @map("code_hash")
+  resetTokenHash String?   @unique @map("reset_token_hash")
+  requestedAt    DateTime  @map("requested_at")
+  expiresAt      DateTime  @map("expires_at")
+  attempts       Int       @default(0)
+  verifiedAt     DateTime? @map("verified_at")
+  consumedAt     DateTime? @map("consumed_at")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_recoveries")
+}
+
 model UserRole {
   userId     String   @map("user_id") @db.Uuid
   role       Role
@@ -209,9 +226,13 @@ model Area {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  managers  AreaManager[]
-  projects  Project[]
-  audiences AnnouncementAudience[]
+  managers                   AreaManager[]
+  projects                   Project[]
+  audiences                  AnnouncementAudience[]
+  enrollmentSources          EnrollmentSource[]
+  enrollmentApplications     EnrollmentApplication[]
+  enrollmentImportTombstones EnrollmentImportTombstone[]
+  enrollmentAuditEvents      EnrollmentAuditEvent[]
 
   @@map("areas")
 }
@@ -458,7 +479,7 @@ model Announcement {
   updatedAt   DateTime         @updatedAt @map("updated_at")
   deletedAt   DateTime?        @map("deleted_at")
 
-  author    User                   @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  author      User                     @relation(fields: [authorId], references: [id], onDelete: Restrict)
   audiences   AnnouncementAudience[]
   dispatch    NotificationDispatch?
   attachments AnnouncementAttachment[]
@@ -627,18 +648,18 @@ enum MicrosoftAccountType {
 /// Cuenta de Microsoft vinculada (OAuth delegado con Microsoft Graph, ADR 0007). Los tokens se
 /// guardan cifrados con AES-256-GCM (MICROSOFT_TOKEN_ENCRYPTION_KEY); nunca en claro.
 model MicrosoftAccount {
-  userId                String   @id @map("user_id") @db.Uuid
+  userId                String               @id @map("user_id") @db.Uuid
   /// Id del usuario en Entra ID (`oid`).
-  microsoftUserId       String   @unique @map("microsoft_user_id")
+  microsoftUserId       String               @unique @map("microsoft_user_id")
   email                 String
-  accessTokenEncrypted  String   @map("access_token_encrypted")
-  refreshTokenEncrypted String   @map("refresh_token_encrypted")
-  accessTokenExpiresAt  DateTime @map("access_token_expires_at")
+  accessTokenEncrypted  String               @map("access_token_encrypted")
+  refreshTokenEncrypted String               @map("refresh_token_encrypted")
+  accessTokenExpiresAt  DateTime             @map("access_token_expires_at")
   scopes                String
   /// Tipo de cuenta según el `tid` del token de identidad (ADR 0014).
   accountType           MicrosoftAccountType @default(WORK_OR_SCHOOL) @map("account_type")
-  linkedAt              DateTime @default(now()) @map("linked_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  linkedAt              DateTime             @default(now()) @map("linked_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -661,4 +682,100 @@ model Reminder {
   @@index([createdById])
   @@index([remindAt])
   @@map("reminders")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Inscripciones (demo de importación desde Google Sheets)
+// ─────────────────────────────────────────────────────────────
+
+enum EnrollmentStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum EnrollmentDocumentType {
+  CC
+  TI
+}
+
+enum EnrollmentAreaType {
+  SEEDLING
+  DEGREE_PROJECT
+}
+
+enum EnrollmentFaculty {
+  SYSTEMS_ENGINEERING
+  SOFTWARE_ENGINEERING
+}
+
+model EnrollmentSource {
+  areaId        String             @id @map("area_id") @db.Uuid
+  spreadsheetId String             @map("spreadsheet_id")
+  range         String
+  areaType      EnrollmentAreaType @map("area_type")
+  revision      Int                @default(0)
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  area Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@map("enrollment_sources")
+}
+
+model EnrollmentApplication {
+  id                  String                 @id @default(uuid()) @db.Uuid
+  areaId              String                 @map("area_id") @db.Uuid
+  firstNames          String                 @map("first_names")
+  lastNames           String                 @map("last_names")
+  email               String
+  documentType        EnrollmentDocumentType @map("document_type")
+  documentNumber      String                 @map("document_number")
+  faculty             EnrollmentFaculty
+  areaType            EnrollmentAreaType     @map("area_type")
+  period              String
+  consent             Boolean
+  status              EnrollmentStatus       @default(PENDING)
+  sourceRow           Int?                   @map("source_row")
+  sourceSpreadsheetId String?                @map("source_spreadsheet_id")
+  sourceReceiptHash   String?                @map("source_receipt_hash")
+  rejectedAt          DateTime?              @map("rejected_at")
+  createdAt           DateTime               @default(now()) @map("created_at")
+  updatedAt           DateTime               @updatedAt @map("updated_at")
+
+  area Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@unique([areaId, period, documentType, documentNumber])
+  @@unique([areaId, period, email])
+  @@index([areaId, status])
+  @@index([areaId, period])
+  @@map("enrollment_applications")
+}
+
+model EnrollmentImportTombstone {
+  id          String   @id @default(uuid()) @db.Uuid
+  areaId      String   @map("area_id") @db.Uuid
+  receiptHash String   @map("receipt_hash")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  area Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@unique([areaId, receiptHash])
+  @@map("enrollment_import_tombstones")
+}
+
+model EnrollmentAuditEvent {
+  id            String   @id @default(uuid()) @db.Uuid
+  actorId       String?  @map("actor_id") @db.Uuid
+  areaId        String?  @map("area_id") @db.Uuid
+  action        String
+  affectedCount Int      @map("affected_count")
+  details       Json
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  area  Area? @relation(fields: [areaId], references: [id], onDelete: SetNull)
+
+  @@index([areaId, createdAt])
+  @@map("enrollment_audit_events")
 }

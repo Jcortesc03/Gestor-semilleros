@@ -13,6 +13,7 @@ const userSelect = {
   status: true,
   passwordHash: true,
   mustChangePassword: true,
+  passwordResetAt: true,
   roles: { select: { role: true } },
 } as const;
 
@@ -23,6 +24,7 @@ type UserRecord = {
   status: 'ACTIVE' | 'INACTIVE';
   passwordHash: string | null;
   mustChangePassword: boolean;
+  passwordResetAt?: Date | null;
   roles: { role: AuthUser['roles'][number] }[];
 };
 
@@ -33,6 +35,7 @@ function toAuthUser(user: UserRecord): AuthUser {
     fullName: user.fullName,
     roles: user.roles.map((r) => r.role),
     mustChangePassword: user.mustChangePassword,
+    ...(user.passwordResetAt ? { passwordResetAt: user.passwordResetAt.getTime() } : {}),
   };
 }
 

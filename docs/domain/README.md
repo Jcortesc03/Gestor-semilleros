@@ -1,6 +1,6 @@
 # Dominio del Gestor de Semilleros Universitarios
 
-> **Estado:** modelo conceptual en elaboración. Del dominio solo están implementados el inicio de sesión y el alta de usuarios con roles globales (`POST /api/users`, solo Administrador); el resto no está implementado.
+> **Estado:** documentación conceptual del dominio, con reglas confirmadas y pendientes señaladas abajo. La implementación ya incluye autenticación, usuarios, áreas y facultades, proyectos, tableros, actividades, documentos, novedades y reuniones; el estado y las limitaciones de cada entrega se mantienen en el [README principal](../../README.md) y sus ADRs. Esta documentación no implica que todas las reglas propuestas estén implementadas.
 > Este directorio es la **fuente de verdad del negocio**. Es independiente de la tecnología: los detalles relacionales y de Prisma viven en [`docs/database/`](../database/).
 
 ## Objetivo del sistema
@@ -75,7 +75,7 @@ flowchart TB
 
 Proyectos · Tableros · Documentos · Novedades. Reuniones, recordatorios y dashboards los complementan.
 
-> La estructura de módulos del backend (`apps/backend/src/modules/`) usa nombres anteriores a este modelo, como `semilleros` y `tasks`. La correspondencia está pendiente de decisión. Ver [`database-decisions.md`](../database/database-decisions.md#pendientes-de-aprobación).
+> La estructura técnica del monorepo se documenta en [`docs/architecture/estructura.md`](../architecture/estructura.md); los términos de este directorio describen el negocio y no sustituyen ese inventario.
 
 ## Reglas para extender el dominio
 

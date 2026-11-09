@@ -1,5 +1,6 @@
 import type { AppEnv } from '../../../config/env';
 import { loadNotificationsConfig } from '../../../config/notifications.config';
+import { loadEnrollmentConfig } from '../../../config/enrollment.config';
 import type { AuthUser } from '../models/auth-user';
 import { AUTH_BASE_PATH, AUTH_ERROR_PAGE, createAuthConfig } from './auth-config.factory';
 import type { AuthService } from './auth.service';
@@ -15,6 +16,7 @@ const env: AppEnv = {
   microsoft: null,
   meetingsTimeZone: 'America/Bogota',
   storage: null,
+  enrollment: loadEnrollmentConfig({}, 's'.repeat(32)),
 };
 
 const dbUser: AuthUser = { id: 'interno-1', email: 'ana@example.test', fullName: 'Ana', roles: ['STUDENT'], mustChangePassword: false };

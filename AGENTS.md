@@ -29,7 +29,8 @@ El alcance, los módulos y el estado se documentan en `README.md`; no los repita
 - **Documentos en S3 ([ADR 0013](docs/decisions/0013-documentos-en-s3.md)):** subida y descarga mediadas por el backend, 25 MB con validación de firma, adjuntos de documentos en actividades; RustFS como S3 local.
 - **Cuentas personales de Microsoft ([ADR 0014](docs/decisions/0014-cuentas-personales-de-microsoft.md)):** `MICROSOFT_TENANT_ID=common` por defecto; con cuenta personal el organizador indica el enlace de la reunión (`joinUrl`). Migración `microsoft_account_type`.
 - **Adjuntos en noticias ([ADR 0015](docs/decisions/0015-adjuntos-en-noticias.md)):** hasta 5 archivos por noticia (`NEWS`) en S3, tabla `announcement_attachments`; publicación multipart en una sola petición.
-- **No implementado:** recordatorios, recuperación de contraseña olvidada, límite de intentos de inicio de sesión, autenticación móvil, HTTPS/infraestructura de producción concreta ni CI/CD.
+- **Recuperación de contraseña ([ADR 0016](docs/decisions/0016-recuperacion-de-contrasena.md)):** código por correo SMTP de 6 dígitos, 10 minutos, 5 intentos y uso único; invalida sesiones previas. Requiere la migración `password_recovery`. No depende del despachador de novedades.
+- **No implementado:** recordatorios, límite de intentos de inicio de sesión, autenticación móvil, HTTPS/infraestructura de producción concreta ni CI/CD.
 
 Por lo tanto:
 
