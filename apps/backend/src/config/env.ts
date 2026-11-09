@@ -6,6 +6,8 @@ import { loadEnrollmentConfig } from './enrollment.config';
 import type { EnrollmentConfig } from './enrollment.config.types';
 import { loadNotificationsConfig } from './notifications.config';
 import type { NotificationsConfig } from './notifications.config.types';
+import { loadAiConfig } from './ai.config';
+import type { AiConfig } from './ai.config.types';
 
 /**
  * Lectura y validación de variables de entorno del backend.
@@ -35,6 +37,8 @@ export interface AppEnv {
   storage: StorageConfig | null;
   /** Inscripciones (demo de importación desde Google Sheets). */
   enrollment: EnrollmentConfig;
+  /** Recomendaciones con la API de OpenAI (ADR 0018); null si no está configurada. */
+  ai: AiConfig | null;
 }
 
 export class EnvValidationError extends Error {}
@@ -81,6 +85,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     meetingsTimeZone: loadMeetingsTimeZone(source),
     storage: loadStorageConfig(source),
     enrollment: loadEnrollmentConfig(source, authSecret),
+    ai: loadAiConfig(source),
   };
 }
 

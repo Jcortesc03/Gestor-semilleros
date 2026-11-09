@@ -98,6 +98,11 @@ Sección «Analítica» (`features/analytics`), visible para administradores, en
 - Gráficas en SVG propio, sin dependencias nuevas: rankings de facultades y áreas, barras agrupadas de tutores y decanos, columnas por día de la semana, líneas mensuales y distribuciones.
 - Tablas ordenables de tutores y decanos, y tabla de patrones que resalta el grupo con mayor finalización o éxito.
 - Estados de carga, error (incluido el 403 sin permisos) y vacío; las tasas sin denominador se muestran como «—». Cada gráfica incluye título accesible y una tabla alternativa.
+
+## Asistente IA
+
+Sección «Asistente IA» (`features/ai`, hash `#ai`), visible para administradores, encargados de área y decanos. Consume `GET /api/ai/status` y `POST /api/ai/recommendations`: el usuario elige datos (periodo, área, facultad, proyecto, tutor, estado) y análisis (enfoques, profundidad, estilo, perspectiva, opciones avanzadas y pregunta opcional); el backend comprime un resumen de la analítica, lo envía a OpenAI y devuelve el informe. La web solo arma el cuerpo (omite lo vacío), valida la respuesta y muestra el estado, las recomendaciones, los riesgos, los vacíos de datos y el resumen enviado. Si la IA no está configurada en el servidor, se avisa y se deshabilita el botón.
+
 ## Recuperar contraseña
 
 En el login, «Olvidé mi contraseña» pide el correo de la cuenta. El usuario recibe un código de 6 dígitos, lo verifica y después elige y confirma una nueva contraseña. El código vence en 10 minutos, permite 5 intentos y sirve una sola vez. Requiere SMTP y la migración `password_recovery` en el backend; no depende de las preferencias de notificaciones. Consulta [el contrato](../../docs/api/auth.md#recuperación-por-código-de-correo) y [ADR 0016](../../docs/decisions/0016-recuperacion-de-contrasena.md).

@@ -13,6 +13,7 @@ import { FacultiesModule } from './modules/faculties';
 import { DocumentsModule } from './modules/documents';
 import { AnalyticsModule } from './modules/analytics';
 import { EnrollmentModule } from './modules/enrollment';
+import { AiModule } from './modules/ai';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { EnrollmentModule } from './modules/enrollment';
     DocumentsModule,
     AnalyticsModule,
     EnrollmentModule,
+    AiModule,
   ],
 })
 export class AppModule {}
