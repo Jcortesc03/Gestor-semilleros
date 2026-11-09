@@ -30,6 +30,36 @@ describe('Autenticación (e2e)', () => {
     });
   });
 
+  describe('Detrás de un proxy que termina TLS (AUTH_TRUST_HOST=true)', () => {
+    // Como el nginx de la web: reenvía el Host público y el protocolo original del borde (p. ej. Railway).
+    const PUBLIC_HOST = 'semilleros.example.test';
+    const viaProxy = (req: request.Test) => req.set('Host', PUBLIC_HOST).set('X-Forwarded-Proto', 'https');
+
+    it('construye las URLs de Auth.js con https y el host público', async () => {
+      const res = await viaProxy(request(app.getHttpServer()).get('/api/auth/providers')).expect(200);
+      expect(res.body.credentials.callbackUrl).toBe(`https://${PUBLIC_HOST}/api/auth/callback/credentials`);
+    });
+
+    it('redirige el inicio de sesión a https (sin contenido mixto)', async () => {
+      await createUser(app, { email: 'proxy@example.test', password: PASSWORD, roles: ['STUDENT'] });
+      const csrf = await viaProxy(request(app.getHttpServer()).get('/api/auth/csrf')).expect(200);
+      // Las cookies llegan con Secure; el cliente de prueba habla HTTP, así que se reenvían a mano.
+      const setCookie = csrf.headers['set-cookie'] as unknown as string[];
+      const cookies = setCookie.map((c) => c.split(';')[0]).join('; ');
+      const res = await viaProxy(request(app.getHttpServer()).post('/api/auth/callback/credentials'))
+        .set('Cookie', cookies)
+        .type('form')
+        .send({ email: 'proxy@example.test', password: PASSWORD, csrfToken: csrf.body.csrfToken, callbackUrl: '/panel' });
+      expect(res.headers.location).toBe(`https://${PUBLIC_HOST}/panel`);
+
+      // Sobre https la cookie lleva el prefijo __Secure- y la sesión se reconoce detrás del mismo proxy.
+      const session = (res.headers['set-cookie'] as unknown as string[]).find((c) => c.startsWith('__Secure-authjs.session-token='));
+      expect(session).toBeDefined();
+      const me = await viaProxy(request(app.getHttpServer()).get('/api/me')).set('Cookie', (session as string).split(';')[0]).expect(200);
+      expect(me.body.email).toBe('proxy@example.test');
+    });
+  });
+
   describe('GET /api/me sin sesión', () => {
     it('responde 401', async () => {
       const res = await request(app.getHttpServer()).get('/api/me').expect(401);
