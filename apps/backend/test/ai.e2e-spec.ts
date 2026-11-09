@@ -24,8 +24,8 @@ describe('IA (e2e)', () => {
   const client: AiClient = { structured };
 
   beforeAll(async () => {
-    process.env.OPENAI_API_KEY = 'sk-ficticia-de-pruebas';
-    process.env.OPENAI_MODEL = 'modelo-de-pruebas';
+    process.env.ANTHROPIC_API_KEY = 'sk-ficticia-de-pruebas';
+    process.env.ANTHROPIC_MODEL = 'modelo-de-pruebas';
     process.env.AI_RATE_LIMIT_PER_HOUR = '100';
     app = await createTestApp([{ token: AI_CLIENT, value: client }]);
   });
@@ -48,8 +48,8 @@ describe('IA (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
-    delete process.env.OPENAI_API_KEY;
-    delete process.env.OPENAI_MODEL;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_MODEL;
     delete process.env.AI_RATE_LIMIT_PER_HOUR;
   });
 
@@ -101,7 +101,7 @@ describe('IA (e2e)', () => {
     expect(structured).toHaveBeenCalledTimes(2);
   });
 
-  it('responde 422 sin datos, sin llamar a OpenAI', async () => {
+  it('responde 422 sin datos, sin llamar a Claude', async () => {
     await (await world.as('admin')).post('/api/ai/recommendations').send({ from: '2020-01-01', to: '2020-01-31', includeMonthly: false }).expect(422);
     expect(structured).not.toHaveBeenCalled();
   });

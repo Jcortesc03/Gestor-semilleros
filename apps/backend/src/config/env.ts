@@ -37,7 +37,7 @@ export interface AppEnv {
   storage: StorageConfig | null;
   /** Inscripciones (demo de importación desde Google Sheets). */
   enrollment: EnrollmentConfig;
-  /** Recomendaciones con la API de OpenAI (ADR 0018); null si no está configurada. */
+  /** Recomendaciones con la API de Claude (ADR 0018); null si no está configurada. */
   ai: AiConfig | null;
 }
 

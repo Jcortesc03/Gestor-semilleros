@@ -4,7 +4,7 @@ import type { NamedItem, ProjectStatus } from '../analytics/api.ts';
 
 /**
  * Contrato del módulo de IA (`GET /api/ai/status`, `POST /api/ai/recommendations`).
- * El backend resume los datos, llama a OpenAI y devuelve el informe; aquí solo se
+ * El backend resume los datos, llama a Claude y devuelve el informe; aquí solo se
  * arma el cuerpo (omitiendo lo vacío) y se valida la respuesta de forma defensiva.
  */
 

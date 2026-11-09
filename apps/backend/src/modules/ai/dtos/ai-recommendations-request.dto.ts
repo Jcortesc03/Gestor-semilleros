@@ -42,7 +42,7 @@ export interface AiRecommendationsRequest {
   includeComparison: boolean;
   includeMonthly: boolean;
   includeWeekdays: boolean;
-  /** Sustituye nombres de personas por seudónimos antes de enviarlos a OpenAI. */
+  /** Sustituye nombres de personas por seudónimos antes de enviarlos a Claude. */
   anonymize: boolean;
   question: string | null;
   /** Ignora la caché y genera un análisis nuevo. */

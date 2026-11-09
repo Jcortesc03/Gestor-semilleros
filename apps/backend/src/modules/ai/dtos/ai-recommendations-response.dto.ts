@@ -33,7 +33,7 @@ export interface AiRecommendationsResponseDto {
     anonymize: boolean;
     question: string | null;
   };
-  /** Resumen comprimido tal como se envió a OpenAI (con seudónimos si se anonimizó). */
+  /** Resumen comprimido tal como se envió a Claude (con seudónimos si se anonimizó). */
   digest: {
     data: Record<string, unknown>;
     chars: number;

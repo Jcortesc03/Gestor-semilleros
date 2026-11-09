@@ -18,9 +18,9 @@ import { AI_LIMITS, AI_ROLES, type AiPerspective, type AiRecommendationsRequest 
 import type { AiRecommendationsResponseDto, AiStatusDto } from '../dtos/ai-recommendations-response.dto';
 import { buildInput, buildInstructions, reportJsonSchema, type AiReport } from '../models/ai-prompt';
 import { buildDigest, restoreAliases, type DigestLabels } from '../models/analytics-digest';
-import { AI_CLIENT, AiClientError, type AiClient } from './openai.client';
+import { AI_CLIENT, AiClientError, type AiClient } from './claude.client';
 
-const NOT_CONFIGURED = 'La IA no está configurada en el servidor (OPENAI_API_KEY y OPENAI_MODEL).';
+const NOT_CONFIGURED = 'La IA no está configurada en el servidor (ANTHROPIC_API_KEY).';
 const MAX_CACHE_ENTRIES = 200;
 const HOUR_MS = 3_600_000;
 
@@ -98,11 +98,10 @@ export class AiService {
       result = await this.client.structured(config, {
         instructions: buildInstructions(req, perspective),
         input,
-        schemaName: 'informe_semilleros',
         schema: reportJsonSchema(req.focuses),
       });
     } catch (error) {
-      // Si OpenAI no llegó a generar nada (red, 5xx, 429) no se cobraron tokens: se devuelve la cuota.
+      // Si Claude no llegó a generar nada (red, 5xx, 429) no se cobraron tokens: se devuelve la cuota.
       if (error instanceof AiClientError && (error.kind === 'UPSTREAM' || error.kind === 'RATE_LIMITED')) this.refundQuota(user.id);
       throw this.translate(error);
     }

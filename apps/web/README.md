@@ -101,7 +101,7 @@ Sección «Analítica» (`features/analytics`), visible para administradores, en
 
 ## Asistente IA
 
-Sección «Asistente IA» (`features/ai`, hash `#ai`), visible para administradores, encargados de área y decanos. Consume `GET /api/ai/status` y `POST /api/ai/recommendations`: el usuario elige datos (periodo, área, facultad, proyecto, tutor, estado) y análisis (enfoques, profundidad, estilo, perspectiva, opciones avanzadas y pregunta opcional); el backend comprime un resumen de la analítica, lo envía a OpenAI y devuelve el informe. La web solo arma el cuerpo (omite lo vacío), valida la respuesta y muestra el estado, las recomendaciones, los riesgos, los vacíos de datos y el resumen enviado. Si la IA no está configurada en el servidor, se avisa y se deshabilita el botón.
+Sección «Asistente IA» (`features/ai`, hash `#ai`), visible para administradores, encargados de área y decanos. Consume `GET /api/ai/status` y `POST /api/ai/recommendations`: el usuario elige datos (periodo, área, facultad, proyecto, tutor, estado) y análisis (enfoques, profundidad, estilo, perspectiva, opciones avanzadas y pregunta opcional); el backend comprime un resumen de la analítica, lo envía a Claude y devuelve el informe. La web solo arma el cuerpo (omite lo vacío), valida la respuesta y muestra el estado, las recomendaciones, los riesgos, los vacíos de datos y el resumen enviado. Si la IA no está configurada en el servidor, se avisa y se deshabilita el botón.
 
 ## Recuperar contraseña
 

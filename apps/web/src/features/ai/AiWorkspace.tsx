@@ -81,7 +81,7 @@ export function AiWorkspace({ request, user }: { request: ApiRequest; user: Curr
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Asistente IA</p>
           <h2 className="mt-2 break-words text-3xl font-extrabold tracking-tight">Recomendaciones con IA</h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/85">
-            Resume la analítica de tu alcance y genera recomendaciones, riesgos y hallazgos con OpenAI.
+            Resume la analítica de tu alcance y genera recomendaciones, riesgos y hallazgos con Claude.
             {status.status === 'ready' && status.data.model ? ` Modelo: ${status.data.model}.` : ''}
           </p>
           <div aria-hidden="true" className="hairline-gold mt-6" />
@@ -91,7 +91,7 @@ export function AiWorkspace({ request, user }: { request: ApiRequest; user: Curr
       {status.status === 'loading' && <LoadingState label="Consultando el estado del asistente…" />}
       {status.status === 'error' && <ErrorNotice error={status.error} />}
       {status.status === 'ready' && !status.data.configured && (
-        <AlertMessage message="La IA no está configurada en el servidor. Pide a un administrador que configure el acceso a OpenAI para poder generar recomendaciones." />
+        <AlertMessage message="La IA no está configurada en el servidor. Pide a un administrador que configure el acceso a Claude para poder generar recomendaciones." />
       )}
       {status.status === 'ready' && status.data.configured && (
         <p className="text-sm leading-relaxed text-navy/70">
@@ -135,7 +135,7 @@ export function AiWorkspace({ request, user }: { request: ApiRequest; user: Curr
         ) : !generating && generateError === null ? (
           <EmptyState
             title="Aún no hay recomendaciones"
-            description="Configura los datos y el análisis y pulsa «Generar recomendaciones». El backend comprime un resumen de la analítica de tu alcance y lo envía a OpenAI. No se envían correos ni datos de contacto, y los nombres de personas se seudonimizan por defecto."
+            description="Configura los datos y el análisis y pulsa «Generar recomendaciones». El backend comprime un resumen de la analítica de tu alcance y lo envía a Claude. No se envían correos ni datos de contacto, y los nombres de personas se seudonimizan por defecto."
           />
         ) : null}
       </div>

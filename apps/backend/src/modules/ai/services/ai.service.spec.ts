@@ -15,17 +15,20 @@ type TutorStatsDto = AnalyticsResponseDto['tutors'][number];
 import { AI_LIMITS, parseAiRecommendationsRequest, type AiRecommendationsRequest } from '../dtos/ai-recommendations-request.dto';
 import type { AiReport } from '../models/ai-prompt';
 import { AiService } from './ai.service';
-import { AiClientError, type AiClient } from './openai.client';
+import { AiClientError, type AiClient } from './claude.client';
 
 const TUTOR_ID = '3f1c2b4a-5d6e-4f70-8a9b-0c1d2e3f4a5b';
 const NOW = new Date('2026-11-08T15:00:00.000Z');
 
 const AI_CONFIG: AiConfig = {
-  apiKey: 'sk',
+  apiKey: 'sk-ant-prueba',
   model: 'modelo-prueba',
-  baseUrl: 'http://x',
+  baseUrl: null,
   timeoutMs: 5000,
-  maxOutputTokens: 1000,
+  maxRetries: 0,
+  maxTokens: 1000,
+  effort: 'high',
+  refusalFallback: false,
   cacheTtlSeconds: 600,
   rateLimitPerHour: 2,
 };
