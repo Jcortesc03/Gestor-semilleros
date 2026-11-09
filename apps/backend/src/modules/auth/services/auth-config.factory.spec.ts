@@ -17,6 +17,7 @@ const env: AppEnv = {
   meetingsTimeZone: 'America/Bogota',
   storage: null,
   enrollment: loadEnrollmentConfig({}, 's'.repeat(32)),
+  ai: null,
 };
 
 const dbUser: AuthUser = { id: 'interno-1', email: 'ana@example.test', fullName: 'Ana', roles: ['STUDENT'], mustChangePassword: false };

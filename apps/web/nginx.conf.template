@@ -49,6 +49,18 @@ server {
         proxy_set_header X-Forwarded-Host $http_host;
     }
 
+    # IA (ADR 0018): el análisis con Claude puede superar los 60 s por defecto de nginx.
+    # El backend corta antes (ANTHROPIC_TIMEOUT_MS por intento, 120 s y 1 reintento por defecto).
+    location /api/ai/ {
+        proxy_pass ${BACKEND_URL};
+        proxy_http_version 1.1;
+        proxy_read_timeout 320s;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
+        proxy_set_header X-Forwarded-Host $http_host;
+    }
+
     # Archivos con hash de Vite: cache largo e inmutable. Un archivo inexistente responde 404, no index.html.
     location /assets/ {
         try_files $uri =404;

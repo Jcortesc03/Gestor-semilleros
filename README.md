@@ -105,7 +105,7 @@ flowchart LR
 
 - 💬 **Notificaciones:** envío mediante WhatsApp y correo electrónico.
 - 🟣 **Microsoft Teams:** apoyo a la gestión y coordinación de reuniones.
-- 🤖 **Inteligencia artificial:** generación de reportes, análisis de datos y seguimiento inteligente.
+- 🤖 **Inteligencia artificial:** ✅ recomendaciones personalizadas con Claude a partir de la analítica comprimida ([ADR 0018](docs/decisions/0018-recomendaciones-con-claude.md)); ⏳ reportes exportables y seguimiento inteligente.
 - 📊 **Panel de control:** indicadores, notificaciones, fechas importantes y progreso de los procesos.
 
 <a id="tecnologias"></a>
@@ -249,6 +249,7 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 | --- | --- | --- |
 | Panel de control | Aplicación web | ✅ Panel por rol (`GET /api/dashboard`) |
 | Analítica | Aplicación web | ✅ Indicadores con filtros para administración, encargados de área y decanos (`GET /api/analytics`, [ADR 0016](docs/decisions/0016-modulo-de-analitica.md)) |
+| Asistente IA | Aplicación web | ✅ Recomendaciones con Claude y filtros para administración, encargados de área y decanos (`POST /api/ai/recommendations`, [ADR 0018](docs/decisions/0018-recomendaciones-con-claude.md)) |
 | Tablero Kanban de tareas | Aplicación web | ⏳ Pendiente |
 | Seguimiento de semilleros | Aplicación web | ⏳ Pendiente |
 | Consulta y notificaciones | Aplicación móvil | ⏳ Pendiente |
@@ -297,7 +298,8 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 - [x] Copias de notificaciones por WhatsApp y correo electrónico
 - [x] Integración con Microsoft Teams (reuniones)
 - [x] Módulo de analítica con filtros (usuarios, tareas, reuniones, adjuntos)
-- [ ] Módulo de inteligencia artificial y reportes
+- [x] Recomendaciones con IA (Claude) sobre la analítica
+- [ ] Reportes exportables
 - [ ] Pruebas, documentación técnica y despliegue
 
 <a id="contribuciones"></a>

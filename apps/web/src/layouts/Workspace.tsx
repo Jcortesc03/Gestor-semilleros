@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { BarChart3, BookOpen, Building2, CalendarClock, ClipboardList, LayoutDashboard, LogOut, Megaphone, Menu, MessageCircle, Settings, Users, X } from 'lucide-react';
+import { BarChart3, BookOpen, Building2, CalendarClock, ClipboardList, LayoutDashboard, LogOut, Megaphone, Menu, MessageCircle, Settings, Sparkles, Users, X } from 'lucide-react';
 
 import type { LucideIcon } from 'lucide-react';
 import type { CurrentUser } from '../types/auth';
@@ -11,6 +11,7 @@ import { AlertMessage } from '../components/AlertMessage';
 import { ChangePasswordPage } from '../pages/ChangePasswordPage';
 import { Button, HelpRolesProvider, PanelCard } from '../components/WorkspaceUi';
 import { AcademicWorkspace } from '../features/academic';
+import { AiWorkspace } from '../features/ai';
 import { AnalyticsWorkspace } from '../features/analytics';
 import { EnrollmentsWorkspace, canManageEnrollments } from '../features/enrollments';
 import { DashboardWorkspace } from '../features/dashboard';
@@ -20,7 +21,7 @@ import { MeetingsWorkspace } from '../features/meetings';
 import type { InstitutionalSection } from '../features/institutional';
 
 
-type Page = 'account' | 'academic' | 'analytics' | 'enrollments' | 'meetings' | 'institution' | InstitutionalSection;
+type Page = 'account' | 'academic' | 'analytics' | 'ai' | 'enrollments' | 'meetings' | 'institution' | InstitutionalSection;
 
 interface NavigationItem { key: Page; label: string; icon: LucideIcon }
 interface WorkspaceProps {
@@ -56,6 +57,7 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
     }
     if (user.roles.some((role) => ['ADMIN', 'AREA_MANAGER', 'DEAN'].includes(role))) {
       items.push({ key: 'analytics', label: 'Analítica', icon: BarChart3 });
+      items.push({ key: 'ai', label: 'Asistente IA', icon: Sparkles });
     }
     // «Inscripciones» solo para ADMIN y AREA_MANAGER; el backend también lo exige.
     if (canManageEnrollments(user.roles)) items.push({ key: 'enrollments', label: 'Inscripciones', icon: ClipboardList });
@@ -200,6 +202,8 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
             ? <AcademicWorkspace user={user} request={request} onCreateMeeting={(projectId) => goToMeetings(projectId)} />
             : page === 'analytics'
             ? <AnalyticsWorkspace request={request} />
+            : page === 'ai'
+            ? <AiWorkspace request={request} user={user} />
             : page === 'enrollments'
             ? <EnrollmentsWorkspace user={user} request={request} />
             : page === 'meetings'

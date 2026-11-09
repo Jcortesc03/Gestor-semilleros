@@ -32,6 +32,7 @@ El alcance, los módulos y el estado se documentan en `README.md`; no los repita
 
 - **Analítica ([ADR 0016](docs/decisions/0016-modulo-de-analitica.md)):** `GET /api/analytics` y `/filters` (ADMIN global; encargado de área y decano por alcance) con filtros de periodo, área, facultad, proyecto, tutor y estado; `completed_at` en tableros y actividades para medir entregas a tiempo (migración `completed_at`); vista web con gráficas SVG propias. Sin entidad carrera.
 - **Paginación ([ADR 0017](docs/decisions/0017-paginacion-de-listas.md)):** híbrida. En el servidor (`page`, `pageSize` 1–100, respuesta `{ items, total, page, pageSize }`): proyectos (con `search`), usuarios, reuniones, novedades y documentos del proyecto. En el cliente (`useClientPagination` + `Pagination`): miembros, tableros, actividades, entregas y tablas de la analítica. En la analítica el decano solo ve su facultad en proyectos compartidos.
+- **IA con Claude ([ADR 0018](docs/decisions/0018-recomendaciones-con-claude.md)):** `GET /api/ai/status` y `POST /api/ai/recommendations` (ADMIN, encargado de área, decano; alcance de la analítica). Comprime la analítica (porcentajes enteros, tablas `{cols, rows}`, rankings top/bottom N, bloques por enfoque, seudónimos de personas) y llama a la Messages API con el SDK `@anthropic-ai/sdk`: salida estructurada, razonamiento adaptativo y reintento en el servidor ante rechazos. Requiere `ANTHROPIC_API_KEY`; modelo por defecto `claude-sonnet-5-5` (`ANTHROPIC_MODEL`). Caché en memoria y límite por usuario y hora. Web: sección «Asistente IA».
 - **Recuperación de contraseña ([ADR 0016](docs/decisions/0016-recuperacion-de-contrasena.md)):** código por correo SMTP de 6 dígitos, 10 minutos, 5 intentos y uso único; invalida sesiones previas. Requiere la migración `password_recovery`. No depende del despachador de novedades.
 - **No implementado:** recordatorios, límite de intentos de inicio de sesión, autenticación móvil, HTTPS/infraestructura de producción concreta ni CI/CD.
 
@@ -79,6 +80,8 @@ Si dos fuentes se contradicen, **detente y reporta**; no elijas una por tu cuent
 **Versiones fijadas** ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)): Node.js 24 LTS (`.nvmrc`), pnpm 12.18.0 (`packageManager`, vía Corepack), Prisma 7.10.1 (con `@prisma/adapter-pg`) y PostgreSQL 18.6 (`postgres:18.6-alpine`). Backend y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)): NestJS 12.3.3, TypeScript 6.0.3, `@auth/express` 0.12.3, Argon2id (`@node-rs/argon2`), Jest 30 + ts-jest + Supertest. Correo ([ADR 0005](docs/decisions/0005-notificaciones-y-copias-externas.md)): nodemailer 10.3.1 (SMTP); WhatsApp con BuilderBot 1.4.4 (`@builderbot/bot`, `@builderbot/provider-baileys`) y provider intercambiable, inicialmente Baileys ([ADR 0006](docs/decisions/0006-whatsapp-con-builderbot.md)).
 
 **Web aprobada** ([ADR 0008](docs/decisions/0008-aplicacion-web-y-sistema-visual.md)): React/React DOM 19.3.1, Vite 8.3.6, Tailwind CSS y `@tailwindcss/vite` 4.3.4, `@vitejs/plugin-react` 6.2.1, Montserrat local (`@fontsource/montserrat` 5.3.0) e iconos `lucide-react` 1.68.0. Sin biblioteca de componentes, router ni estado global adicional. Pruebas: runner de Node 24 (adaptadores), Vitest 5.1.0 + Testing Library (componentes) y Playwright 1.65.0 (E2E). Frontlipe implementa las vistas y la guía específica del proyecto prevalece sobre preferencias visuales genéricas.
+
+**IA** ([ADR 0018](docs/decisions/0018-recomendaciones-con-claude.md)): `@anthropic-ai/sdk` 1.6.0 (Messages API), modelo por defecto `claude-sonnet-5-5`.
 
 **Contenedores** ([ADR 0012](docs/decisions/0012-despliegue-con-contenedores.md)): `node:24-alpine` y `nginx:1.29-alpine`.
 
@@ -216,6 +219,7 @@ Reglas:
 - No incluir datos personales o académicos reales en ejemplos, pruebas o capturas.
 - El backend es el único que accede a PostgreSQL y S3; no exponer credenciales a los clientes.
 - Claves de WhatsApp, correo, Microsoft Teams, IA y AWS solo en variables de entorno.
+- A Claude solo se envían agregados de la analítica; nombres de personas seudonimizados por defecto (ADR 0018).
 - Tratar la información de estudiantes y docentes como sensible.
 
 ## 11. Verificación y criterios de finalización
@@ -273,6 +277,7 @@ Si la decisión ya está aprobada y registrada, procede sin volver a preguntar.
 | [`docs/api/dashboard.md`](docs/api/dashboard.md) | Panel por rol |
 | [`docs/api/documents.md`](docs/api/documents.md) | Documentos en S3 |
 | [`docs/api/analytics.md`](docs/api/analytics.md) | Analítica con filtros |
+| [`docs/api/ai.md`](docs/api/ai.md) | Recomendaciones con Claude |
 | [`docs/decisions/0017-paginacion-de-listas.md`](docs/decisions/0017-paginacion-de-listas.md) | Contrato común de paginación |
 | `docs/decisions/` | ADRs |
 
