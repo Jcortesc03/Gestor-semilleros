@@ -74,7 +74,21 @@ export function BoardPanel({ boards, selectedId, tutors, students, canManage, bu
   const [editingId, setEditingId] = useState('');
 
   return (
-    <PanelCard title="Tableros" action={<ClipboardList aria-hidden="true" className="size-5 text-gold" />}>
+    <PanelCard
+      title="Tableros"
+      action={<ClipboardList aria-hidden="true" className="size-5 text-gold" />}
+      help={{
+        title: 'Tableros',
+        description: 'Cada tablero organiza las actividades de una etapa del proyecto.',
+        roles: {
+          ADMIN: 'Como administrador, puedes crear tableros, asignar responsables y archivarlos en cualquier proyecto.',
+          AREA_MANAGER: 'Como encargado de área, ves los tableros de los proyectos de tus áreas, pero crearlos, asignar responsables o archivarlos requiere ser tutor del proyecto o administrador.',
+          DEAN: 'Como decano, ves los tableros de los proyectos de tus facultades, pero crearlos o editarlos requiere ser tutor del proyecto o administrador.',
+          TUTOR: 'Como tutor, puedes crear tableros, asignar responsables y archivarlos en el proyecto que tutorizas.',
+          STUDENT: 'Como estudiante, ves los tableros del proyecto en el que participas, pero no puedes crearlos ni editarlos.',
+        },
+      }}
+    >
       {canManage && <BoardForm initial={EMPTY} tutors={tutors} students={students} busy={busy} submitLabel="Crear tablero" onSubmit={onCreate} />}
       {boards.length === 0 ? (
         <div className={canManage ? 'mt-5' : ''}><EmptyState title="Sin tableros" description="Los tableros del proyecto aparecerán aquí." /></div>

@@ -146,7 +146,8 @@ export function UserPicker({ request, label, role, excludeIds = [], selected = n
           </li>
         ))}
       </ul>
-      <p id={statusId} role="status" className="text-sm text-navy/70">{statusText}</p>
+      {/* Altura reservada: evita que el resto de la fila se mueva al escribir. */}
+      <p id={statusId} role="status" className="min-h-6 text-sm text-navy/70">{statusText}</p>
       {phase === 'error' && <ErrorNotice error={error} />}
       {hint && <p id={hintId} className="text-sm leading-relaxed text-navy/70">{hint}</p>}
     </div>

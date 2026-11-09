@@ -55,6 +55,17 @@ export function ProjectDetail({ request, user, project, canManage, canDeleteAnyD
     <div className="space-y-8">
       <PanelCard
         title={project.title}
+        help={{
+          title: 'Detalle del proyecto',
+          description: 'Muestra la información general del proyecto.',
+          roles: {
+            ADMIN: 'Como administrador, puedes editar los datos de cualquier proyecto y archivarlo. Archivar lo quita de los listados sin borrar sus participantes ni documentos.',
+            AREA_MANAGER: 'Como encargado de área, puedes editar los datos de los proyectos de tus áreas y archivarlos. Archivar lo quita de los listados sin borrar sus participantes ni documentos.',
+            DEAN: 'Como decano, puedes editar los datos de los proyectos de tus facultades y archivarlos. Archivar lo quita de los listados sin borrar sus participantes ni documentos.',
+            TUTOR: 'Como tutor, ves el detalle del proyecto; no puedes editar sus datos generales ni archivarlo.',
+            STUDENT: 'Como estudiante, ves el detalle del proyecto en el que participas; no puedes editarlo ni archivarlo.',
+          },
+        }}
         action={(
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-gold/25 px-3 py-1 text-xs font-bold">{PROJECT_STATUS_LABELS[project.status]}</span>

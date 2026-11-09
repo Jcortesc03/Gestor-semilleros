@@ -22,7 +22,21 @@ export function CreateProjectForm({ request, user, busy, onCreate }: CreateProje
   };
 
   return (
-    <PanelCard title="Nuevo proyecto" action={<Plus aria-hidden="true" className="size-5 text-gold" />}>
+    <PanelCard
+      title="Nuevo proyecto"
+      action={<Plus aria-hidden="true" className="size-5 text-gold" />}
+      help={{
+        title: 'Nuevo proyecto',
+        description: 'Crea un proyecto académico con título, descripción, área y facultades.',
+        roles: {
+          ADMIN: 'Como administrador, puedes crear proyectos en cualquier área y facultad.',
+          AREA_MANAGER: 'Como encargado de área, puedes crear proyectos dentro de tus áreas asignadas.',
+          DEAN: 'Como decano, puedes crear proyectos dentro de tus facultades.',
+          TUTOR: 'Como tutor no puedes crear proyectos; solo trabajar en los que ya existes como tutor.',
+          STUDENT: 'Como estudiante no puedes crear proyectos; solo participar en los existentes.',
+        },
+      }}
+    >
       <form className="grid gap-4 md:grid-cols-2" onSubmit={(event) => void submit(event)}>
         <Field label="Título del nuevo proyecto" value={values.title} maxLength={200} onChange={(event) => set('title')(event.target.value)} required />
         <Field label="Descripción del nuevo proyecto" value={values.description} onChange={(event) => set('description')(event.target.value)} />

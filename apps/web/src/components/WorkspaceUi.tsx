@@ -1,6 +1,6 @@
-import { useId } from 'react';
+import { createContext, useContext, useId, useState } from 'react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
-import { CircleAlert, LoaderCircle } from 'lucide-react';
+import { CircleAlert, LoaderCircle, X } from 'lucide-react';
 import { AlertMessage } from './AlertMessage';
 import { ApiError } from '../lib/api';
 
@@ -40,18 +40,87 @@ export function Field({ label, hint, ...props }: InputHTMLAttributes<HTMLInputEl
   );
 }
 
+const HelpRolesContext = createContext<readonly string[]>([]);
+
+/** Provee los roles para decidir si se muestra el «?» de ayuda (hoja del Workspace). */
+export function HelpRolesProvider({ roles, children }: { roles: readonly string[]; children: ReactNode }) {
+  return <HelpRolesContext.Provider value={roles}>{children}</HelpRolesContext.Provider>;
+}
+
+/** Ayuda breve de un apartado: solo informativa, no ejecuta acciones. */
+export interface SectionHelp {
+  title: string;
+  /** Texto por defecto cuando no hay texto específico para el rol. */
+  description: string;
+  /** Texto específico por rol global (ADMIN, AREA_MANAGER, DEAN, TUTOR, STUDENT). */
+  roles?: Partial<Record<string, string>>;
+}
+
+const HELP_ROLE_PRIORITY = ['ADMIN', 'AREA_MANAGER', 'DEAN', 'TUTOR', 'STUDENT'];
+
+/** Botón «?» que explica el apartado en una alerta centrada, según el rol actual. */
+export function HelpButton({ help }: { help: SectionHelp }) {
+  const roles = useContext(HelpRolesContext);
+  const [open, setOpen] = useState(false);
+  const titleId = useId();
+  const roleText = HELP_ROLE_PRIORITY.map((role) => help.roles?.[role]).find(Boolean);
+  const description = roleText ?? help.description;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={`Ayuda: ${help.title}`}
+        className="shrink-0 p-1 text-lg font-bold leading-none text-navy transition hover:text-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+      >
+        ?
+      </button>
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-navy/60 p-4"
+          onClick={(event) => { if (event.target === event.currentTarget) setOpen(false); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-card"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Cerrar ayuda"
+              className="absolute right-3 top-3 grid size-10 place-items-center rounded-lg text-navy/70 transition hover:bg-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+            >
+              <X aria-hidden="true" className="size-5" />
+            </button>
+            <h3 id={titleId} className="pr-10 text-lg font-bold tracking-tight text-navy">{help.title}</h3>
+            <p className="mt-3 text-sm leading-relaxed text-navy/80">{description}</p>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 /**
  * Tarjeta de contenido: contenedor blanco sobre beige, borde
  * navy/10 y sombra sutil. Título H2 en 700 y acción a la derecha.
  */
-export function PanelCard({ title, children, action, className = '' }: { title: string; children: ReactNode; action?: ReactNode; className?: string }) {
+export function PanelCard({ title, children, action, help, className = '' }: { title: string; children: ReactNode; action?: ReactNode; help?: SectionHelp; className?: string }) {
   return (
-    <section className={`min-w-0 rounded-xl border border-navy/10 bg-white p-5 shadow-card sm:p-7 ${className}`}>
+    <section className={`relative min-w-0 rounded-xl border border-navy/10 bg-white p-5 shadow-card sm:p-7 ${help ? 'pb-12 sm:pb-14' : ''} ${className}`}>
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h2 className="min-w-[min(100%,14rem)] flex-1 break-words text-xl font-bold tracking-tight text-navy">{title}</h2>
         {action}
       </header>
       {children}
+      {help && (
+        <div className="absolute bottom-3 right-4">
+          <HelpButton help={help} />
+        </div>
+      )}
     </section>
   );
 }

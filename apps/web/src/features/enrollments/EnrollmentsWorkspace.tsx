@@ -179,6 +179,14 @@ export function EnrollmentsWorkspace({ request }: EnrollmentsWorkspaceProps) {
       <PanelCard
         title="Inscripciones"
         action={<Button variant="secondary" onClick={() => void exportExcel()} disabled={exporting}><FileSpreadsheet aria-hidden="true" className="size-4" />Exportar Excel</Button>}
+        help={{
+          title: 'Inscripciones',
+          description: 'Importación y revisión de solicitudes del formulario.',
+          roles: {
+            ADMIN: 'Como administrador, importas las respuestas del formulario desde la hoja privada de cualquier área: “Importar inscripciones” muestra una vista previa y pide confirmar antes de guardar. Cada solicitud tiene “Aceptar” (crea un usuario Estudiante con contraseña temporal y envía el correo) o “Rechazar”. Ves todas las áreas.',
+            AREA_MANAGER: 'Como encargado de área, importas las respuestas del formulario desde la hoja privada de tus áreas: “Importar inscripciones” muestra una vista previa y pide confirmar antes de guardar. Cada solicitud tiene “Aceptar” (crea un usuario Estudiante con contraseña temporal y envía el correo) o “Rechazar”. Solo ves tus áreas.',
+          },
+        }}
       >
         {exportError ? <div className="mb-4"><ErrorNotice error={exportError} /></div> : null}
 

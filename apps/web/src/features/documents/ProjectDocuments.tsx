@@ -100,7 +100,21 @@ export function ProjectDocuments({ user, request, projectId, canDeleteAny, onCha
     : undefined;
 
   return (
-    <PanelCard title="Documentos" action={count ? <span className="text-sm text-navy/70">{count}</span> : undefined}>
+    <PanelCard
+      title="Documentos"
+      action={count ? <span className="text-sm text-navy/70">{count}</span> : undefined}
+      help={{
+        title: 'Documentos',
+        description: 'Archivos del proyecto, hasta 25 MB por archivo, guardados en el almacenamiento del proyecto.',
+        roles: {
+          ADMIN: 'Como administrador, puedes subir y eliminar documentos de cualquier proyecto.',
+          AREA_MANAGER: 'Como encargado de área, puedes subir y eliminar documentos de los proyectos de tus áreas.',
+          DEAN: 'Como decano, puedes subir y eliminar documentos de los proyectos de tus facultades.',
+          TUTOR: 'Como tutor, puedes subir y eliminar documentos del proyecto que tutorizas.',
+          STUDENT: 'Como estudiante, puedes subir documentos al proyecto en el que participas y descargar los existentes; eliminar documentos de otros requiere ser tutor o tener el permiso.',
+        },
+      }}
+    >
       <form className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end" onSubmit={(event) => void upload(event)}>
         <div className="min-w-0 space-y-2">
           <label htmlFor={inputId} className="block text-sm font-semibold text-navy">Archivo a subir</label>

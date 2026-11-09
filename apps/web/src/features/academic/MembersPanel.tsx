@@ -30,9 +30,23 @@ export function MembersPanel({ request, members, canManageTutors, canManageStude
   };
 
   return (
-    <PanelCard title="Participantes" action={<Users aria-hidden="true" className="size-5 text-gold" />}>
+    <PanelCard
+      title="Participantes"
+      action={<Users aria-hidden="true" className="size-5 text-gold" />}
+      help={{
+        title: 'Participantes',
+        description: 'Aquí se gestionan las personas del proyecto. “Quitar liderazgo” deja a la persona como estudiante normal; “Retirar a …” la saca del proyecto.',
+        roles: {
+          ADMIN: 'Como administrador, puedes añadir y gestionar participantes de cualquier proyecto, incluidos tutores y estudiantes.',
+          AREA_MANAGER: 'Como encargado de área, puedes añadir y gestionar participantes de los proyectos de tus áreas. “Quitar liderazgo” deja a la persona como estudiante normal; “Retirar a …” la saca del proyecto.',
+          DEAN: 'Como decano, puedes añadir y gestionar participantes de los proyectos de tus facultades.',
+          TUTOR: 'Como tutor, puedes añadir y retirar estudiantes del proyecto que tutorizas, pero no gestionar tutores.',
+          STUDENT: 'Como estudiante, solo ves quiénes participan; no puedes añadir ni retirar a nadie. Si eres líder, puedes ver el rol de cada participante.',
+        },
+      }}
+    >
       {canManageStudents && (
-        <form className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" onSubmit={(event) => void submit(event)}>
+        <form className="grid gap-3 sm:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_auto] sm:items-start" onSubmit={(event) => void submit(event)}>
           <UserPicker
             request={request}
             label="Persona a añadir"
@@ -43,14 +57,15 @@ export function MembersPanel({ request, members, canManageTutors, canManageStude
             onClear={() => setPicked(null)}
             disabled={busy}
           />
-          <label className="block space-y-2 text-sm font-semibold">Rol en el proyecto
-            <select className={inputClassName} value={role} onChange={(event) => { setRole(event.target.value as ProjectRole); setPicked(null); }}>
+          <label className="block space-y-2 text-sm font-semibold">
+            <span className="block whitespace-nowrap">Rol en el proyecto</span>
+            <select className={inputClassName} value={role} onChange={(event) => setRole(event.target.value as ProjectRole)}>
               <option value="STUDENT">{PROJECT_ROLE_LABELS.STUDENT}</option>
               <option value="STUDENT_LEADER">{PROJECT_ROLE_LABELS.STUDENT_LEADER}</option>
               {canManageTutors && <option value="TUTOR">{PROJECT_ROLE_LABELS.TUTOR}</option>}
             </select>
           </label>
-          <Button type="submit" disabled={busy || !picked}>Añadir participante</Button>
+          <Button type="submit" className="sm:mt-7" disabled={busy || !picked}>Añadir participante</Button>
         </form>
       )}
       {members.length === 0 ? (

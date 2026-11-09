@@ -7,7 +7,7 @@ import { roleLabel } from '../lib/roles';
 import { BrandMark } from '../components/BrandMark';
 import { AlertMessage } from '../components/AlertMessage';
 import { ChangePasswordPage } from '../pages/ChangePasswordPage';
-import { Button, PanelCard } from '../components/WorkspaceUi';
+import { Button, HelpRolesProvider, PanelCard } from '../components/WorkspaceUi';
 import { AcademicWorkspace } from '../features/academic';
 import { EnrollmentsWorkspace, canManageEnrollments } from '../features/enrollments';
 import { DashboardWorkspace } from '../features/dashboard';
@@ -140,8 +140,9 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
 
   const title = navigation.find((item) => item.key === page)?.label ?? 'Mi panel';
   return (
+    <HelpRolesProvider roles={user.roles}>
     <div className="min-h-dvh overflow-x-clip bg-canvas text-navy lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
-      <aside className="on-dark relative hidden h-dvh flex-col gap-5 overflow-hidden bg-navy p-6 text-white lg:flex">
+      <aside className="on-dark relative hidden h-dvh flex-col gap-5 overflow-hidden bg-navy p-6 text-white lg:sticky lg:top-0 lg:flex lg:self-start">
         <div aria-hidden="true" className="texture-dots pointer-events-none absolute -right-12 top-0 h-44 w-44 opacity-30" />
         <div className="relative flex min-h-0 flex-1 flex-col gap-5">{renderNavigation()}</div>
       </aside>
@@ -175,13 +176,28 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
             </PanelCard>
             {passwordChanged && <AlertMessage variant="plain" message="Tu contraseña se actualizó." />}
             {changingPassword && (
-              <ChangePasswordPage
-                mode="voluntary"
-                email={user.email}
-                request={request}
-                onCancel={() => setChangingPassword(false)}
-                onChanged={() => { setChangingPassword(false); setPasswordChanged(true); }}
-              />
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-navy/60 p-4"
+                onClick={(event) => { if (event.target === event.currentTarget) setChangingPassword(false); }}
+              >
+                <div className="relative w-full max-w-lg" onClick={(event) => event.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() => setChangingPassword(false)}
+                    aria-label="Cerrar cambiar contraseña"
+                    className="absolute right-3 top-3 z-10 grid size-11 place-items-center rounded-lg text-navy/70 transition hover:bg-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+                  >
+                    <X aria-hidden="true" className="size-5" />
+                  </button>
+                  <ChangePasswordPage
+                    mode="voluntary"
+                    email={user.email}
+                    request={request}
+                    onCancel={() => setChangingPassword(false)}
+                    onChanged={() => { setChangingPassword(false); setPasswordChanged(true); }}
+                  />
+                </div>
+              </div>
             )}
           </> : page === 'academic'
             ? <AcademicWorkspace user={user} request={request} onCreateMeeting={(projectId) => goToMeetings(projectId)} />
@@ -195,5 +211,6 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
         </main>
       </div>
     </div>
+    </HelpRolesProvider>
   );
 }
