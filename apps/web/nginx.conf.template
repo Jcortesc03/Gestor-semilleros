@@ -2,6 +2,14 @@
 # La imagen oficial sustituye solo ${BACKEND_URL} con envsubst; las variables de nginx ($uri, $host...) se conservan.
 # Web y API comparten origen: /api/ va al backend y el resto son archivos estáticos de la SPA.
 
+# Protocolo original de la petición. Detrás de un proxy que termina TLS (p. ej. el borde de Railway)
+# nginx recibe HTTP, pero el usuario usa HTTPS: se respeta el X-Forwarded-Proto entrante para que
+# Auth.js construya URLs https. Sin proxy delante (compose local) se usa el esquema propio.
+map $http_x_forwarded_proto $forwarded_proto {
+    default $http_x_forwarded_proto;
+    ''      $scheme;
+}
+
 server {
     listen 80;
     server_name _;
@@ -26,7 +34,7 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Host $http_host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
         proxy_set_header X-Forwarded-Host $http_host;
     }
 
