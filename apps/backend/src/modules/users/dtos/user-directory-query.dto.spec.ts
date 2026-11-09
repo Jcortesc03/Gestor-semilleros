@@ -1,4 +1,4 @@
-import { DEFAULT_DIRECTORY_LIMIT, MAX_DIRECTORY_LIMIT, parseUserDirectoryQuery } from './user-directory-query.dto';
+import { DEFAULT_DIRECTORY_PAGE_SIZE, parseUserDirectoryQuery } from './user-directory-query.dto';
 
 function errorsOf(input: unknown): string[] {
   const result = parseUserDirectoryQuery(input);
@@ -17,22 +17,19 @@ describe('parseUserDirectoryQuery', () => {
   it('usa valores por defecto cuando no hay parámetros', () => {
     expect(parseUserDirectoryQuery({})).toEqual({
       ok: true,
-      value: { search: null, role: null, limit: DEFAULT_DIRECTORY_LIMIT, status: null },
+      value: { search: null, role: null, status: null, page: 1, pageSize: DEFAULT_DIRECTORY_PAGE_SIZE },
     });
   });
 
-  it('recorta la búsqueda y convierte el límite a número', () => {
-    expect(parseUserDirectoryQuery({ search: '  Ana  ', role: 'TUTOR', limit: '5' })).toEqual({
+  it('recorta la búsqueda y convierte la página a número', () => {
+    expect(parseUserDirectoryQuery({ search: '  Ana  ', role: 'TUTOR', page: '2', pageSize: '5' })).toEqual({
       ok: true,
-      value: { search: 'Ana', role: 'TUTOR', limit: 5, status: null },
+      value: { search: 'Ana', role: 'TUTOR', status: null, page: 2, pageSize: 5 },
     });
   });
 
-  it('acepta el límite máximo', () => {
-    expect(parseUserDirectoryQuery({ limit: String(MAX_DIRECTORY_LIMIT) })).toMatchObject({
-      ok: true,
-      value: { limit: MAX_DIRECTORY_LIMIT },
-    });
+  it('acepta el tamaño de página máximo (100)', () => {
+    expect(parseUserDirectoryQuery({ pageSize: '100' })).toMatchObject({ ok: true, value: { pageSize: 100 } });
   });
 
   it('rechaza cuerpos que no son objetos', () => {
@@ -41,10 +38,10 @@ describe('parseUserDirectoryQuery', () => {
   });
 
   it('informa todos los errores a la vez', () => {
-    expect(errorsOf({ foo: '1', role: 'SUPERUSER', limit: '0' })).toEqual([
+    expect(errorsOf({ foo: '1', role: 'SUPERUSER', pageSize: '0' })).toEqual([
       'Campos no permitidos: foo.',
       'role debe ser uno de: ADMIN, AREA_MANAGER, DEAN, TUTOR, STUDENT.',
-      'limit debe ser un entero entre 1 y 50.',
+      'pageSize debe ser un entero entre 1 y 100.',
     ]);
   });
 
@@ -54,12 +51,14 @@ describe('parseUserDirectoryQuery', () => {
     ['búsqueda demasiado larga', { search: 'a'.repeat(101) }, /search/],
     ['búsqueda repetida (lista)', { search: ['ana', 'luis'] }, /search/],
     ['rol desconocido', { role: 'tutor' }, /role/],
-    ['límite no numérico', { limit: 'diez' }, /limit/],
-    ['límite decimal', { limit: '1.5' }, /limit/],
-    ['límite negativo', { limit: '-1' }, /limit/],
-    ['límite cero', { limit: '0' }, /limit/],
-    ['límite por encima del máximo', { limit: '51' }, /limit/],
-    ['límite repetido (lista)', { limit: ['1', '2'] }, /limit/],
+    ['tamaño no numérico', { pageSize: 'diez' }, /pageSize/],
+    ['tamaño decimal', { pageSize: '1.5' }, /pageSize/],
+    ['tamaño cero', { pageSize: '0' }, /pageSize/],
+    ['tamaño por encima del máximo', { pageSize: '101' }, /pageSize/],
+    ['página cero', { page: '0' }, /page debe/],
+    ['página negativa', { page: '-1' }, /page debe/],
+    ['página repetida (lista)', { page: ['1', '2'] }, /page debe/],
+    ['limit ya no se admite', { limit: '5' }, /Campos no permitidos: limit/],
     ['parámetro desconocido', { orderBy: 'id' }, /orderBy/],
   ])('rechaza: %s', (_caso, input, pattern) => {
     expect(errorsOf(input).join(' ')).toMatch(pattern);

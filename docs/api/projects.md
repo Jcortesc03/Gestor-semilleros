@@ -41,7 +41,7 @@ Si el proyecto no existe, está eliminado lógicamente (`deletedAt`) o el usuari
 | `AREA_MANAGER` | Los de sus áreas asignadas **y** aquellos donde participa activamente. |
 | Resto | Solo aquellos donde es participante `ACTIVE`. Un `TUTOR` global que no participa en el proyecto no lo ve. |
 
-Los proyectos se devuelven ordenados por `createdAt` descendente. No hay paginación ni filtros.
+Los proyectos se devuelven ordenados por `createdAt` descendente (con `id` como desempate) y paginados; `GET /api/projects` admite además `search` por título (ver [`GET /api/projects`](#get-apiprojects)). No hay filtros por área, facultad ni estado.
 
 ## Endpoints
 
@@ -133,12 +133,36 @@ Mensajes de validación exactos:
 
 ## `GET /api/projects`
 
-Devuelve los proyectos visibles para el usuario (ver [visibilidad](#visibilidad-en-get-apiprojects)).
+Devuelve los proyectos visibles para el usuario (ver [visibilidad](#visibilidad-en-get-apiprojects)), paginados (ADR 0017).
+
+| Parámetro | Tipo | Obligatorio | Reglas |
+| --- | --- | --- | --- |
+| `page` | entero (query) | No | Mayor o igual que 1; por defecto 1. |
+| `pageSize` | entero (query) | No | Entre 1 y 100; por defecto 20. |
+| `search` | string (query) | No | Se recortan los espacios; entre 1 y 100 caracteres. Busca en `title` sin distinguir mayúsculas (`mode: 'insensitive'`); no ignora tildes. |
+
+Orden: `createdAt` descendente y `id` descendente como desempate, para que las páginas no se solapen. Cualquier otro parámetro se rechaza.
+
+`200`:
+
+```json
+{
+  "items": [{ "id": "00000000-0000-0000-0000-000000000010", "title": "Semillero de robótica", "status": "ACTIVE" }],
+  "total": 123,
+  "page": 1,
+  "pageSize": 20
+}
+```
+
+Cada elemento de `items` es un `ProjectResponseDto`. `total` cuenta todos los proyectos visibles que cumplen `search`. Una página más allá del final devuelve `items: []` con el `total` real.
 
 | Código | Cuándo | Cuerpo |
 | --- | --- | --- |
-| `200` | Siempre que haya sesión | `ProjectResponseDto[]` (vacío si no hay proyectos visibles). |
+| `200` | Siempre que haya sesión | `{ items, total, page, pageSize }` (`items` vacío si no hay proyectos visibles). |
+| `400` | Parámetros de consulta inválidos o desconocidos | `{ message: "Datos inválidos.", errors: string[] }` |
 | `401` | Sin sesión o sesión expirada | `{ message: "Sesión no válida o expirada." }` |
+
+Mensajes de validación exactos: `page debe ser un entero mayor o igual que 1.`, `pageSize debe ser un entero entre 1 y 100.`, `search debe tener entre 1 y 100 caracteres.`, `Campos no permitidos: campo1, campo2.`
 
 ## `GET /api/projects/:projectId`
 
@@ -341,7 +365,7 @@ El permiso depende del rol del participante objetivo: `manageTutors` si es `TUTO
 - **Adjuntos de tipo `DOCUMENT`**: la API de actividades solo admite enlaces (`LINK`); cargar documentos requiere el módulo de documentos con S3 (ver [`boards.md`](boards.md#pendiente)).
 - **Notificaciones**: no se notifica al participante añadido, retirado o cambiado de rol (P-16).
 - **Historial de aprobaciones**: no existe; solo se guarda el estado actual (ver [`boards.md`](boards.md#pendiente)).
-- **Paginación y filtros**: `GET /api/projects` y `GET /api/projects/:projectId/members` no paginan ni filtran (por área, facultad, estado, rol o texto). Tampoco hay endpoint de proyectos por facultad o área.
+- **Paginación y filtros**: `GET /api/projects` pagina y busca por título, pero no filtra por área, facultad ni estado; `GET /api/projects/:projectId/members` no pagina ni filtra. Tampoco hay endpoint de proyectos por facultad o área.
 - **Reactivación del registro anterior**: se puede volver a dar de alta al mismo usuario (nuevo registro `ACTIVE`), pero no hay endpoint para reactivar el registro inactivo.
 - **Permisos de `AREA_MANAGER`**: no participan en la resolución de acceso a proyectos.
 - **Transiciones de estado del proyecto**: el código acepta cualquier cambio entre `ACTIVE`, `FINISHED` y `CANCELLED`; las reglas de negocio no están definidas.

@@ -16,6 +16,9 @@ const created = {
   project: { id: 'p-1', title: 'Proyecto demo' }, organizer: { id: 'u-1', fullName: 'Tutor' }, participants: [{ id: 'u-2', fullName: 'Ana' }],
 };
 
+/** Página de la API (ADR 0017). */
+const pageOf = (items: unknown[], pageSize = 20) => ({ items, total: items.length, page: 1, pageSize });
+
 function fake(routes: Record<string, unknown>) {
   return vi.fn<ApiRequest>(async (path, options) => {
     const key = `${options?.method ?? 'GET'} ${path}`;
@@ -33,9 +36,9 @@ function postCalls(request: ReturnType<typeof fake>) {
 
 function routesFor(status: unknown): Record<string, unknown> {
   return {
-    'GET /api/projects': [{ id: 'p-1', title: 'Proyecto demo' }],
+    'GET /api/projects?pageSize=50': pageOf([{ id: 'p-1', title: 'Proyecto demo' }]),
     'GET /api/integrations/microsoft/status': status,
-    'GET /api/meetings': [],
+    'GET /api/meetings?page=1&pageSize=20': pageOf([]),
     'GET /api/projects/p-1/members': [
       { id: 'y', user: { id: 'u-2', fullName: 'Ana', email: 'ana@example.test' }, projectRole: 'STUDENT' },
     ],

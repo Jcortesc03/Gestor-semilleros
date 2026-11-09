@@ -5,6 +5,7 @@ import * as api from './api.ts';
 type Status = 'loading' | 'ready' | 'error';
 interface ProjectDetail { projectId: string; boards: api.Board[]; members: api.Member[] }
 interface BoardActivities { boardId: string; items: api.Activity[] }
+interface LoadOptions { preferredId?: string; silent?: boolean; page?: number; search?: string }
 
 /**
  * Carga y selección del área académica. Cada respuesta se etiqueta con el proyecto o tablero que la pidió
@@ -14,6 +15,10 @@ export function useAcademicData(request: ApiRequest) {
   const [projects, setProjects] = useState<api.Project[]>([]);
   const [listStatus, setListStatus] = useState<Status>('loading');
   const [listError, setListError] = useState<unknown>(null);
+  const [search, setSearchState] = useState('');
+  const [page, setPageState] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [pageSize, setPageSize] = useState(api.PROJECTS_PAGE_SIZE);
   const [projectId, setProjectId] = useState('');
   const [boardId, setBoardId] = useState('');
   const [detail, setDetail] = useState<ProjectDetail | null>(null);
@@ -26,6 +31,8 @@ export function useAcademicData(request: ApiRequest) {
   const mounted = useRef(false);
   const projectIdRef = useRef('');
   const boardIdRef = useRef('');
+  const searchRef = useRef('');
+  const pageRef = useRef(1);
   const listVersion = useRef(0);
 
   const selectBoard = useCallback((id: string) => {
@@ -41,23 +48,53 @@ export function useAcademicData(request: ApiRequest) {
     setBoardId('');
   }, []);
 
-  /** Carga la lista; `preferredId` fuerza la selección (p. ej. el proyecto recién creado). */
-  const loadProjects = useCallback(async (options: { preferredId?: string; silent?: boolean } = {}) => {
+  /** Carga una página de la lista; `preferredId` fuerza la selección (p. ej. el proyecto recién creado). */
+  const loadProjects: (options?: LoadOptions) => Promise<void> = useCallback(async (options: LoadOptions = {}) => {
     const version = ++listVersion.current;
+    const wantedPage = options.page ?? pageRef.current;
+    const wantedSearch = options.search ?? searchRef.current;
     if (!options.silent) { setListStatus('loading'); setListError(null); }
     try {
-      const value = await api.listProjects(request);
+      const result = await api.listProjects(request, { page: wantedPage, search: wantedSearch || undefined });
       if (!mounted.current || version !== listVersion.current) return;
-      setProjects(value);
+      // Si la página quedó vacía tras borrar su último elemento, se retrocede una página.
+      if (result.items.length === 0 && result.total > 0 && result.page > 1) {
+        pageRef.current = result.page - 1;
+        setPageState(result.page - 1);
+        void loadProjects({ ...options, page: result.page - 1, silent: true });
+        return;
+      }
+      setProjects(result.items);
+      setTotal(result.total);
+      setPageSize(result.pageSize);
+      pageRef.current = result.page;
+      setPageState(result.page);
       setListStatus('ready');
       const wanted = options.preferredId ?? projectIdRef.current;
-      selectProject(value.some((item) => item.id === wanted) ? wanted : value[0]?.id ?? '');
+      selectProject(result.items.some((item) => item.id === wanted) ? wanted : result.items[0]?.id ?? '');
     } catch (reason) {
       if (!mounted.current || version !== listVersion.current) return;
       setListError(reason);
       setListStatus('error');
     }
   }, [request, selectProject]);
+
+  /** Cambia de página del listado (ADR 0017). */
+  const changePage = useCallback((value: number) => {
+    pageRef.current = value;
+    setPageState(value);
+    void loadProjects({ page: value });
+  }, [loadProjects]);
+
+  /** Busca por título y vuelve a la primera página; el texto vacío limpia la búsqueda. */
+  const changeSearch = useCallback((value: string) => {
+    const text = value.trim();
+    searchRef.current = text;
+    pageRef.current = 1;
+    setSearchState(text);
+    setPageState(1);
+    void loadProjects({ page: 1, search: text });
+  }, [loadProjects]);
 
   useEffect(() => {
     mounted.current = true;
@@ -129,6 +166,12 @@ export function useAcademicData(request: ApiRequest) {
     listStatus,
     listError,
     reloadList: loadProjects,
+    search,
+    page,
+    total,
+    pageSize,
+    setSearch: changeSearch,
+    setPage: changePage,
     projectId,
     selectProject,
     boardId,

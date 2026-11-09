@@ -1,5 +1,6 @@
 import type { ApiRequest } from '../../types/api.ts';
 import { ApiError, isRecord, parseArray } from '../../lib/api.ts';
+import { parsePage, withPage, type Page, type PageRequest } from '../../lib/pagination.ts';
 import type { DocumentFormat } from '../documents/api.ts';
 
 export type ProjectStatus = 'ACTIVE' | 'FINISHED' | 'CANCELLED';
@@ -32,7 +33,21 @@ function parseAttachmentDocument(value: unknown): AttachmentDocument { const v =
 const path = (...parts: string[]) => parts.map((part) => encodeURIComponent(part)).join('/');
 const write = async <T>(request: ApiRequest, url: string, body: unknown, parser: (v: unknown) => T) => parser(await request(url, { method: 'POST', body }));
 
-export const listProjects = async (request: ApiRequest) => parseArray(await request('/api/projects'), parseProject);
+/** Proyectos por página en el listado (ADR 0017; el servidor usa 20 por defecto). */
+export const PROJECTS_PAGE_SIZE = 20;
+export interface ProjectSearch extends PageRequest { search?: string }
+
+/**
+ * Proyectos visibles, paginados (ADR 0017) y con búsqueda opcional por título.
+ * La página 1 y la ausencia de búsqueda se omiten de la URL para conservar la ruta simple.
+ */
+export async function listProjects(request: ApiRequest, params: ProjectSearch = {}): Promise<Page<Project>> {
+  const query = new URLSearchParams();
+  if (params.search) query.set('search', params.search);
+  withPage(query, { page: params.page !== undefined && params.page > 1 ? params.page : undefined, pageSize: params.pageSize });
+  const suffix = query.toString();
+  return parsePage(await request(`/api/projects${suffix ? `?${suffix}` : ''}`), parseProject);
+}
 export const getProject = async (request: ApiRequest, projectId: string) => parseProject(await request(`/api/projects/${path(projectId)}`));
 export const createProject = (request: ApiRequest, body: unknown) => write(request, '/api/projects', body, parseProject);
 export const updateProject = async (request: ApiRequest, projectId: string, body: unknown) => parseProject(await request(`/api/projects/${path(projectId)}`, { method: 'PATCH', body }));

@@ -229,6 +229,7 @@ pnpm --filter @gestor-semilleros/web dev
 | `pnpm db:up` / `pnpm db:down` | Inicia o detiene PostgreSQL local (Docker) |
 | `pnpm db:migrate` | Aplica las migraciones de Prisma y genera el cliente |
 | `pnpm db:seed` | Siembra datos de **desarrollo** (usuarios, área, facultad y proyecto demo). Requiere `SEED_PASSWORD`; no corre en producción |
+| `pnpm db:seed:bulk` | Miles de datos ficticios para probar la analítica (`SEED_BULK_SCALE`, `SEED_BULK_RESET=1`); ver [`docs/database/local-setup.md`](docs/database/local-setup.md#datos-masivos-para-la-analítica-seed-masiva) |
 | `pnpm db:studio` | Abre Prisma Studio |
 | `pnpm --filter @gestor-semilleros/backend admin:create` | Crea un administrador (`ADMIN_EMAIL`, `ADMIN_FULL_NAME`, `ADMIN_PASSWORD`) |
 | `pnpm dev` | Inicia los entregables en modo desarrollo |
@@ -247,6 +248,7 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 | Vista | Entregable | Estado |
 | --- | --- | --- |
 | Panel de control | Aplicación web | ✅ Panel por rol (`GET /api/dashboard`) |
+| Analítica | Aplicación web | ✅ Indicadores con filtros para administración, encargados de área y decanos (`GET /api/analytics`, [ADR 0016](docs/decisions/0016-modulo-de-analitica.md)) |
 | Tablero Kanban de tareas | Aplicación web | ⏳ Pendiente |
 | Seguimiento de semilleros | Aplicación web | ⏳ Pendiente |
 | Consulta y notificaciones | Aplicación móvil | ⏳ Pendiente |
@@ -294,6 +296,7 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 - [ ] MVP de la aplicación móvil
 - [x] Copias de notificaciones por WhatsApp y correo electrónico
 - [x] Integración con Microsoft Teams (reuniones)
+- [x] Módulo de analítica con filtros (usuarios, tareas, reuniones, adjuntos)
 - [ ] Módulo de inteligencia artificial y reportes
 - [ ] Pruebas, documentación técnica y despliegue
 

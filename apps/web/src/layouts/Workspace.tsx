@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, Building2, CalendarClock, ClipboardList, LayoutDashboard, LogOut, Megaphone, Menu, MessageCircle, Settings, Users, X } from 'lucide-react';
+
+import { BarChart3, BookOpen, Building2, CalendarClock, ClipboardList, LayoutDashboard, LogOut, Megaphone, Menu, MessageCircle, Settings, Users, X } from 'lucide-react';
+
 import type { LucideIcon } from 'lucide-react';
 import type { CurrentUser } from '../types/auth';
 import { createApiRequest } from '../lib/api';
@@ -9,6 +11,7 @@ import { AlertMessage } from '../components/AlertMessage';
 import { ChangePasswordPage } from '../pages/ChangePasswordPage';
 import { Button, PanelCard } from '../components/WorkspaceUi';
 import { AcademicWorkspace } from '../features/academic';
+import { AnalyticsWorkspace } from '../features/analytics';
 import { EnrollmentsWorkspace, canManageEnrollments } from '../features/enrollments';
 import { DashboardWorkspace } from '../features/dashboard';
 import { InstitutionWorkspace } from '../features/institution';
@@ -16,7 +19,9 @@ import { InstitutionalWorkspace } from '../features/institutional';
 import { MeetingsWorkspace } from '../features/meetings';
 import type { InstitutionalSection } from '../features/institutional';
 
-type Page = 'account' | 'academic' | 'enrollments' | 'meetings' | 'institution' | InstitutionalSection;
+
+type Page = 'account' | 'academic' | 'analytics' | 'enrollments' | 'meetings' | 'institution' | InstitutionalSection;
+
 interface NavigationItem { key: Page; label: string; icon: LucideIcon }
 interface WorkspaceProps {
   user: CurrentUser;
@@ -55,6 +60,9 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
     const items: NavigationItem[] = [{ key: 'account', label: 'Mi panel', icon: LayoutDashboard }];
     if (user.roles.some((role) => ['ADMIN', 'AREA_MANAGER', 'DEAN', 'TUTOR', 'STUDENT'].includes(role))) {
       items.push({ key: 'academic', label: 'Proyectos y actividades', icon: BookOpen });
+    }
+    if (user.roles.some((role) => ['ADMIN', 'AREA_MANAGER', 'DEAN'].includes(role))) {
+      items.push({ key: 'analytics', label: 'Analítica', icon: BarChart3 });
     }
     // «Inscripciones» solo para ADMIN y AREA_MANAGER; el backend también lo exige.
     if (canManageEnrollments(user.roles)) items.push({ key: 'enrollments', label: 'Inscripciones', icon: ClipboardList });
@@ -185,6 +193,8 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
             )}
           </> : page === 'academic'
             ? <AcademicWorkspace user={user} request={request} onCreateMeeting={(projectId) => goToMeetings(projectId)} />
+            : page === 'analytics'
+            ? <AnalyticsWorkspace request={request} />
             : page === 'enrollments'
             ? <EnrollmentsWorkspace user={user} request={request} />
             : page === 'meetings'

@@ -76,7 +76,7 @@ describe('Noticias con archivos adjuntos (e2e)', () => {
 
     const student = await world.as('student');
     const feed = (await student.get('/api/announcements').expect(200)).body;
-    expect(feed[0].attachments).toHaveLength(2);
+    expect(feed.items[0].attachments).toHaveLength(2);
     expect((await student.get(`/api/announcements/${res.body.id}`).expect(200)).body.attachments).toHaveLength(2);
 
     const [pdf, png] = res.body.attachments as { id: string }[];

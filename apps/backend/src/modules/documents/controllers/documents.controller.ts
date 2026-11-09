@@ -19,8 +19,10 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { SessionGuard } from '../../../common/guards/session.guard';
+import { validated } from '../../../common/utils/validation';
 import type { AuthUser } from '../../auth';
 import { createUploadErrorFilter, decodeFileName } from './upload-error.filter';
+import { parseDocumentListQuery } from '../dtos/document-list-query.dto';
 import { contentDisposition, MAX_DOCUMENT_BYTES } from '../models/document-file';
 import { DocumentsService, STORAGE_UNAVAILABLE, type UploadedFile as UploadedFileData } from '../services/documents.service';
 
@@ -48,8 +50,8 @@ export class DocumentsController {
   }
 
   @Get('projects/:projectId/documents')
-  list(@CurrentUser() user: AuthUser, @Param('projectId', uuid) projectId: string) {
-    return this.documents.list(user, projectId);
+  list(@CurrentUser() user: AuthUser, @Param('projectId', uuid) projectId: string, @Query() query: unknown) {
+    return this.documents.list(user, projectId, validated(parseDocumentListQuery(query)));
   }
 
   @Get('documents/:documentId/download')

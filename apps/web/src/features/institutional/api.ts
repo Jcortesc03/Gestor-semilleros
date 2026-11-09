@@ -1,5 +1,6 @@
 import type { ApiRequest } from '../../types/api.ts';
 import { ApiError, isRecord, parseArray } from '../../lib/api.ts';
+import { parsePage, withPage, type Page, type PageRequest } from '../../lib/pagination.ts';
 import { DOCUMENT_FORMATS, type DocumentFormat } from '../documents/api.ts';
 
 /** Contratos: `docs/api/users.md`, `announcements.md` y `notification-preferences.md`. */
@@ -36,7 +37,7 @@ export interface UserDetail extends AdminUserListItem {
   createdAt: string;
   updatedAt: string;
 }
-export interface ListUsersQuery { search?: string; role?: GlobalRole; status: UserStatusFilter; limit?: number }
+export interface ListUsersQuery extends PageRequest { search?: string; role?: GlobalRole; status: UserStatusFilter }
 /** Actualización parcial de `PATCH /api/users/:id`: solo se envían los campos que cambian. */
 export interface UpdateUserInput { fullName?: string; roles?: GlobalRole[] }
 
@@ -61,7 +62,8 @@ export const MAX_ANNOUNCEMENT_ATTACHMENTS = 5;
 /** Archivo adjunto de una noticia: solo metadatos; el contenido se descarga por `announcementAttachmentUrl`. */
 export interface AnnouncementAttachment { id: string; fileName: string; format: DocumentFormat; mimeType: string; sizeBytes: number }
 export interface Announcement { id: string; kind: AnnouncementKind; title: string; content: string; publishedAt: string; author: { id: string; fullName: string }; audiences: AnnouncementAudience[]; attachments: AnnouncementAttachment[]; queuedDeliveries?: number }
-export interface AnnouncementQuery { kind?: AnnouncementKind; limit?: number; before?: string }
+/** Filtros y página de `GET /api/announcements` (ADR 0017); `before` sigue siendo un filtro. */
+export interface AnnouncementQuery extends PageRequest { kind?: AnnouncementKind; before?: string }
 
 export type DeliveryCounts = Record<DeliveryStatus, number>;
 export type DeliverySummary = Record<NotificationChannel, DeliveryCounts>;
@@ -220,14 +222,14 @@ function parseUserDetail(value: unknown): UserDetail {
   };
 }
 
-/** `GET /api/users` para administración: el filtro de estado siempre se envía de forma explícita. */
-export async function listInstitutionalUsers(request: ApiRequest, query: ListUsersQuery): Promise<AdminUserListItem[]> {
+/** `GET /api/users` para administración (página, ADR 0017): el filtro de estado siempre se envía de forma explícita. */
+export async function listInstitutionalUsers(request: ApiRequest, query: ListUsersQuery): Promise<Page<AdminUserListItem>> {
   const params = new URLSearchParams();
   if (query.search) params.set('search', query.search);
   if (query.role) params.set('role', query.role);
   params.set('status', query.status);
-  if (query.limit !== undefined) params.set('limit', String(query.limit));
-  return parseArray(await request(`/api/users?${params.toString()}`), parseAdminUser);
+  withPage(params, query);
+  return parsePage(await request(`/api/users?${params.toString()}`), parseAdminUser);
 }
 
 export async function getInstitutionalUser(request: ApiRequest, id: string): Promise<UserDetail> {
@@ -249,13 +251,13 @@ export async function setTemporaryPassword(request: ApiRequest, id: string, pass
   await request(`/api/users/${encodeURIComponent(id)}/password`, { method: 'PUT', body: { password } });
 }
 
-export async function getAnnouncements(request: ApiRequest, query: AnnouncementQuery = {}): Promise<Announcement[]> {
+export async function getAnnouncements(request: ApiRequest, query: AnnouncementQuery = {}): Promise<Page<Announcement>> {
   const params = new URLSearchParams();
   if (query.kind) params.set('kind', query.kind);
-  if (query.limit !== undefined) params.set('limit', String(query.limit));
   if (query.before) params.set('before', query.before);
+  withPage(params, query);
   const suffix = params.toString();
-  return parseArray(await request(`/api/announcements${suffix ? `?${suffix}` : ''}`), parseAnnouncement);
+  return parsePage(await request(`/api/announcements${suffix ? `?${suffix}` : ''}`), parseAnnouncement);
 }
 
 export async function getAnnouncement(request: ApiRequest, id: string): Promise<Announcement> {
@@ -313,17 +315,38 @@ function parsePublishableProject(value: unknown): PublishableProject {
   return { id: value.id, title: value.title };
 }
 
+/** Proyectos que ofrece el selector de destino por búsqueda (ADR 0017: búsqueda + `pageSize` ≤ 100). */
+export const AUDIENCE_PROJECTS_PAGE_SIZE = 50;
+
+/** Opciones del selector de proyectos destinatarios. `more` indica que la búsqueda tiene más coincidencias. */
+export interface AudienceProjects { items: PublishableProject[]; more: boolean }
+
 /**
- * Proyectos destinatarios (docs/api/projects.md): `GET /api/projects` para administradores y decanos, y
- * `GET /api/projects/tutored` para tutores (proyectos donde son tutor `ACTIVE`). Si se piden ambas fuentes se
- * unen sin duplicados, conservando el orden de la primera. El servidor valida cada destino al publicar.
+ * Proyectos destinatarios (docs/api/projects.md): `GET /api/projects` (paginado, con `search` por título) para
+ * administradores y decanos, y `GET /api/projects/tutored` (lista corta sin paginar) para tutores, filtrada
+ * aquí por el mismo texto. Si se piden ambas fuentes se unen sin duplicados, conservando el orden de la
+ * primera. El servidor valida cada destino al publicar.
  */
 export async function listProjectsForAudience(
   request: ApiRequest,
   sources: { visible: boolean; tutored: boolean },
-): Promise<PublishableProject[]> {
-  const visible = sources.visible ? parseArray(await request('/api/projects'), parsePublishableProject) : [];
-  const tutored = sources.tutored ? parseArray(await request('/api/projects/tutored'), parsePublishableProject) : [];
+  search = '',
+): Promise<AudienceProjects> {
+  const text = search.trim().slice(0, 100);
+  let visible: PublishableProject[] = [];
+  let more = false;
+  if (sources.visible) {
+    const params = new URLSearchParams();
+    if (text) params.set('search', text);
+    withPage(params, { pageSize: AUDIENCE_PROJECTS_PAGE_SIZE });
+    const page = parsePage(await request(`/api/projects?${params.toString()}`), parsePublishableProject);
+    visible = page.items;
+    more = page.total > page.items.length;
+  }
+  const needle = text.toLocaleLowerCase('es');
+  const tutored = sources.tutored
+    ? parseArray(await request('/api/projects/tutored'), parsePublishableProject).filter((item) => item.title.toLocaleLowerCase('es').includes(needle))
+    : [];
   const seen = new Set(visible.map((item) => item.id));
-  return [...visible, ...tutored.filter((item) => !seen.has(item.id))];
+  return { items: [...visible, ...tutored.filter((item) => !seen.has(item.id))], more };
 }

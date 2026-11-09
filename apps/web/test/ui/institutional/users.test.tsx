@@ -27,12 +27,15 @@ const anaDetail = {
   updatedAt: '2026-01-10T10:00:00.000Z',
 };
 
+/** Página de `GET /api/users` (ADR 0017). */
+const pageOf = (items: unknown[], extra: Partial<{ total: number; page: number }> = {}) => ({ items, total: items.length, page: 1, pageSize: 20, ...extra });
+
 /** Respuesta por defecto del servidor: listado (según el filtro) y detalle de Ana. */
 function usersApi(path: string, options?: ApiOptions): unknown {
   if (path.startsWith('/api/users?')) {
-    if (path.includes('status=INACTIVE')) return [bruno];
-    if (path.includes('search=')) return [];
-    return [ana];
+    if (path.includes('status=INACTIVE')) return pageOf([bruno]);
+    if (path.includes('search=')) return pageOf([]);
+    return pageOf([ana]);
   }
   if (path === '/api/users/u-2' && !options?.method) return anaDetail;
   throw new Error(`Ruta no prevista: ${options?.method ?? 'GET'} ${path}`);
@@ -126,11 +129,11 @@ describe('Listado de usuarios', () => {
     expect(within(list).getByText('ana@example.test')).toBeInTheDocument();
     expect(within(list).getByText('Estudiante')).toBeInTheDocument();
     expect(within(list).getByText('Activo')).toBeInTheDocument();
-    expect(request).toHaveBeenCalledWith('/api/users?status=ACTIVE&limit=50');
+    expect(request).toHaveBeenCalledWith('/api/users?status=ACTIVE&page=1&pageSize=20');
 
     await user.selectOptions(screen.getByLabelText('Estado'), 'INACTIVE');
     expect(await within(await screen.findByRole('list', { name: 'Usuarios' })).findByText('Bruno Ruiz')).toBeInTheDocument();
-    expect(request).toHaveBeenLastCalledWith('/api/users?status=INACTIVE&limit=50');
+    expect(request).toHaveBeenLastCalledWith('/api/users?status=INACTIVE&page=1&pageSize=20');
   });
 
   it('busca con debounce: una ráfaga de teclas produce una sola consulta', async () => {
@@ -140,13 +143,33 @@ describe('Listado de usuarios', () => {
     await screen.findByRole('list', { name: 'Usuarios' });
 
     await user.type(screen.getByRole('searchbox', { name: 'Buscar por nombre o correo' }), 'ana');
-    await waitFor(() => expect(request).toHaveBeenCalledWith('/api/users?search=ana&status=ACTIVE&limit=50'));
+    await waitFor(() => expect(request).toHaveBeenCalledWith('/api/users?search=ana&status=ACTIVE&page=1&pageSize=20'));
     const searches = request.mock.calls.filter(([path]) => path.includes('search='));
     expect(searches).toHaveLength(1);
   });
 
+  it('pagina el directorio y vuelve a la primera página al cambiar un filtro', async () => {
+    const request = fakeRequest((path, options) => {
+      if (path === '/api/users?status=ACTIVE&page=1&pageSize=20') return pageOf([ana], { total: 25 });
+      if (path === '/api/users?status=ACTIVE&page=2&pageSize=20') return pageOf([{ ...ana, id: 'u-9', fullName: 'Zoe Página Dos' }], { total: 25, page: 2 });
+      return usersApi(path, options);
+    });
+    const user = userEvent.setup();
+    render(<InstitutionalWorkspace user={admin} request={request} section="users" />);
+
+    const nav = await screen.findByRole('navigation', { name: 'Paginación de Usuarios' });
+    expect(nav).toHaveTextContent('1–20 de 25 · página 1 de 2');
+    await user.click(within(nav).getByRole('button', { name: 'Página siguiente' }));
+    expect(await screen.findByText('Zoe Página Dos')).toBeInTheDocument();
+    expect(request).toHaveBeenCalledWith('/api/users?status=ACTIVE&page=2&pageSize=20');
+
+    await user.selectOptions(screen.getByLabelText('Estado'), 'INACTIVE');
+    expect(await screen.findByText('Bruno Ruiz')).toBeInTheDocument();
+    expect(request).toHaveBeenLastCalledWith('/api/users?status=INACTIVE&page=1&pageSize=20');
+  });
+
   it('muestra el estado vacío cuando no hay resultados', async () => {
-    const request = fakeRequest((path, options) => (path.startsWith('/api/users?') ? [] : usersApi(path, options)));
+    const request = fakeRequest((path, options) => (path.startsWith('/api/users?') ? pageOf([]) : usersApi(path, options)));
     render(<InstitutionalWorkspace user={admin} request={request} section="users" />);
 
     expect(await screen.findByText('No hay usuarios con estos filtros')).toBeInTheDocument();
@@ -282,7 +305,7 @@ describe('Carga y peticiones obsoletas', () => {
   it('descarta la respuesta de un filtro anterior que llega tarde', async () => {
     let resolveFirst: ((value: unknown) => void) | undefined;
     const request = fakeRequest((path, options) => {
-      if (path === '/api/users?status=ACTIVE&limit=50') return new Promise((resolve) => { resolveFirst = resolve; });
+      if (path === '/api/users?status=ACTIVE&page=1&pageSize=20') return new Promise((resolve) => { resolveFirst = resolve; });
       return usersApi(path, options);
     });
     const user = userEvent.setup();
@@ -290,7 +313,7 @@ describe('Carga y peticiones obsoletas', () => {
 
     await user.selectOptions(screen.getByLabelText('Estado'), 'INACTIVE');
     expect(await screen.findByText('Bruno Ruiz')).toBeInTheDocument();
-    resolveFirst?.([ana]);
+    resolveFirst?.(pageOf([ana]));
     await Promise.resolve();
     expect(screen.queryByText('Ana Pérez')).not.toBeInTheDocument();
   });

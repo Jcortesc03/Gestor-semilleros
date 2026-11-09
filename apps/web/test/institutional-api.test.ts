@@ -35,6 +35,10 @@ const announcement = {
   author: { id: 'u-1', fullName: 'Admin' }, audiences: [{ type: 'ALL' }],
 };
 
+
+/** Página de la API (ADR 0017). */
+const pageOf = (items: unknown[], extra: Partial<{ total: number; page: number; pageSize: number }> = {}) => ({ items, total: items.length, page: 1, pageSize: 20, ...extra });
+
 test('creates a user with the exact POST contract and validates the response', async () => {
   const mock = mockApiRequest({ id: 'new-1', email: 'tutor@example.test', fullName: 'Tutor', status: 'ACTIVE', roles: ['TUTOR'], hasPassword: false, createdAt: '2026-11-07T00:00:00.000Z' });
   const result = await createInstitutionalUser(mock.request, { email: 'tutor@example.test', fullName: 'Tutor', roles: ['TUTOR'] });
@@ -44,9 +48,11 @@ test('creates a user with the exact POST contract and validates the response', a
 });
 
 test('uses announcement routes, encodes IDs, and preserves server response shape', async () => {
-  const mock = mockApiRequest([announcement]);
-  await getAnnouncements(mock.request, { kind: 'NEWS', limit: 20 });
-  assert.equal(mock.calls[0].path, '/api/announcements?kind=NEWS&limit=20');
+  const mock = mockApiRequest(pageOf([announcement], { total: 41, page: 2 }));
+  const feed = await getAnnouncements(mock.request, { kind: 'NEWS', before: '2026-11-06T00:00:00.000Z', page: 2, pageSize: 20 });
+  assert.equal(mock.calls[0].path, '/api/announcements?kind=NEWS&before=2026-11-06T00%3A00%3A00.000Z&page=2&pageSize=20');
+  assert.deepEqual([feed.items.length, feed.total, feed.page, feed.pageSize], [1, 41, 2, 20]);
+  await assert.rejects(() => getAnnouncements(mockApiRequest([announcement]).request));
   const one = mockApiRequest(announcement);
   await getAnnouncement(one.request, 'a/1');
   assert.equal(one.calls[0].path, '/api/announcements/a%2F1');
@@ -111,25 +117,32 @@ test('tutors use GET /api/projects/tutored without querying members of each proj
   };
   const paths: string[] = [];
   const request = async (path: string) => { paths.push(path); return routes[path]; };
-  assert.deepEqual(await listProjectsForAudience(request, { visible: false, tutored: true }), [{ id: 'p-1', title: 'Uno' }]);
+  assert.deepEqual(await listProjectsForAudience(request, { visible: false, tutored: true }), { items: [{ id: 'p-1', title: 'Uno' }], more: false });
   assert.deepEqual(paths, ['/api/projects/tutored']);
+  // La lista de tutorados no se pagina: la búsqueda se aplica aquí por título.
+  assert.deepEqual(await listProjectsForAudience(request, { visible: false, tutored: true }, 'dos'), { items: [], more: false });
 });
 
-test('admins and deans use every visible project from GET /api/projects', async () => {
-  const mock = mockApiRequest([{ id: 'p-1', title: 'Uno' }, { id: 'p-2', title: 'Dos' }]);
-  assert.deepEqual(await listProjectsForAudience(mock.request, { visible: true, tutored: false }), [{ id: 'p-1', title: 'Uno' }, { id: 'p-2', title: 'Dos' }]);
-  assert.deepEqual(mock.calls.map((call) => call.path), ['/api/projects']);
+test('admins and deans search GET /api/projects with pageSize instead of loading every project', async () => {
+  const mock = mockApiRequest(pageOf([{ id: 'p-1', title: 'Uno' }, { id: 'p-2', title: 'Dos' }], { total: 120, pageSize: 50 }));
+  assert.deepEqual(await listProjectsForAudience(mock.request, { visible: true, tutored: false }), {
+    items: [{ id: 'p-1', title: 'Uno' }, { id: 'p-2', title: 'Dos' }],
+    more: true,
+  });
+  await listProjectsForAudience(mock.request, { visible: true, tutored: false }, '  robó ');
+  assert.deepEqual(mock.calls.map((call) => call.path), ['/api/projects?pageSize=50', '/api/projects?search=rob%C3%B3&pageSize=50']);
 });
 
 test('a dean who is also a tutor merges both sources without duplicates', async () => {
   const routes: Record<string, unknown> = {
-    '/api/projects': [{ id: 'p-1', title: 'Uno' }, { id: 'p-2', title: 'Dos' }],
+    '/api/projects?pageSize=50': pageOf([{ id: 'p-1', title: 'Uno' }, { id: 'p-2', title: 'Dos' }], { pageSize: 50 }),
     '/api/projects/tutored': [{ id: 'p-2', title: 'Dos', status: 'ACTIVE', isPrimaryTutor: false }, { id: 'p-3', title: 'Tres', status: 'ACTIVE', isPrimaryTutor: true }],
   };
   const request = async (path: string) => routes[path];
-  assert.deepEqual(await listProjectsForAudience(request, { visible: true, tutored: true }), [
-    { id: 'p-1', title: 'Uno' }, { id: 'p-2', title: 'Dos' }, { id: 'p-3', title: 'Tres' },
-  ]);
+  assert.deepEqual(await listProjectsForAudience(request, { visible: true, tutored: true }), {
+    items: [{ id: 'p-1', title: 'Uno' }, { id: 'p-2', title: 'Dos' }, { id: 'p-3', title: 'Tres' }],
+    more: false,
+  });
 });
 
 const adminUser = { id: 'u-2', fullName: 'Ana Pérez', email: 'ana@example.test', roles: ['STUDENT'], status: 'ACTIVE' };
@@ -139,17 +152,17 @@ const adminDetail = {
 };
 
 test('lists users for administration always sending the explicit status filter', async () => {
-  const mock = mockApiRequest([adminUser]);
-  const result = await listInstitutionalUsers(mock.request, { search: 'ana p', role: 'STUDENT', status: 'ALL', limit: 50 });
-  assert.equal(mock.calls[0].path, '/api/users?search=ana+p&role=STUDENT&status=ALL&limit=50');
-  assert.deepEqual(result, [adminUser]);
-  const defaults = mockApiRequest([]);
+  const mock = mockApiRequest(pageOf([adminUser], { total: 21, page: 2 }));
+  const result = await listInstitutionalUsers(mock.request, { search: 'ana p', role: 'STUDENT', status: 'ALL', page: 2, pageSize: 20 });
+  assert.equal(mock.calls[0].path, '/api/users?search=ana+p&role=STUDENT&status=ALL&page=2&pageSize=20');
+  assert.deepEqual(result, { items: [adminUser], total: 21, page: 2, pageSize: 20 });
+  const defaults = mockApiRequest(pageOf([]));
   await listInstitutionalUsers(defaults.request, { status: 'INACTIVE' });
   assert.equal(defaults.calls[0].path, '/api/users?status=INACTIVE');
 });
 
 test('rejects a list item with a status outside the contract', async () => {
-  const mock = mockApiRequest([{ ...adminUser, status: 'SUSPENDED' }]);
+  const mock = mockApiRequest(pageOf([{ ...adminUser, status: 'SUSPENDED' }]));
   await assert.rejects(() => listInstitutionalUsers(mock.request, { status: 'ALL' }));
 });
 
@@ -180,23 +193,23 @@ test('deactivates and reactivates through the action routes', async () => {
 });
 
 test('parses announcement attachments and treats a missing list as empty', async () => {
-  const withFiles = mockApiRequest([{
+  const withFiles = mockApiRequest(pageOf([{
     ...announcement,
     attachments: [{ id: 'att-1', fileName: 'convocatoria.pdf', format: 'PDF', mimeType: 'application/pdf', sizeBytes: 183042 }],
-  }]);
-  const [parsed] = await getAnnouncements(withFiles.request, { kind: 'NEWS' });
+  }]));
+  const [parsed] = (await getAnnouncements(withFiles.request, { kind: 'NEWS' })).items;
   assert.deepEqual(parsed.attachments, [{ id: 'att-1', fileName: 'convocatoria.pdf', format: 'PDF', mimeType: 'application/pdf', sizeBytes: 183042 }]);
   assert.equal(withFiles.calls[0].path, '/api/announcements?kind=NEWS');
 
-  const legacy = mockApiRequest([announcement]);
-  const [withoutList] = await getAnnouncements(legacy.request);
+  const legacy = mockApiRequest(pageOf([announcement]));
+  const [withoutList] = (await getAnnouncements(legacy.request)).items;
   assert.deepEqual(withoutList.attachments, []);
 });
 
 test('rejects an attachment with a format or size outside the contract', async () => {
-  const badFormat = mockApiRequest([{ ...announcement, attachments: [{ id: 'att-1', fileName: 'x.zip', format: 'ZIP', mimeType: 'application/zip', sizeBytes: 10 }] }]);
+  const badFormat = mockApiRequest(pageOf([{ ...announcement, attachments: [{ id: 'att-1', fileName: 'x.zip', format: 'ZIP', mimeType: 'application/zip', sizeBytes: 10 }] }]));
   await assert.rejects(() => getAnnouncements(badFormat.request));
-  const badSize = mockApiRequest([{ ...announcement, attachments: [{ id: 'att-1', fileName: 'x.pdf', format: 'PDF', mimeType: 'application/pdf', sizeBytes: -1 }] }]);
+  const badSize = mockApiRequest(pageOf([{ ...announcement, attachments: [{ id: 'att-1', fileName: 'x.pdf', format: 'PDF', mimeType: 'application/pdf', sizeBytes: -1 }] }]));
   await assert.rejects(() => getAnnouncements(badSize.request));
 });
 

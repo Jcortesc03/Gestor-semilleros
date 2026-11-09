@@ -110,8 +110,10 @@ describe('Proyectos y participantes (e2e)', () => {
       await buildProject(world);
       const other = await otherArea();
       await (await world.as('admin')).post('/api/projects').send(body({ title: 'Ajeno', areaId: other.id })).expect(201);
-      const list = (await (await world.as('areaManager')).get('/api/projects').expect(200)).body as { title: string }[];
-      expect(list.map((p) => p.title)).toEqual(['Proyecto de prueba']);
+      const list = (await (await world.as('areaManager')).get('/api/projects').expect(200)).body as {
+        items: { title: string }[];
+      };
+      expect(list.items.map((p) => p.title)).toEqual(['Proyecto de prueba']);
     });
 
     it('gestiona tutores y estudiantes de los proyectos de su área', async () => {
@@ -185,7 +187,9 @@ describe('Proyectos y participantes (e2e)', () => {
       await (await world.as('admin')).post('/api/projects').send(body({ title: 'De la B', facultyIds: [world.facultyB.id] })).expect(201);
 
       const titles = async (p: Parameters<World['as']>[0]) =>
-        ((await (await world.as(p)).get('/api/projects').expect(200)).body as { title: string }[]).map((x) => x.title).sort();
+        ((await (await world.as(p)).get('/api/projects').expect(200)).body as { items: { title: string }[] }).items
+          .map((x) => x.title)
+          .sort();
 
       expect(await titles('admin')).toEqual(['De la B', 'Proyecto de prueba']);
       expect(await titles('dean')).toEqual(['Proyecto de prueba']);
@@ -201,6 +205,82 @@ describe('Proyectos y participantes (e2e)', () => {
 
     it('responde 400 con un id que no es UUID', async () => {
       await (await world.as('admin')).get('/api/projects/no-es-uuid').expect(400);
+    });
+  });
+
+  describe('GET /api/projects (paginación y búsqueda, ADR 0017)', () => {
+    it('devuelve la primera página con 20 elementos por defecto', async () => {
+      await buildProject(world);
+      const res = await (await world.as('admin')).get('/api/projects').expect(200);
+      expect(res.body).toMatchObject({ total: 1, page: 1, pageSize: 20 });
+      expect(res.body.items).toHaveLength(1);
+    });
+
+    it('pagina en el servidor manteniendo el total', async () => {
+      await buildProject(world);
+      const admin = await world.as('admin');
+      for (const title of ['Alfa', 'Beta']) await admin.post('/api/projects').send(body({ title })).expect(201);
+
+      const first = await admin.get('/api/projects?page=1&pageSize=2').expect(200);
+      const second = await admin.get('/api/projects?page=2&pageSize=2').expect(200);
+      expect(first.body).toMatchObject({ total: 3, page: 1, pageSize: 2 });
+      expect(first.body.items).toHaveLength(2);
+      expect(second.body).toMatchObject({ total: 3, page: 2, pageSize: 2 });
+      expect(second.body.items).toHaveLength(1);
+      const ids = [...first.body.items, ...second.body.items].map((p: { id: string }) => p.id);
+      expect(new Set(ids).size).toBe(3);
+    });
+
+    it('ordena por fecha de creación descendente y luego por id', async () => {
+      await buildProject(world);
+      const admin = await world.as('admin');
+      for (const title of ['Alfa', 'Beta']) await admin.post('/api/projects').send(body({ title })).expect(201);
+
+      const res = await admin.get('/api/projects?pageSize=100').expect(200);
+      const expected = await world.prisma.project.findMany({
+        where: { deletedAt: null },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: { id: true },
+      });
+      expect((res.body.items as { id: string }[]).map((p) => p.id)).toEqual(expected.map((p) => p.id));
+    });
+
+    it('una página posterior al final devuelve la lista vacía con el total real', async () => {
+      await buildProject(world);
+      const res = await (await world.as('admin')).get('/api/projects?page=9&pageSize=2').expect(200);
+      expect(res.body).toMatchObject({ items: [], total: 1, page: 9, pageSize: 2 });
+    });
+
+    it('busca por título sin distinguir mayúsculas y respeta la visibilidad', async () => {
+      await buildProject(world);
+      const admin = await world.as('admin');
+      await admin
+        .post('/api/projects')
+        .send(body({ title: 'Robótica avanzada', facultyIds: [world.facultyB.id] }))
+        .expect(201);
+
+      const res = await admin.get('/api/projects?search=%20ROB%C3%93TICA%20').expect(200);
+      expect(res.body).toMatchObject({ total: 1, page: 1 });
+      expect((res.body.items as { title: string }[]).map((p) => p.title)).toEqual(['Robótica avanzada']);
+
+      const dean = await (await world.as('dean')).get('/api/projects?search=avanzada').expect(200);
+      expect(dean.body).toMatchObject({ items: [], total: 0 });
+    });
+
+    it('responde 400 con paginación o búsqueda inválidas', async () => {
+      const admin = await world.as('admin');
+      const page = await admin.get('/api/projects?page=0').expect(400);
+      expect(page.body.message).toBe('Datos inválidos.');
+      expect(page.body.errors).toContain('page debe ser un entero mayor o igual que 1.');
+
+      const size = await admin.get('/api/projects?pageSize=101').expect(400);
+      expect(size.body.errors).toContain('pageSize debe ser un entero entre 1 y 100.');
+
+      const search = await admin.get('/api/projects?search=%20').expect(400);
+      expect(search.body.errors).toContain('search debe tener entre 1 y 100 caracteres.');
+
+      const unknown = await admin.get('/api/projects?desconocido=1').expect(400);
+      expect(unknown.body.errors).toContain('Campos no permitidos: desconocido.');
     });
   });
 
@@ -234,7 +314,7 @@ describe('Proyectos y participantes (e2e)', () => {
       await (await world.as('dean')).delete(`/api/projects/${project.id}`).expect(204);
 
       await (await world.as('dean')).get(`/api/projects/${project.id}`).expect(404);
-      expect((await (await world.as('tutor')).get('/api/projects').expect(200)).body).toEqual([]);
+      expect((await (await world.as('tutor')).get('/api/projects').expect(200)).body).toMatchObject({ items: [], total: 0 });
       const stored = await world.prisma.project.findUniqueOrThrow({ where: { id: project.id } });
       expect(stored.deletedAt).not.toBeNull();
     });

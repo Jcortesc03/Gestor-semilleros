@@ -10,6 +10,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
+import { pageArgs, toPage, type PageDto } from '../../../common/utils/pagination';
 import type { AuthUser } from '../../auth';
 import { DOCUMENT_STORAGE, STORAGE_UNAVAILABLE, type DocumentStorage } from '../../documents';
 import { DeliveryDispatcher, NotificationDeliveryService, type DeliverySummary } from '../../integrations';
@@ -121,21 +122,26 @@ export class AnnouncementsService {
     return { ...toAnnouncementResponse(row), queuedDeliveries: queued };
   }
 
-  async list(user: AuthUser, query: ListAnnouncementsQuery): Promise<AnnouncementResponseDto[]> {
-    const where = await this.audiences.visibleWhere(user);
-    const rows = await this.prisma.announcement.findMany({
-      where: {
-        AND: [
-          where,
-          { publishedAt: { lte: new Date(), ...(query.before ? { lt: query.before } : {}) } },
-          ...(query.kind ? [{ kind: query.kind }] : []),
-        ],
-      },
-      orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
-      take: query.limit,
-      select: announcementSelect,
-    });
-    return rows.map(toAnnouncementResponse);
+  /** Novedades visibles y publicadas, paginadas (ADR 0017): más recientes primero, `id` como desempate. */
+  async list(user: AuthUser, query: ListAnnouncementsQuery): Promise<PageDto<AnnouncementResponseDto>> {
+    const visible = await this.audiences.visibleWhere(user);
+    const where = {
+      AND: [
+        visible,
+        { publishedAt: { lte: new Date(), ...(query.before ? { lt: query.before } : {}) } },
+        ...(query.kind ? [{ kind: query.kind }] : []),
+      ],
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.announcement.findMany({
+        where,
+        orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
+        ...pageArgs(query),
+        select: announcementSelect,
+      }),
+      this.prisma.announcement.count({ where }),
+    ]);
+    return toPage(rows.map(toAnnouncementResponse), total, query);
   }
 
   async get(user: AuthUser, id: string): Promise<AnnouncementResponseDto> {

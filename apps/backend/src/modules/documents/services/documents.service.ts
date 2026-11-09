@@ -12,8 +12,10 @@ import {
 import type { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import type { AuthUser } from '../../auth';
+import { pageArgs, toPage, type PageDto } from '../../../common/utils/pagination';
 import { hasInstitutionalAuthority, isTutor, ProjectAccessService, type ProjectAccess } from '../../projects';
 import type { DocumentResponseDto } from '../dtos/document-response.dto';
+import type { DocumentListQuery } from '../dtos/document-list-query.dto';
 import { DOCUMENT_STORAGE, type DocumentStorage } from '../models/document-storage';
 import { inspectFile, sanitizeFileName, UNSUPPORTED_FORMAT_ERROR } from '../models/document-file';
 
@@ -101,14 +103,19 @@ export class DocumentsService {
     }
   }
 
-  async list(user: AuthUser, projectId: string): Promise<DocumentResponseDto[]> {
+  async list(user: AuthUser, projectId: string, query: DocumentListQuery): Promise<PageDto<DocumentResponseDto>> {
     await this.projects.resolve(user, projectId);
-    const documents = await this.prisma.document.findMany({
-      where: { projectId, deletedAt: null },
-      include: documentInclude,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    });
-    return documents.map(toResponse);
+    const where: Prisma.DocumentWhereInput = { projectId, deletedAt: null };
+    const [documents, total] = await this.prisma.$transaction([
+      this.prisma.document.findMany({
+        where,
+        include: documentInclude,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        ...pageArgs(query),
+      }),
+      this.prisma.document.count({ where }),
+    ]);
+    return toPage(documents.map(toResponse), total, query);
   }
 
   async download(user: AuthUser, documentId: string): Promise<DocumentDownload> {

@@ -140,7 +140,9 @@ describe('Documentos (e2e)', () => {
     it.each(['tutor', 'leader', 'student', 'admin', 'dean', 'areaManager'] as const)('%s sube, lista y descarga', async (person) => {
       const doc = await uploaded(person);
       const agent = await world.as(person);
-      expect((await agent.get(url()).expect(200)).body).toHaveLength(1);
+      const list = (await agent.get(url()).expect(200)).body;
+      expect(list).toMatchObject({ total: 1, page: 1, pageSize: 20 });
+      expect(list.items).toHaveLength(1);
       await agent.get(`/api/documents/${doc.id}/download`).expect(200);
     });
 
@@ -186,9 +188,51 @@ describe('Documentos (e2e)', () => {
       await uploaded('leader', 'datos.xlsx');
       const third = await uploaded('tutor', 'foto.png');
       await (await world.as('tutor')).delete(`/api/documents/${first.id}`).expect(204);
-      const list = (await (await world.as('student')).get(url()).expect(200)).body as { id: string; fileName: string }[];
-      expect(list.map((d) => d.fileName)).toEqual(['foto.png', 'datos.xlsx']);
-      expect(list[0].id).toBe(third.id);
+      const list = (await (await world.as('student')).get(url()).expect(200)).body as {
+        items: { id: string; fileName: string }[];
+        total: number;
+      };
+      expect(list.total).toBe(2);
+      expect(list.items.map((d) => d.fileName)).toEqual(['foto.png', 'datos.xlsx']);
+      expect(list.items[0].id).toBe(third.id);
+    });
+
+    it('pagina el listado en el servidor conservando el orden y el total', async () => {
+      const first = await uploaded('student', 'informe.pdf');
+      const second = await uploaded('leader', 'datos.xlsx');
+      const third = await uploaded('tutor', 'foto.png');
+      const student = await world.as('student');
+
+      const page1 = (await student.get(`${url()}?page=1&pageSize=2`).expect(200)).body as {
+        items: { id: string }[];
+        total: number;
+        page: number;
+        pageSize: number;
+      };
+      expect(page1).toMatchObject({ total: 3, page: 1, pageSize: 2 });
+      expect(page1.items.map((d) => d.id)).toEqual([third.id, second.id]);
+
+      const page2 = (await student.get(`${url()}?page=2&pageSize=2`).expect(200)).body as { items: { id: string }[] };
+      expect(page2.items.map((d) => d.id)).toEqual([first.id]);
+    });
+
+    it('una página posterior al final devuelve la lista vacía con el total real', async () => {
+      await uploaded('student', 'informe.pdf');
+      const res = await (await world.as('student')).get(`${url()}?page=7&pageSize=2`).expect(200);
+      expect(res.body).toMatchObject({ items: [], total: 1, page: 7, pageSize: 2 });
+    });
+
+    it('responde 400 con parámetros de paginación inválidos o desconocidos', async () => {
+      const student = await world.as('student');
+      const page = await student.get(`${url()}?page=0`).expect(400);
+      expect(page.body.message).toBe('Datos inválidos.');
+      expect(page.body.errors).toContain('page debe ser un entero mayor o igual que 1.');
+
+      const size = await student.get(`${url()}?pageSize=101`).expect(400);
+      expect(size.body.errors).toContain('pageSize debe ser un entero entre 1 y 100.');
+
+      const unknown = await student.get(`${url()}?search=x`).expect(400);
+      expect(unknown.body.errors).toContain('Campos no permitidos: search.');
     });
 
     it('descarga los bytes exactos con las cabeceras del contrato', async () => {

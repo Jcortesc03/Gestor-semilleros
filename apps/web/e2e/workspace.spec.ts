@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { E2E_SEED_PASSWORD } from './backend-env.ts';
+import { findProjectInList } from './project-list';
 
 /** Proyecto ficticio creado por la seed (apps/backend/src/cli/seed-database.ts). */
 const SEED_PROJECT_TITLE = 'Proyecto demo de semillero';
@@ -23,10 +24,11 @@ test.describe('Recorrido real del espacio de trabajo', () => {
     await signInAs(page, 'tutor@example.test');
     await page.goto('/panel#academic');
 
-    await expect(page.getByText(SEED_PROJECT_TITLE).first()).toBeVisible();
+    const seedProject = await findProjectInList(page, SEED_PROJECT_TITLE);
+    await expect(seedProject).toBeVisible();
     await expectNoPendingLoaders(page);
 
-    await page.getByText(SEED_PROJECT_TITLE).first().click();
+    await seedProject.click();
     await expect(page.getByText('Tatiana Tutora Demo').first()).toBeVisible();
     await expectNoPendingLoaders(page);
   });

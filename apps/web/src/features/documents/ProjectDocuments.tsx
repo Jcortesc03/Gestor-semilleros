@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { Download, Eye } from 'lucide-react';
 import { AlertMessage } from '../../components/AlertMessage.tsx';
+import { Pagination } from '../../components/Pagination.tsx';
 import { Button, EmptyState, ErrorNotice, LoadingState, PanelCard } from '../../components/WorkspaceUi.tsx';
 import type { ApiRequest } from '../../types/api.ts';
 import type { CurrentUser } from '../../types/auth.ts';
@@ -68,7 +69,9 @@ export function ProjectDocuments({ user, request, projectId, canDeleteAny, onCha
       if (currentProject.current !== target) return;
       setFile(null);
       setInputKey((value) => value + 1);
-      documents.reload();
+      // El documento nuevo aparece primero: se vuelve a la página 1.
+      if (documents.page !== 1) documents.setPage(1);
+      else documents.reload();
       onChanged?.();
     } catch (reason) {
       if (currentProject.current === target) setActionError(reason);
@@ -96,7 +99,7 @@ export function ProjectDocuments({ user, request, projectId, canDeleteAny, onCha
   };
 
   const count = documents.status === 'ready'
-    ? (documents.items.length === 1 ? '1 documento' : `${documents.items.length} documentos`)
+    ? (documents.total === 1 ? '1 documento' : `${documents.total} documentos`)
     : undefined;
 
   return (
@@ -163,6 +166,16 @@ export function ProjectDocuments({ user, request, projectId, canDeleteAny, onCha
               );
             })}
           </ul>
+        )}
+        {documents.status === 'ready' && (
+          <Pagination
+            label="Documentos"
+            page={documents.page}
+            pageSize={documents.pageSize}
+            total={documents.total}
+            onPageChange={documents.setPage}
+            disabled={busy}
+          />
         )}
       </div>
     </PanelCard>

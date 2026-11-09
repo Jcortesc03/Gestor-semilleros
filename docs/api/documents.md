@@ -41,7 +41,20 @@ Nunca incluye `storageKey`.
 
 ## `GET /api/projects/:projectId/documents`
 
-`200` con `DocumentDto[]` de los documentos no eliminados del proyecto, del más reciente al más antiguo. `403` o `404` como arriba.
+Lista paginada (ADR 0017) de los documentos no eliminados del proyecto, del más reciente al más antiguo (con `id` descendente como desempate).
+
+| Parámetro | Tipo | Obligatorio | Reglas |
+| --- | --- | --- | --- |
+| `page` | entero (query) | No | Mayor o igual que 1; por defecto 1. |
+| `pageSize` | entero (query) | No | Entre 1 y 100; por defecto 20. |
+
+`200`:
+
+```json
+{ "items": [{ "id": "uuid", "fileName": "informe-avance.pdf", "format": "PDF" }], "total": 42, "page": 1, "pageSize": 20 }
+```
+
+Cada elemento de `items` es un `DocumentDto`. `total` cuenta todos los documentos no eliminados del proyecto. Una página más allá del final devuelve `items: []` con el `total` real. Cualquier otro parámetro responde `400 { message: "Datos inválidos.", errors: string[] }` con `page debe ser un entero mayor o igual que 1.`, `pageSize debe ser un entero entre 1 y 100.` o `Campos no permitidos: campo1, campo2.` `403` o `404` como arriba.
 
 ## `GET /api/documents/:documentId/download`
 

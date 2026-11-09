@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ProjectDocuments } from '../../../src/features/documents/index.ts';
 import { ApiError } from '../../../src/lib/api';
-import { admin, deferred, fakeRequest, student, uuid } from '../academic/fixtures';
+import { admin, deferred, fakeRequest, pageOf, student, uuid } from '../academic/fixtures';
 
 /** Datos ficticios: no son personas ni archivos reales. */
 const projectId = uuid(10);
@@ -21,7 +21,7 @@ const makeDocument = (id: string, fileName: string, format: string, uploaderId: 
 const pdf = makeDocument(pdfId, 'informe-avance.pdf', 'PDF', tutorId, 'Tatiana Tutora Demo');
 const word = makeDocument(wordId, 'anexo.docx', 'WORD', student.id, 'Estudiante de Ejemplo', 2048);
 
-const listOf = (...items: unknown[]) => fakeRequest({ [`GET /api/projects/${projectId}/documents`]: () => items });
+const listOf = (...items: unknown[]) => fakeRequest({ [`GET /api/projects/${projectId}/documents`]: () => pageOf(items) });
 
 function renderDocuments(request: ReturnType<typeof fakeRequest>, overrides: Partial<{ user: typeof admin; canDeleteAny: boolean; projectId: string }> = {}) {
   const props = { user: admin, canDeleteAny: false, projectId, ...overrides };
@@ -60,23 +60,39 @@ describe('ProjectDocuments: lista', () => {
     expect(screen.queryByRole('link', { name: 'Ver anexo.docx' })).not.toBeInTheDocument();
   });
 
+  it('pagina los documentos y pide la página siguiente (ADR 0017)', async () => {
+    const request = fakeRequest({
+      [`GET /api/projects/${projectId}/documents`]: () => ({ items: [pdf], total: 25, page: 1, pageSize: 20 }),
+      [`GET /api/projects/${projectId}/documents?page=2`]: () => ({ items: [word], total: 25, page: 2, pageSize: 20 }),
+    });
+    renderDocuments(request);
+    await screen.findByText('informe-avance.pdf');
+
+    expect(screen.getByText('1–20 de 25 · página 1 de 2')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Página siguiente' }));
+
+    expect(await screen.findByText('anexo.docx')).toBeInTheDocument();
+    expect(screen.getByText('21–25 de 25 · página 2 de 2')).toBeInTheDocument();
+    expect(request).toHaveBeenCalledWith(`/api/projects/${projectId}/documents?page=2`);
+  });
+
   it('muestra el estado vacío cuando el proyecto no tiene documentos', async () => {
     renderDocuments(listOf());
     expect(await screen.findByText('Sin documentos')).toBeInTheDocument();
   });
 
   it('muestra el estado de carga mientras llega la lista', async () => {
-    const pending = deferred<unknown[]>();
+    const pending = deferred<unknown>();
     renderDocuments(fakeRequest({ [`GET /api/projects/${projectId}/documents`]: () => pending.promise }));
     expect(screen.getByText('Cargando documentos…')).toBeInTheDocument();
-    pending.resolve([pdf]);
+    pending.resolve(pageOf([pdf]));
     expect(await screen.findByText('informe-avance.pdf')).toBeInTheDocument();
   });
 
   it('muestra el error del backend y permite reintentar', async () => {
     let fail = true;
     renderDocuments(fakeRequest({
-      [`GET /api/projects/${projectId}/documents`]: () => { if (fail) throw new ApiError(503); return [pdf]; },
+      [`GET /api/projects/${projectId}/documents`]: () => { if (fail) throw new ApiError(503); return pageOf([pdf]); },
     }));
     expect(await screen.findByRole('alert')).toHaveTextContent('El servicio no está disponible en este momento.');
 
@@ -93,17 +109,17 @@ describe('ProjectDocuments: lista', () => {
   });
 
   it('descarta la respuesta tardía del proyecto anterior al cambiar de proyecto', async () => {
-    const late = deferred<unknown[]>();
+    const late = deferred<unknown>();
     const other = makeDocument(uuid(80), 'datos-nuevos.xlsx', 'EXCEL', tutorId, 'Tatiana Tutora Demo');
     const request = fakeRequest({
       [`GET /api/projects/${projectId}/documents`]: () => late.promise,
-      [`GET /api/projects/${otherProjectId}/documents`]: () => [other],
+      [`GET /api/projects/${otherProjectId}/documents`]: () => pageOf([other]),
     });
     const { rerender } = renderDocuments(request);
     rerender(<ProjectDocuments request={request} user={admin} projectId={otherProjectId} canDeleteAny={false} />);
 
     expect(await screen.findByText('datos-nuevos.xlsx')).toBeInTheDocument();
-    late.resolve([pdf]);
+    late.resolve(pageOf([pdf]));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(screen.queryByText('informe-avance.pdf')).not.toBeInTheDocument();
     expect(screen.getByText('datos-nuevos.xlsx')).toBeInTheDocument();
@@ -115,7 +131,7 @@ describe('ProjectDocuments: subida', () => {
     let uploaded = false;
     const created = makeDocument(uuid(72), 'acta.pdf', 'PDF', admin.id, 'Admin');
     const request = fakeRequest({
-      [`GET /api/projects/${projectId}/documents`]: () => (uploaded ? [created] : []),
+      [`GET /api/projects/${projectId}/documents`]: () => pageOf(uploaded ? [created] : []),
       [`POST /api/projects/${projectId}/documents`]: () => { uploaded = true; return created; },
     });
     renderDocuments(request);
@@ -163,7 +179,7 @@ describe('ProjectDocuments: subida', () => {
 
   it('muestra el 413 del backend tal cual', async () => {
     const request = fakeRequest({
-      [`GET /api/projects/${projectId}/documents`]: () => [],
+      [`GET /api/projects/${projectId}/documents`]: () => pageOf([]),
       [`POST /api/projects/${projectId}/documents`]: () => {
         throw new ApiError(413, { message: 'El archivo supera el tamaño máximo de 25 MB.' });
       },
@@ -179,7 +195,7 @@ describe('ProjectDocuments: subida', () => {
 
   it('muestra cada error de validación 400 del backend en la lista', async () => {
     const request = fakeRequest({
-      [`GET /api/projects/${projectId}/documents`]: () => [],
+      [`GET /api/projects/${projectId}/documents`]: () => pageOf([]),
       [`POST /api/projects/${projectId}/documents`]: () => {
         throw new ApiError(400, {
           message: 'Datos inválidos.',
@@ -200,7 +216,7 @@ describe('ProjectDocuments: subida', () => {
 
   it('muestra el 503 cuando el almacenamiento no está disponible', async () => {
     const request = fakeRequest({
-      [`GET /api/projects/${projectId}/documents`]: () => [],
+      [`GET /api/projects/${projectId}/documents`]: () => pageOf([]),
       [`POST /api/projects/${projectId}/documents`]: () => {
         throw new ApiError(503, { message: 'El almacenamiento de documentos no está disponible.' });
       },
@@ -223,7 +239,7 @@ describe('ProjectDocuments: subida', () => {
 describe('ProjectDocuments: eliminación', () => {
   it('pide confirmación y solo elimina si el usuario acepta', async () => {
     const request = fakeRequest({
-      [`GET /api/projects/${projectId}/documents`]: () => [pdf],
+      [`GET /api/projects/${projectId}/documents`]: () => pageOf([pdf]),
       [`DELETE /api/documents/${pdfId}`]: () => undefined,
     });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
@@ -240,7 +256,7 @@ describe('ProjectDocuments: eliminación', () => {
 
   it('muestra el 409 del backend cuando el documento está adjunto a una actividad', async () => {
     const request = fakeRequest({
-      [`GET /api/projects/${projectId}/documents`]: () => [pdf],
+      [`GET /api/projects/${projectId}/documents`]: () => pageOf([pdf]),
       [`DELETE /api/documents/${pdfId}`]: () => {
         throw new ApiError(409, { message: 'El documento está adjunto a actividades; quítalo de ellas primero.' });
       },

@@ -89,7 +89,7 @@ describe('Áreas y facultades (administrador)', () => {
       if (path === '/api/areas') return [];
       if (path === '/api/faculties') return [ingenieria];
       if (path === '/api/faculties/f-1/deans') return assigned ? [assigned] : [];
-      if (path.startsWith('/api/users?')) return [dean];
+      if (path.startsWith('/api/users?')) return { items: [dean], total: 1, page: 1, pageSize: 20 };
       if (path === '/api/faculties/f-1/dean' && options?.method === 'PUT') {
         assigned = { id: 'd-1', userId: dean.id, fullName: dean.fullName, email: dean.email, startsAt: '2026-11-07T10:00:00.000Z', endsAt: null };
         return assigned;
@@ -105,7 +105,7 @@ describe('Áreas y facultades (administrador)', () => {
     const picker = screen.getByRole('combobox', { name: 'Nuevo decano' });
     await user.type(picker, 'Die');
     await user.click(await screen.findByRole('option', { name: /Diego Decano/ }));
-    expect(request).toHaveBeenCalledWith('/api/users?search=Die&role=DEAN');
+    expect(request).toHaveBeenCalledWith('/api/users?search=Die&role=DEAN&pageSize=20');
 
     await user.click(screen.getByRole('button', { name: 'Asignar decano' }));
     expect(request).toHaveBeenCalledWith('/api/faculties/f-1/dean', { method: 'PUT', body: { userId: 'u-dean' } });

@@ -9,6 +9,7 @@ import {
   unknownFieldsError,
   ValidationResult,
 } from '../../../common/utils/validation';
+import { PAGE_FIELDS, parsePageQuery, type PageQuery } from '../../../common/utils/pagination';
 
 export const MIN_DURATION = 5;
 export const MAX_DURATION = 480;
@@ -18,15 +19,13 @@ const MAX_REASON_LENGTH = 200;
 const MAX_COMMENT_LENGTH = 500;
 const MAX_RECORDING_URL_LENGTH = 2000;
 export const MAX_JOIN_URL_LENGTH = 2048;
-const DEFAULT_LIMIT = 50;
-const MIN_LIMIT = 1;
-const MAX_LIMIT = 100;
+export const DEFAULT_MEETINGS_PAGE_SIZE = 50;
 const MIN_START_OFFSET_MS = 60_000;
 
 const CREATE_ALLOWED_FIELDS = ['reason', 'startsAt', 'durationMinutes', 'projectId', 'participantIds', 'joinUrl'] as const;
 const CHANGE_STATUS_ALLOWED_FIELDS = ['status', 'comment'] as const;
 const RECORDING_ALLOWED_FIELDS = ['recordingUrl'] as const;
-const LIST_ALLOWED_FIELDS = ['status', 'from', 'to', 'limit'] as const;
+const LIST_ALLOWED_FIELDS = ['status', 'from', 'to', ...PAGE_FIELDS] as const;
 
 /** Fecha y hora ISO 8601 con zona explícita (Z o ±HH:MM). */
 const ISO_DATE_TIME_WITH_ZONE =
@@ -53,7 +52,6 @@ const RECORDING_ERROR = 'recordingUrl debe ser una URL http(s) válida o null.';
 const FROM_ERROR = 'from debe ser una fecha ISO 8601.';
 const TO_ERROR = 'to debe ser una fecha ISO 8601.';
 const RANGE_ERROR = 'to no puede ser anterior a from.';
-const LIMIT_ERROR = `limit debe ser un entero entre ${MIN_LIMIT} y ${MAX_LIMIT}.`;
 const LIST_STATUS_ERROR = `status no es válido. Valores permitidos: ${Object.values(MeetingStatus).join(', ')}.`;
 
 /** Cuerpo validado de creación de una reunión. */
@@ -81,12 +79,11 @@ export interface RecordingDto {
   recordingUrl: string | null;
 }
 
-/** Parámetros validados del listado de reuniones. */
-export interface ListMeetingsQuery {
+/** Parámetros validados del listado de reuniones (paginado según ADR 0017). */
+export interface ListMeetingsQuery extends PageQuery {
   status?: MeetingStatus;
   from?: Date;
   to?: Date;
-  limit: number;
 }
 
 /**
@@ -306,16 +303,11 @@ export function parseListMeetings(query: unknown): ValidationResult<ListMeetings
 
   if (from !== undefined && to !== undefined && to.getTime() < from.getTime()) errors.push(RANGE_ERROR);
 
-  let limit = DEFAULT_LIMIT;
-  if (body.limit !== undefined) {
-    const parsed = typeof body.limit === 'string' && /^\d+$/.test(body.limit) ? Number(body.limit) : Number.NaN;
-    if (!Number.isInteger(parsed) || parsed < MIN_LIMIT || parsed > MAX_LIMIT) errors.push(LIMIT_ERROR);
-    else limit = parsed;
-  }
+  const page = parsePageQuery(body, errors, DEFAULT_MEETINGS_PAGE_SIZE);
 
   if (errors.length > 0) return fail(errors);
 
-  const result: ListMeetingsQuery = { limit };
+  const result: ListMeetingsQuery = { ...page };
   if (status !== undefined) result.status = status;
   if (from !== undefined) result.from = from;
   if (to !== undefined) result.to = to;

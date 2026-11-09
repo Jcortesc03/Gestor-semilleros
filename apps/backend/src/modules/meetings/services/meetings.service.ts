@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { APP_ENV, type AppEnv } from '../../../config/env';
 import { PrismaService } from '../../../database/prisma.service';
+import { pageArgs, toPage, type PageDto } from '../../../common/utils/pagination';
 import type { Prisma } from '../../../generated/prisma/client';
 import type { AuthUser } from '../../auth';
 import { DeliveryDispatcher, NotificationDeliveryService, TeamsMeetingsService } from '../../integrations';
@@ -115,22 +116,27 @@ export class MeetingsService {
     return this.get(user, meetingId);
   }
 
-  async list(user: AuthUser, query: ListMeetingsQuery): Promise<MeetingResponseDto[]> {
+  /** Reuniones visibles, paginadas (ADR 0017): por inicio ascendente e `id` como desempate. */
+  async list(user: AuthUser, query: ListMeetingsQuery): Promise<PageDto<MeetingResponseDto>> {
     await this.syncStatuses();
-    const rows = await this.prisma.meeting.findMany({
-      where: {
-        AND: [
-          this.visibleWhere(user),
-          ...(query.status ? [{ status: query.status }] : []),
-          ...(query.from ? [{ startsAt: { gte: query.from } }] : []),
-          ...(query.to ? [{ startsAt: { lte: query.to } }] : []),
-        ],
-      },
-      orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
-      take: query.limit,
-      select: meetingSelect,
-    });
-    return rows.map(toMeetingResponse);
+    const where: Prisma.MeetingWhereInput = {
+      AND: [
+        this.visibleWhere(user),
+        ...(query.status ? [{ status: query.status }] : []),
+        ...(query.from ? [{ startsAt: { gte: query.from } }] : []),
+        ...(query.to ? [{ startsAt: { lte: query.to } }] : []),
+      ],
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.meeting.findMany({
+        where,
+        orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
+        ...pageArgs(query),
+        select: meetingSelect,
+      }),
+      this.prisma.meeting.count({ where }),
+    ]);
+    return toPage(rows.map(toMeetingResponse), total, query);
   }
 
   async get(user: AuthUser, id: string): Promise<MeetingResponseDto> {

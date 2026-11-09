@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { AcademicWorkspace } from '../../../src/features/academic';
 import type { CurrentUser } from '../../../src/types/auth.ts';
-import { fakeRequest, makeActivity, makeBoard, makeMember, makeProject, uuid } from './fixtures';
+import { fakeRequest, makeActivity, makeBoard, makeMember, makeProject, pageOf, uuid } from './fixtures';
 
 /** Usuarios ficticios: no representan personas reales. */
 const areaManager: CurrentUser = { id: uuid(40), email: 'encargado@example.test', fullName: 'Encargado de Ejemplo', roles: ['AREA_MANAGER'], mustChangePassword: false };
@@ -20,10 +20,11 @@ const studentMemberId = uuid(531);
 
 function routes(activities: unknown[]) {
   return {
-    'GET /api/projects': () => [p1],
+    'GET /api/projects': () => pageOf([p1]),
     [`GET /api/projects/${p1.id}/boards`]: () => [b1],
     [`GET /api/projects/${p1.id}/members`]: () => members,
-    [`GET /api/projects/${p1.id}/documents`]: () => [],
+    [`GET /api/projects/${p1.id}/documents`]: () => pageOf([]),
+    [`GET /api/projects/${p1.id}/documents?pageSize=100`]: () => pageOf([], 1, 100),
     [`GET /api/boards/${b1.id}/activities`]: () => activities,
     'GET /api/areas': () => [{ id: uuid(1), name: 'Área de prueba', description: null }],
     'GET /api/areas?scope=managed': () => [{ id: uuid(1), name: 'Área de prueba', description: null }],

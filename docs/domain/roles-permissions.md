@@ -115,6 +115,7 @@ Una celda sin marca de estado está ✅ confirmada. Las celdas `—` no tienen p
 | Lectura de novedades | R (todas) ✅ | R (audiencia) ✅ | R (audiencia) ✅ | R (audiencia) ✅ | R (audiencia) ✅ | R (audiencia) ✅ |
 | Preferencias de copias (propias) | U ✅ | U ✅ | U ✅ | U ✅ | U ✅ | U ✅ |
 | Dashboard | R (general) | R (sus áreas asignadas; métricas, ADR 0009) | R (sus facultades) | R (sus proyectos) | R (su proyecto) | R (su proyecto) |
+| Analítica | R (global) | R (sus áreas asignadas, ADR 0016) | R (sus facultades vigentes) | — | — | — |
 
 ## 4. Restricciones conocidas
 
