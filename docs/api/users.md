@@ -48,15 +48,23 @@ Directorio para **seleccionar personas** (tutores, estudiantes, participantes) s
 | --- | --- |
 | `search` | Texto de 2 a 100 caracteres; busca sin distinguir mayúsculas ni tildes en nombre o correo (contiene). |
 | `role` | Uno de `ADMIN`, `AREA_MANAGER`, `DEAN`, `TUTOR`, `STUDENT`: solo usuarios con ese rol global. |
-| `limit` | Entero de 1 a 50. Por defecto 20. |
+| `page` | Entero ≥ 1. Por defecto 1 ([ADR 0017](../decisions/0017-paginacion-de-listas.md)). |
+| `pageSize` | Entero de 1 a 100. Por defecto 20. Sustituye al antiguo `limit`, que ahora es un campo no permitido (`400`). |
 | `status` | `ACTIVE`, `INACTIVE` o `ALL`. **Solo `ADMIN`** (ver «Gestión de usuarios»). |
 
-Por defecto solo devuelve usuarios `ACTIVE`, ordenados por nombre (los inactivos no aparecen en el directorio). Cualquier otro parámetro o valor inválido → `400 { message: "Datos inválidos.", errors: string[] }`.
+Por defecto solo devuelve usuarios `ACTIVE`, ordenados por nombre e `id` como desempate (los inactivos no aparecen en el directorio). Cualquier otro parámetro o valor inválido → `400 { message: "Datos inválidos.", errors: string[] }` (`page debe ser un entero mayor o igual que 1.`, `pageSize debe ser un entero entre 1 y 100.`).
 
 ### `200`
 
+Página según el contrato común del [ADR 0017](../decisions/0017-paginacion-de-listas.md). `total` cuenta todos los usuarios que cumplen `search`, `role` y `status`; una página más allá del final devuelve `items: []` con el `total` real. Con `search` la comparación sin tildes se hace en la aplicación, así que la página se recorta después de filtrar.
+
 ```json
-[{ "id": "uuid", "fullName": "Tatiana Tutora Demo", "email": "tutor@example.test", "roles": ["TUTOR"] }]
+{
+  "items": [{ "id": "uuid", "fullName": "Tatiana Tutora Demo", "email": "tutor@example.test", "roles": ["TUTOR"] }],
+  "total": 1,
+  "page": 1,
+  "pageSize": 20
+}
 ```
 
 Nunca incluye contraseña, teléfono ni fechas. El campo `status` solo aparece cuando un administrador usa el parámetro `status` (ver «Gestión de usuarios»).
@@ -73,7 +81,7 @@ Detalles de implementación: un `:id` mal formado responde `404 { message: "Usua
 
 | Método y ruta | Quién | Cuerpo | Éxito | Errores |
 | --- | --- | --- | --- | --- |
-| `GET /api/users?status=ACTIVE\|INACTIVE\|ALL` | `status` solo lo puede usar `ADMIN` (otro rol con `status` → `403`); por defecto `ACTIVE` | — | `200`, items del directorio con el campo adicional `status` | `400` valor inválido |
+| `GET /api/users?status=ACTIVE\|INACTIVE\|ALL` | `status` solo lo puede usar `ADMIN` (otro rol con `status` → `403`); por defecto `ACTIVE` | — | `200`, página del directorio cuyos `items` llevan el campo adicional `status` | `400` valor inválido |
 | `GET /api/users/:id` | `ADMIN` | — | `200` `UserDetail` | `404` |
 | `PATCH /api/users/:id` | `ADMIN` | `{ fullName?, roles? }` (al menos uno; roles ≥ 1, sin duplicados) | `200` `UserDetail` | `400`; `404`; `409` si se quita un rol que ejerce (mensaje con dónde: proyectos, facultades o áreas); `409` si se quita a sí mismo `ADMIN` o dejaría sin administradores activos |
 | `POST /api/users/:id/deactivate` | `ADMIN` | — | `200` `UserDetail` | `404`; `409` si ya está inactivo, si es él mismo o si es el último administrador activo |

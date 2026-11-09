@@ -44,7 +44,7 @@ describe('Novedades, notificaciones y copias por correo/WhatsApp (e2e)', () => {
   const publish = async (by: Person, body: Record<string, unknown>, status = 201) =>
     (await (await world.as(by)).post('/api/announcements').send({ title: 'Convocatoria', content: 'Detalles', ...body }).expect(status)).body;
   const feedTitles = async (person: Person) =>
-    ((await (await world.as(person)).get('/api/announcements').expect(200)).body as { title: string }[]).map((a) => a.title);
+    ((await (await world.as(person)).get('/api/announcements').expect(200)).body.items as { title: string }[]).map((a) => a.title);
   const emailOf = (person: Person) => `${person.toLowerCase()}@example.test`;
 
   describe('publicación y audiencias', () => {
@@ -162,13 +162,25 @@ describe('Novedades, notificaciones y copias por correo/WhatsApp (e2e)', () => {
       expect(missing.errors).toEqual(['Alguno de los proyectos indicados no existe.']);
     });
 
-    it('filtra el feed por tipo y limita la cantidad', async () => {
+    it('filtra el feed por tipo y lo pagina (ADR 0017)', async () => {
       await publish('admin', { title: 'Uno', kind: 'NEWS', audiences: [{ type: 'ALL' }] });
       await publish('admin', { title: 'Dos', kind: 'NOTIFICATION', audiences: [{ type: 'ALL' }] });
+      await publish('admin', { title: 'Tres', kind: 'NEWS', audiences: [{ type: 'ALL' }] });
       const student = await world.as('student');
-      expect((await student.get('/api/announcements?kind=NOTIFICATION').expect(200)).body.map((a: { title: string }) => a.title)).toEqual(['Dos']);
-      expect((await student.get('/api/announcements?limit=1').expect(200)).body).toHaveLength(1);
-      await student.get('/api/announcements?limit=0').expect(400);
+      const notifications = (await student.get('/api/announcements?kind=NOTIFICATION').expect(200)).body;
+      expect(notifications).toMatchObject({ total: 1, page: 1, pageSize: 50 });
+      expect(notifications.items.map((a: { title: string }) => a.title)).toEqual(['Dos']);
+
+      const first = (await student.get('/api/announcements?pageSize=2').expect(200)).body;
+      expect(first).toMatchObject({ total: 3, page: 1, pageSize: 2 });
+      expect(first.items.map((a: { title: string }) => a.title)).toEqual(['Tres', 'Dos']);
+      const second = (await student.get('/api/announcements?page=2&pageSize=2').expect(200)).body;
+      expect(second.items.map((a: { title: string }) => a.title)).toEqual(['Uno']);
+      expect((await student.get('/api/announcements?page=3&pageSize=2').expect(200)).body).toEqual({ items: [], total: 3, page: 3, pageSize: 2 });
+
+      expect((await student.get('/api/announcements?pageSize=0').expect(400)).body.errors).toEqual(['pageSize debe ser un entero entre 1 y 100.']);
+      expect((await student.get('/api/announcements?page=0').expect(400)).body.errors).toEqual(['page debe ser un entero mayor o igual que 1.']);
+      expect((await student.get('/api/announcements?limit=1').expect(400)).body.errors).toEqual(['Campos no permitidos: limit.']);
     });
   });
 

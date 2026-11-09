@@ -4,7 +4,24 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { InstitutionalWorkspace } from '../../../src/features/institutional';
 import { ApiError } from '../../../src/lib/api.ts';
-import { admin, fakeRequest } from './fixtures';
+import type { ApiOptions } from '../../../src/types/api.ts';
+import { admin, fakeRequest as baseFakeRequest } from './fixtures';
+
+/** Rutas de lista paginadas (ADR 0017): el feed y `GET /api/projects`. */
+const isPagedList = (path: string, options?: ApiOptions) =>
+  !options?.method && (path.startsWith('/api/announcements?') || path.startsWith('/api/projects?'));
+
+/**
+ * `request` falso de estas pruebas: si el manejador devuelve un arreglo para una lista paginada, se envuelve
+ * en la página `{ items, total, page, pageSize }`; un objeto ya paginado se devuelve tal cual.
+ */
+function fakeRequest(handler: (path: string, options?: ApiOptions) => Promise<unknown> | unknown) {
+  return baseFakeRequest(async (path, options) => {
+    const value = await handler(path, options);
+    if (!isPagedList(path, options) || !Array.isArray(value)) return value;
+    return { items: value, total: value.length, page: 1, pageSize: path.startsWith('/api/projects?') ? 50 : 20 };
+  });
+}
 
 const announcement = {
   id: 'a-1',
@@ -28,7 +45,7 @@ describe('Novedades institucionales', () => {
     expect(await screen.findByRole('heading', { name: 'Convocatoria de semilleros' })).toBeInTheDocument();
     expect(screen.getByText('La convocatoria estará abierta hasta el 30 de noviembre.')).toBeInTheDocument();
     expect(screen.getByText(/Audiencia: todos los usuarios/)).toBeInTheDocument();
-    expect(request).toHaveBeenCalledWith('/api/announcements?limit=20');
+    expect(request).toHaveBeenCalledWith('/api/announcements?page=1&pageSize=20');
   });
 
   it('muestra el estado vacío cuando no hay novedades visibles', async () => {
@@ -156,7 +173,7 @@ describe('Audiencias de novedades según el rol', () => {
         audiences: [{ type: 'ROLE', role: 'TUTOR' }, { type: 'ROLE', role: 'STUDENT' }],
       },
     });
-    expect(request.mock.calls.some(([path]) => path === '/api/projects' || path.endsWith('/members'))).toBe(false);
+    expect(request.mock.calls.some(([path]) => path.startsWith('/api/projects?') || path.endsWith('/members'))).toBe(false);
   });
 
   it('el encargado de área publica a su área y no ofrece todos los usuarios', async () => {
@@ -192,7 +209,7 @@ describe('Audiencias de novedades según el rol', () => {
     const request = fakeRequest(async (path, options) => {
       if (options?.method === 'POST') return created;
       if (path === '/api/projects/tutored') return [project('p-1', 'Semillero de robótica')];
-      if (path === '/api/projects') return [project('p-1', 'Semillero de robótica'), project('p-2', 'Semillero ajeno')];
+      if (path.startsWith('/api/projects?')) return [project('p-1', 'Semillero de robótica'), project('p-2', 'Semillero ajeno')];
       return [];
     });
     const user = userEvent.setup();
@@ -207,7 +224,7 @@ describe('Audiencias de novedades según el rol', () => {
     expect(await screen.findByRole('option', { name: 'Semillero de robótica' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'Semillero ajeno' })).not.toBeInTheDocument();
     expect(request).toHaveBeenCalledWith('/api/projects/tutored');
-    expect(request).not.toHaveBeenCalledWith('/api/projects');
+    expect(request.mock.calls.some(([path]) => path.startsWith('/api/projects?'))).toBe(false);
     expect(request.mock.calls.some(([path]) => path.endsWith('/members'))).toBe(false);
     await user.type(screen.getByLabelText('Título'), 'Aviso del proyecto');
     await user.type(screen.getByLabelText('Contenido'), 'Texto del aviso');
@@ -223,7 +240,7 @@ describe('Audiencias de novedades según el rol', () => {
   it('el decano elige facultades o proyectos y puede usar el tipo Notificación', async () => {
     const request = fakeRequest(async (path) => {
       if (path === '/api/faculties?scope=dean') return [{ id: 'f-ing', name: 'Facultad de Ingeniería' }];
-      if (path === '/api/projects') return [];
+      if (path === '/api/projects?pageSize=50') return [];
       return [];
     });
     const user = userEvent.setup();
@@ -236,6 +253,27 @@ describe('Audiencias de novedades según el rol', () => {
     expect(await screen.findByLabelText('Facultad de Ingeniería')).toBeInTheDocument();
     expect(request).toHaveBeenCalledWith('/api/faculties?scope=dean');
     expect(request).not.toHaveBeenCalledWith('/api/faculties');
+  });
+
+  it('el decano busca el proyecto destinatario por título sin cargar todos los proyectos', async () => {
+    const request = fakeRequest(async (path) => {
+      if (path === '/api/projects?pageSize=50') return { items: [project('p-1', 'Semillero de robótica')], total: 80, page: 1, pageSize: 50 };
+      if (path === '/api/projects?search=bio&pageSize=50') return [project('p-7', 'Biotecnología')];
+      return [];
+    });
+    const user = userEvent.setup();
+    render(<InstitutionalWorkspace user={dean} request={request} section="announcements" />);
+
+    await screen.findByText('No hay novedades visibles');
+    await user.click(screen.getByRole('button', { name: 'Nueva novedad' }));
+    await user.selectOptions(screen.getByLabelText('Destinatarios'), 'PROJECT');
+    expect(await screen.findByRole('option', { name: 'Semillero de robótica' })).toBeInTheDocument();
+    expect(screen.getByText('Hay más proyectos; escribe parte del título para encontrarlos.')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Buscar proyecto'), 'bio');
+    expect(await screen.findByRole('option', { name: 'Biotecnología' })).toBeInTheDocument();
+    expect(request).toHaveBeenCalledWith('/api/projects?search=bio&pageSize=50');
+    expect(screen.queryByRole('option', { name: 'Semillero de robótica' })).not.toBeInTheDocument();
   });
 
   it('un usuario con varios roles elige primero el tipo de audiencia que le corresponde', async () => {
@@ -284,15 +322,15 @@ describe('Filtro por tipo de novedad', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Noticias' }));
     expect(await screen.findByText('No hay noticias visibles')).toBeInTheDocument();
-    expect(request).toHaveBeenCalledWith('/api/announcements?kind=NEWS&limit=20');
+    expect(request).toHaveBeenCalledWith('/api/announcements?kind=NEWS&page=1&pageSize=20');
 
     await user.click(screen.getByRole('tab', { name: 'Notificaciones' }));
     expect(await screen.findByText('No hay notificaciones visibles')).toBeInTheDocument();
-    expect(request).toHaveBeenCalledWith('/api/announcements?kind=NOTIFICATION&limit=20');
+    expect(request).toHaveBeenCalledWith('/api/announcements?kind=NOTIFICATION&page=1&pageSize=20');
 
     await user.click(screen.getByRole('tab', { name: 'Todas' }));
     expect(await screen.findByText('No hay novedades visibles')).toBeInTheDocument();
-    expect(request).toHaveBeenLastCalledWith('/api/announcements?limit=20');
+    expect(request).toHaveBeenLastCalledWith('/api/announcements?page=1&pageSize=20');
   });
 
   it('las pestañas se recorren con flechas, llevan el foco y piden el tipo elegido', async () => {
@@ -306,13 +344,13 @@ describe('Filtro por tipo de novedad', () => {
     expect(screen.getByRole('tab', { name: 'Noticias' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Noticias' })).toHaveFocus();
     expect(await screen.findByText('No hay noticias visibles')).toBeInTheDocument();
-    expect(request).toHaveBeenCalledWith('/api/announcements?kind=NEWS&limit=20');
+    expect(request).toHaveBeenCalledWith('/api/announcements?kind=NEWS&page=1&pageSize=20');
   });
 
   it('descarta la respuesta de una pestaña anterior si llega después', async () => {
     let resolveAll!: (value: unknown[]) => void;
     const request = fakeRequest((path) => {
-      if (path === '/api/announcements?kind=NEWS&limit=20') return Promise.resolve([{ ...announcement, id: 'n-1', title: 'Noticia rápida' }]);
+      if (path === '/api/announcements?kind=NEWS&page=1&pageSize=20') return Promise.resolve([{ ...announcement, id: 'n-1', title: 'Noticia rápida' }]);
       return new Promise((resolve) => { resolveAll = resolve; });
     });
     const user = userEvent.setup();
@@ -465,42 +503,67 @@ function feedPage(count: number, offset = 0) {
 }
 
 describe('Paginación de novedades', () => {
-  it('pide páginas de 20 y «Cargar más» envía before con la fecha de la última novedad mostrada', async () => {
-    const first = feedPage(20);
-    const lastShown = first[19].publishedAt;
-    const request = fakeRequest(async (path) => (path.includes('before=') ? feedPage(2, 20) : first));
+  const pageOf = (items: unknown[], page: number, total: number) => ({ items, total, page, pageSize: 20 });
+
+  it('pide páginas de 20 y pasa de página con «Siguiente» y «Anterior»', async () => {
+    const request = fakeRequest(async (path) => (path.includes('page=2') ? pageOf(feedPage(2, 20), 2, 22) : pageOf(feedPage(20), 1, 22)));
     const user = userEvent.setup();
     render(<InstitutionalWorkspace user={admin} request={request} section="announcements" />);
 
     expect(await screen.findByRole('heading', { name: 'Novedad 19' })).toBeInTheDocument();
-    expect(request).toHaveBeenCalledWith('/api/announcements?limit=20');
+    expect(request).toHaveBeenCalledWith('/api/announcements?page=1&pageSize=20');
+    const nav = screen.getByRole('navigation', { name: 'Paginación de Novedades' });
+    expect(nav).toHaveTextContent('1–20 de 22 · página 1 de 2');
 
-    await user.click(screen.getByRole('button', { name: 'Cargar más' }));
+    await user.click(within(nav).getByRole('button', { name: 'Página siguiente' }));
     expect(await screen.findByRole('heading', { name: 'Novedad 21' })).toBeInTheDocument();
-    expect(request).toHaveBeenLastCalledWith(`/api/announcements?limit=20&before=${encodeURIComponent(lastShown)}`);
-    expect(screen.getByRole('heading', { name: 'Novedad 0' })).toBeInTheDocument();
-    // La segunda página trae 2 novedades (menos de 20): no quedan más y el botón se oculta.
-    expect(screen.queryByRole('button', { name: 'Cargar más' })).not.toBeInTheDocument();
+    expect(request).toHaveBeenLastCalledWith('/api/announcements?page=2&pageSize=20');
+    expect(screen.queryByRole('heading', { name: 'Novedad 0' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Página anterior' }));
+    expect(await screen.findByRole('heading', { name: 'Novedad 0' })).toBeInTheDocument();
   });
 
-  it('oculta «Cargar más» cuando la primera página llega con menos de 20 novedades', async () => {
+  it('no muestra el paginador cuando todo cabe en una página', async () => {
     const request = fakeRequest(async () => feedPage(3));
     render(<InstitutionalWorkspace user={admin} request={request} section="announcements" />);
 
     expect(await screen.findByRole('heading', { name: 'Novedad 2' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Cargar más' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Paginación de Novedades' })).not.toBeInTheDocument();
   });
 
-  it('al cambiar de pestaña se reinicia la paginación y se pide la primera página del tipo', async () => {
-    const request = fakeRequest(async (path) => (path === '/api/announcements?kind=NEWS&limit=20' ? feedPage(2) : feedPage(20)));
+  it('al cambiar de pestaña vuelve a la primera página del tipo', async () => {
+    const request = fakeRequest(async (path) => {
+      if (path === '/api/announcements?kind=NEWS&page=1&pageSize=20') return feedPage(2);
+      return path.includes('page=2') ? pageOf(feedPage(2, 20), 2, 22) : pageOf(feedPage(20), 1, 22);
+    });
     const user = userEvent.setup();
     render(<InstitutionalWorkspace user={admin} request={request} section="announcements" />);
 
-    await user.click(await screen.findByRole('button', { name: 'Cargar más' }));
+    await user.click(await screen.findByRole('button', { name: 'Página siguiente' }));
+    expect(await screen.findByRole('heading', { name: 'Novedad 21' })).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: 'Noticias' }));
-    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Novedad 19' })).not.toBeInTheDocument());
-    expect(request).toHaveBeenLastCalledWith('/api/announcements?kind=NEWS&limit=20');
-    expect(screen.queryByRole('button', { name: 'Cargar más' })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Novedad 21' })).not.toBeInTheDocument());
+    expect(request).toHaveBeenLastCalledWith('/api/announcements?kind=NEWS&page=1&pageSize=20');
+    expect(await screen.findByRole('heading', { name: 'Novedad 1' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Paginación de Novedades' })).not.toBeInTheDocument();
+  });
+
+  it('si la página queda más allá del final (p. ej. tras eliminar) salta a la última que existe', async () => {
+    let total = 21;
+    const request = fakeRequest(async (path) => {
+      if (path.includes('page=2')) return total > 20 ? pageOf(feedPage(1, 20), 2, total) : pageOf([], 2, total);
+      return pageOf(feedPage(20), 1, total);
+    });
+    const user = userEvent.setup();
+    render(<InstitutionalWorkspace user={admin} request={request} section="announcements" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Página siguiente' }));
+    expect(await screen.findByRole('heading', { name: 'Novedad 20' })).toBeInTheDocument();
+    total = 20;
+    await user.click(screen.getByRole('button', { name: 'Actualizar' }));
+    expect(await screen.findByRole('heading', { name: 'Novedad 0' })).toBeInTheDocument();
+    expect(request).toHaveBeenLastCalledWith('/api/announcements?page=1&pageSize=20');
   });
 });
 
@@ -526,7 +589,7 @@ describe('Publicar novedad: pliegue tras publicar', () => {
     expect(screen.queryByLabelText('Título')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Nueva novedad' })).toHaveAttribute('aria-expanded', 'false');
     await waitFor(() => {
-      const reloads = request.mock.calls.filter(([path, options]) => path === '/api/announcements?limit=20' && options === undefined);
+      const reloads = request.mock.calls.filter(([path, options]) => path === '/api/announcements?page=1&pageSize=20' && options === undefined);
       expect(reloads).toHaveLength(2);
     });
   });

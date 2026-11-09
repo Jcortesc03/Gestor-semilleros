@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { Pagination, useClientPagination } from '../../components/Pagination.tsx';
 import { Button, EmptyState, ErrorNotice, Field, LoadingState, PanelCard } from '../../components/WorkspaceUi.tsx';
 import type { Activity, Board, Member } from './api.ts';
 import type { ProjectDocumentsState } from '../documents/index.ts';
@@ -23,6 +24,8 @@ interface ActivityListProps extends ActivityActions {
 export function ActivityList({ board, activities, status, error, students, currentUserId, canManage, canReview, busy, documents, onCreate, ...actions }: ActivityListProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  // Lista acotada por tablero: se pagina en el cliente y vuelve a la página 1 al cambiar de tablero (ADR 0017).
+  const paginated = useClientPagination(activities, 10, board.id);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -44,12 +47,13 @@ export function ActivityList({ board, activities, status, error, students, curre
         {status === 'ready' && activities.length === 0 && <EmptyState title="Sin actividades" description="No hay actividades visibles en este tablero." />}
         {status === 'ready' && activities.length > 0 && (
           <div className="grid gap-4 lg:grid-cols-2">
-            {activities.map((item) => (
+            {paginated.items.map((item) => (
               <ActivityCard key={item.id} activity={item} students={students} currentUserId={currentUserId} canManage={canManage} canReview={canReview} busy={busy} documents={documents} {...actions} />
             ))}
           </div>
         )}
       </div>
+      <Pagination label="Actividades" page={paginated.page} pageSize={paginated.pageSize} total={paginated.total} onPageChange={paginated.setPage} />
     </PanelCard>
   );
 }

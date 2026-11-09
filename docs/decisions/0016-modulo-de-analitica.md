@@ -12,7 +12,7 @@ El modelo no permitía medir "a tiempo": las actividades no guardaban cuándo se
 ## Decisión (aprobada por el usuario)
 
 1. **Módulo `analytics` en el backend** (`src/modules/analytics`), solo lectura: `GET /api/analytics` y `GET /api/analytics/filters`. Contrato: [`analytics.md`](../api/analytics.md).
-2. **Acceso:** `ADMIN` con alcance global; `AREA_MANAGER` en sus áreas asignadas; `DEAN` en las facultades donde es decano vigente; los alcances se suman (P-02). Tutores y estudiantes no tienen acceso.
+2. **Acceso:** `ADMIN` con alcance global; `AREA_MANAGER` en sus áreas asignadas; `DEAN` en las facultades donde es decano vigente; los alcances se suman (P-02). Tutores y estudiantes no tienen acceso. En proyectos compartidos entre facultades, el decano solo ve **su** facultad (ni las otras ni sus decanos), salvo que el proyecto le llegue también por un área asignada (aprobado el 2026-11-08).
 3. **`completed_at`** en `activities` y `boards`: se fija al pasar el progreso a `DONE`, se conserva si se reenvía `DONE` y se borra al salir de `DONE`. Los registros ya terminados se rellenan con `updated_at` como aproximación. No se expone en los contratos de tableros (DB, ver `docs/database/database-decisions.md`). "A tiempo" = fecha local de `completed_at` ≤ `due_date` del tablero (las actividades no tienen fecha límite propia).
 4. **Zona horaria:** periodos y días de la semana se calculan en `MEETINGS_TIME_ZONE` (por defecto `America/Bogota`), la zona institucional ya configurada.
 5. **Cálculo:** Prisma carga filas planas ya recortadas por alcance y filtros estructurales, y una función pura (`models/analytics-aggregation.ts`) calcula todas las métricas. Sin dependencias nuevas, sin vistas materializadas ni almacén de datos aparte.

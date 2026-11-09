@@ -2,8 +2,10 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import type { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import type { AuthUser } from '../../auth';
+import { pageArgs, toPage, type PageDto } from '../../../common/utils/pagination';
 import { can } from '../models/project-access';
 import type { CreateProjectDto, UpdateProjectDto } from '../dtos/project.dto';
+import type { ProjectListQuery } from '../dtos/project-list-query.dto';
 import { toDateOnly, type ProjectResponseDto, type TutoredProjectDto } from '../dtos/project-response.dto';
 import { ProjectAccessService } from './project-access.service';
 
@@ -59,8 +61,11 @@ export class ProjectsService {
     return toResponse(project);
   }
 
-  /** Proyectos visibles: todos (admin), los de sus facultades (decano), los de sus áreas (encargado de área) y aquellos donde participa. */
-  async list(user: AuthUser): Promise<ProjectResponseDto[]> {
+  /**
+   * Proyectos visibles: todos (admin), los de sus facultades (decano), los de sus áreas (encargado de área) y
+   * aquellos donde participa. Devuelve una página (ADR 0017) y admite búsqueda por título sin distinguir mayúsculas.
+   */
+  async list(user: AuthUser, query: ProjectListQuery): Promise<PageDto<ProjectResponseDto>> {
     const visibility: Prisma.ProjectWhereInput[] = [{ members: { some: { userId: user.id, status: 'ACTIVE' } } }];
     if (user.roles.includes('DEAN')) {
       const facultyIds = await this.access.currentDeanFacultyIds(user.id);
@@ -70,12 +75,21 @@ export class ProjectsService {
       const areaIds = await this.access.managedAreaIds(user.id);
       if (areaIds.length > 0) visibility.push({ areaId: { in: areaIds } });
     }
-    const projects = await this.prisma.project.findMany({
-      where: { deletedAt: null, ...(user.roles.includes('ADMIN') ? {} : { OR: visibility }) },
-      include: projectInclude,
-      orderBy: { createdAt: 'desc' },
-    });
-    return projects.map(toResponse);
+    const where: Prisma.ProjectWhereInput = {
+      deletedAt: null,
+      ...(user.roles.includes('ADMIN') ? {} : { OR: visibility }),
+      ...(query.search === null ? {} : { title: { contains: query.search, mode: 'insensitive' } }),
+    };
+    const [projects, total] = await this.prisma.$transaction([
+      this.prisma.project.findMany({
+        where,
+        include: projectInclude,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        ...pageArgs(query),
+      }),
+      this.prisma.project.count({ where }),
+    ]);
+    return toPage(projects.map(toResponse), total, query);
   }
 
   /** Proyectos no eliminados donde el usuario es tutor activo (contrato en docs/api/projects.md). */

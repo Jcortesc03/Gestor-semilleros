@@ -37,12 +37,25 @@ test('listDocuments pide la ruta del proyecto y valida cada elemento', async () 
   const request = createApiRequest(async (input, init) => {
     assert.equal(input, `/api/projects/${projectId}/documents`);
     assert.equal(init?.method, 'GET');
-    return Response.json([dto]);
+    return Response.json({ items: [dto], total: 1, page: 1, pageSize: 20 });
   });
-  assert.deepEqual(await listDocuments(request, projectId), [dto]);
+  assert.deepEqual(await listDocuments(request, projectId), { items: [dto], total: 1, page: 1, pageSize: 20 });
 
-  const broken = createApiRequest(async () => Response.json([{ ...dto, format: 'ZIP' }]));
+  const broken = createApiRequest(async () => Response.json({ items: [{ ...dto, format: 'ZIP' }], total: 1, page: 1, pageSize: 20 }));
   await assert.rejects(listDocuments(broken, projectId), ApiError);
+});
+
+test('listDocuments envía la página y el tamaño de página solo cuando difieren del valor por defecto', async () => {
+  const calls: string[] = [];
+  const page = { items: [dto], total: 45, page: 3, pageSize: 100 };
+  const request = createApiRequest(async (input) => { calls.push(String(input)); return Response.json(page); });
+
+  assert.deepEqual(await listDocuments(request, projectId, { page: 3, pageSize: 100 }), page);
+  await listDocuments(request, projectId, { page: 1 });
+  assert.deepEqual(calls, [
+    `/api/projects/${projectId}/documents?page=3&pageSize=100`,
+    `/api/projects/${projectId}/documents`,
+  ]);
 });
 
 test('uploadDocument envía un FormData con el campo file y sin Content-Type propio', async () => {

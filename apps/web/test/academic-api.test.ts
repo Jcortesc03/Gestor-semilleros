@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import { ApiError } from '../src/lib/api.ts';
 import { listProjects, createProject, listBoards, createActivity, approveActivity, addAttachment, parseProject, parseActivity } from '../src/features/academic/api.ts';
+
+/** Respuesta paginada del backend (ADR 0017). */
+const pageOf = <T>(items: T[], page = 1, pageSize = 20) => ({ items, total: items.length, page, pageSize });
 
 const project = {
   id: '00000000-0000-0000-0000-000000000010', title: 'Proyecto', description: null, status: 'ACTIVE',
@@ -13,8 +17,8 @@ const board = { id: '00000000-0000-0000-0000-000000000040', projectId: project.i
 
 test('academic adapters use documented project and board routes', async () => {
   const calls: Array<[string, unknown]> = [];
-  const request = async (path: string, options?: unknown) => { calls.push([path, options]); return path.endsWith('/boards') ? [board] : options ? project : [project]; };
-  assert.deepEqual(await listProjects(request), [project]);
+  const request = async (path: string, options?: unknown) => { calls.push([path, options]); return path.endsWith('/boards') ? [board] : options ? project : pageOf([project]); };
+  assert.deepEqual(await listProjects(request), pageOf([project]));
   await createProject(request, { title: 'Proyecto', areaId: '00000000-0000-0000-0000-000000000001', facultyIds: ['00000000-0000-0000-0000-000000000002'] });
   await listBoards(request, project.id);
   assert.deepEqual(calls, [
@@ -22,6 +26,18 @@ test('academic adapters use documented project and board routes', async () => {
     ['/api/projects', { method: 'POST', body: { title: 'Proyecto', areaId: '00000000-0000-0000-0000-000000000001', facultyIds: ['00000000-0000-0000-0000-000000000002'] } }],
     [`/api/projects/${project.id}/boards`, undefined],
   ]);
+});
+
+test('listProjects envía búsqueda y paginación y valida el envoltorio de la API', async () => {
+  const calls: string[] = [];
+  const response = { items: [project], total: 21, page: 2, pageSize: 10 };
+  const request = async (path: string) => { calls.push(path); return response; };
+
+  assert.deepEqual(await listProjects(request, { search: 'robot', page: 2, pageSize: 10 }), response);
+  assert.deepEqual(calls, ['/api/projects?search=robot&page=2&pageSize=10']);
+
+  const broken = async () => ({ items: [project], total: -1, page: 1, pageSize: 20 });
+  await assert.rejects(listProjects(broken), ApiError);
 });
 
 test('academic adapters send activity approval and reject malformed responses', async () => {

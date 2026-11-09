@@ -382,7 +382,7 @@ describe('Reuniones con Microsoft Teams (e2e)', () => {
       expect((await tutor.get(`/api/meetings/${id}`).expect(200)).body.status).toBe('IN_PROGRESS');
       await world.prisma.meeting.update({ where: { id }, data: { startsAt: new Date(Date.now() - 2 * 3_600_000) } });
       expect((await tutor.get(`/api/meetings/${id}`).expect(200)).body.status).toBe('FINISHED');
-      expect((await tutor.get('/api/meetings?status=FINISHED').expect(200)).body).toHaveLength(1);
+      expect((await tutor.get('/api/meetings?status=FINISHED').expect(200)).body).toMatchObject({ total: 1, items: [{ id }] });
     });
 
     it('el organizador la inicia y la finaliza a mano; los participantes no', async () => {
@@ -433,10 +433,42 @@ describe('Reuniones con Microsoft Teams (e2e)', () => {
 
     it('cada usuario ve solo sus reuniones (organizador o participante)', async () => {
       const { id } = await create();
-      expect((await (await world.as('student')).get('/api/meetings').expect(200)).body.map((m: { id: string }) => m.id)).toEqual([id]);
-      expect((await (await world.as('student2')).get('/api/meetings').expect(200)).body).toEqual([]);
+      expect((await (await world.as('student')).get('/api/meetings').expect(200)).body.items.map((m: { id: string }) => m.id)).toEqual([id]);
+      expect((await (await world.as('student2')).get('/api/meetings').expect(200)).body).toEqual({ items: [], total: 0, page: 1, pageSize: 50 });
       await (await world.as('outsider')).get(`/api/meetings/${id}`).expect(404);
       await (await world.as('admin')).get(`/api/meetings/${id}`).expect(200);
+    });
+
+    it('pagina el listado por inicio ascendente (ADR 0017)', async () => {
+      const later = await create({ startsAt: inDays(5).toISOString() });
+      const sooner = await create({ startsAt: inDays(2).toISOString() });
+      const middle = await create({ startsAt: inDays(4).toISOString() });
+      const tutor = await world.as('tutor');
+
+      const first = (await tutor.get('/api/meetings').query({ pageSize: 2 }).expect(200)).body;
+      expect(first).toMatchObject({ total: 3, page: 1, pageSize: 2 });
+      expect(first.items.map((m: { id: string }) => m.id)).toEqual([sooner.id, middle.id]);
+      const second = (await tutor.get('/api/meetings').query({ page: 2, pageSize: 2 }).expect(200)).body;
+      expect(second).toMatchObject({ total: 3, page: 2, pageSize: 2 });
+      expect(second.items.map((m: { id: string }) => m.id)).toEqual([later.id]);
+      expect((await tutor.get('/api/meetings').query({ page: 3, pageSize: 2 }).expect(200)).body).toEqual({
+        items: [],
+        total: 3,
+        page: 3,
+        pageSize: 2,
+      });
+    });
+
+    it('valida page y pageSize y ya no admite limit', async () => {
+      const tutor = await world.as('tutor');
+      for (const [query, error] of [
+        [{ page: '0' }, 'page debe ser un entero mayor o igual que 1.'],
+        [{ pageSize: '101' }, 'pageSize debe ser un entero entre 1 y 100.'],
+        [{ limit: '10' }, 'Campos no permitidos: limit.'],
+      ] as const) {
+        const res = await tutor.get('/api/meetings').query(query).expect(400);
+        expect(res.body.errors).toEqual([error]);
+      }
     });
   });
 });

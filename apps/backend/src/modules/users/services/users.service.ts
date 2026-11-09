@@ -1,8 +1,9 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
-import type { Role } from '../../../generated/prisma/enums';
+import type { Role, UserStatus } from '../../../generated/prisma/enums';
 import { PrismaService } from '../../../database/prisma.service';
 import { normalizeForSearch } from '../../../common/utils/text';
+import { pageArgs, toPage, type PageDto } from '../../../common/utils/pagination';
 import { PasswordService, passwordPolicyErrors } from '../../auth';
 import type { CreateUserDto } from '../dtos/create-user.dto';
 import type { UpdateUserDto } from '../dtos/update-user.dto';
@@ -108,37 +109,45 @@ export class UsersService {
   }
 
   /**
-   * Directorio para seleccionar personas: solo usuarios activos, ordenados por nombre.
+   * Directorio para seleccionar personas, paginado (ADR 0017): por defecto solo usuarios activos,
+   * ordenados por nombre e `id` como desempate.
    * La búsqueda se filtra en la aplicación (sin tildes; ver `parseUserDirectoryQuery`), por lo que
-   * con `search` se leen todos los usuarios activos que cumplen el rol. Se asume un directorio
-   * institucional de tamaño moderado.
+   * con `search` se leen todos los usuarios que cumplen el rol y el estado, y la página se recorta
+   * después de filtrar. Se asume un directorio institucional de tamaño moderado.
    */
-  async listDirectory(query: UserDirectoryQuery): Promise<UserDirectoryItemDto[]> {
-    const users = await this.prisma.user.findMany({
-      where: {
-        ...(query.status === 'ALL' ? {} : { status: query.status ?? 'ACTIVE' }),
-        ...(query.role ? { roles: { some: { role: query.role } } } : {}),
-      },
-      select: { id: true, fullName: true, email: true, status: true, roles: { select: { role: true } } },
-      orderBy: [{ fullName: 'asc' }, { id: 'asc' }],
-      ...(query.search === null ? { take: query.limit } : {}),
-    });
+  async listDirectory(query: UserDirectoryQuery): Promise<PageDto<UserDirectoryItemDto>> {
+    const where: Prisma.UserWhereInput = {
+      ...(query.status === 'ALL' ? {} : { status: query.status ?? 'ACTIVE' }),
+      ...(query.role ? { roles: { some: { role: query.role } } } : {}),
+    };
+    const select = { id: true, fullName: true, email: true, status: true, roles: { select: { role: true } } } as const;
+    const orderBy: Prisma.UserOrderByWithRelationInput[] = [{ fullName: 'asc' }, { id: 'asc' }];
 
-    const needle = query.search === null ? null : normalizeForSearch(query.search);
-    const matches =
-      needle === null
-        ? users
-        : users.filter(
-            (u) => normalizeForSearch(u.fullName).includes(needle) || normalizeForSearch(u.email).includes(needle),
-          );
+    let rows: { id: string; fullName: string; email: string; status: UserStatus; roles: { role: Role }[] }[];
+    let total: number;
+    if (query.search === null) {
+      [rows, total] = await Promise.all([
+        this.prisma.user.findMany({ where, select, orderBy, ...pageArgs(query) }),
+        this.prisma.user.count({ where }),
+      ]);
+    } else {
+      const needle = normalizeForSearch(query.search);
+      const matches = (await this.prisma.user.findMany({ where, select, orderBy })).filter(
+        (u) => normalizeForSearch(u.fullName).includes(needle) || normalizeForSearch(u.email).includes(needle),
+      );
+      const { skip, take } = pageArgs(query);
+      rows = matches.slice(skip, skip + take);
+      total = matches.length;
+    }
 
-    return matches.slice(0, query.limit).map((u) => ({
+    const items = rows.map((u) => ({
       id: u.id,
       fullName: u.fullName,
       email: u.email,
       roles: u.roles.map((r) => r.role),
       ...(query.status === null ? {} : { status: u.status }),
     }));
+    return toPage(items, total, query);
   }
 
   /** Detalle de un usuario (administrador). 404 si no existe. */

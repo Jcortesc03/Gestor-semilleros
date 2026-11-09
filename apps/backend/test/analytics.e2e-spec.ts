@@ -86,6 +86,21 @@ describe('Analítica (e2e)', () => {
     await dean.get(`/api/analytics?facultyId=${world.facultyB.id}`).expect(403);
   });
 
+  it('en un proyecto compartido el decano no ve la otra facultad ni a su decano', async () => {
+    await world.prisma.projectFaculty.create({ data: { projectId, facultyId: world.facultyB.id } });
+    const dean = await world.as('dean');
+    const body = (await dean.get('/api/analytics').expect(200)).body;
+    expect(body.faculties.map((f: { id: string }) => f.id)).toEqual([world.facultyA.id]);
+    expect(body.deans.map((d: { id: string }) => d.id)).toEqual([world.ids.dean]);
+    const filters = (await dean.get('/api/analytics/filters').expect(200)).body;
+    expect(filters.faculties.map((f: { id: string }) => f.id)).toEqual([world.facultyA.id]);
+    await dean.get(`/api/analytics?facultyId=${world.facultyB.id}`).expect(403);
+
+    // El administrador sí ve ambas facultades del proyecto compartido.
+    const admin = (await (await world.as('admin')).get(`/api/analytics?projectId=${projectId}`).expect(200)).body;
+    expect(admin.faculties).toHaveLength(2);
+  });
+
   it('aplica filtros y compara periodos', async () => {
     const admin = await world.as('admin');
     const body = (await admin.get(`/api/analytics?from=2026-10-02&to=2026-10-31&projectId=${projectId}`).expect(200)).body;

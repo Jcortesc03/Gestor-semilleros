@@ -30,6 +30,7 @@ El alcance, los módulos y el estado se documentan en `README.md`; no los repita
 - **Cuentas personales de Microsoft ([ADR 0014](docs/decisions/0014-cuentas-personales-de-microsoft.md)):** `MICROSOFT_TENANT_ID=common` por defecto; con cuenta personal el organizador indica el enlace de la reunión (`joinUrl`). Migración `microsoft_account_type`.
 - **Adjuntos en noticias ([ADR 0015](docs/decisions/0015-adjuntos-en-noticias.md)):** hasta 5 archivos por noticia (`NEWS`) en S3, tabla `announcement_attachments`; publicación multipart en una sola petición.
 - **Analítica ([ADR 0016](docs/decisions/0016-modulo-de-analitica.md)):** `GET /api/analytics` y `/filters` (ADMIN global; encargado de área y decano por alcance) con filtros de periodo, área, facultad, proyecto, tutor y estado; `completed_at` en tableros y actividades para medir entregas a tiempo (migración `completed_at`); vista web con gráficas SVG propias. Sin entidad carrera.
+- **Paginación ([ADR 0017](docs/decisions/0017-paginacion-de-listas.md)):** híbrida. En el servidor (`page`, `pageSize` 1–100, respuesta `{ items, total, page, pageSize }`): proyectos (con `search`), usuarios, reuniones, novedades y documentos del proyecto. En el cliente (`useClientPagination` + `Pagination`): miembros, tableros, actividades, entregas y tablas de la analítica. En la analítica el decano solo ve su facultad en proyectos compartidos.
 - **No implementado:** recordatorios, recuperación de contraseña olvidada, límite de intentos de inicio de sesión, autenticación móvil, HTTPS/infraestructura de producción concreta ni CI/CD.
 
 Por lo tanto:
@@ -269,6 +270,7 @@ Si la decisión ya está aprobada y registrada, procede sin volver a preguntar.
 | [`docs/api/dashboard.md`](docs/api/dashboard.md) | Panel por rol |
 | [`docs/api/documents.md`](docs/api/documents.md) | Documentos en S3 |
 | [`docs/api/analytics.md`](docs/api/analytics.md) | Analítica con filtros |
+| [`docs/decisions/0017-paginacion-de-listas.md`](docs/decisions/0017-paginacion-de-listas.md) | Contrato común de paginación |
 | `docs/decisions/` | ADRs |
 
 Antes de implementar cualquier funcionalidad del dominio (entidades, permisos, flujos o esquema de datos), consulta `docs/domain/` empezando por su `README.md`, y `docs/database/` si afecta a la persistencia. Lo marcado como 🟡 hipótesis o ❓ pendiente **no** se implementa sin confirmación. **No inventes reglas de negocio ni permisos** que sigan pendientes.

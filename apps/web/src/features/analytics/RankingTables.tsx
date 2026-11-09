@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { AreaAnalytics, DeanAnalytics, FacultyAnalytics, TutorAnalytics } from './api.ts';
 import { HorizontalBars } from './charts.tsx';
 import { formatNumber, formatRate } from './labels.ts';
 import { EmptyState } from '../../components/WorkspaceUi.tsx';
+import { Pagination, useClientPagination } from '../../components/Pagination.tsx';
+
+/** Filas por página de las tablas de la analítica (ADR 0017, paginación en el cliente). */
+export const TABLE_PAGE_SIZE = 10;
 
 type SortDirection = 'asc' | 'desc';
 
@@ -19,16 +23,19 @@ function SortableTable<T extends { id: string; name: string }>({
   columns,
   caption,
   initialKey,
+  label,
 }: {
   rows: T[];
   columns: Array<Column<T>>;
   caption: string;
   initialKey: string;
+  /** Nombre de la lista para la paginación («tutores», «decanos»). */
+  label: string;
 }) {
   const [sortKey, setSortKey] = useState(initialKey);
   const [direction, setDirection] = useState<SortDirection>('desc');
 
-  const sorted = [...rows].sort((a, b) => {
+  const sorted = useMemo(() => [...rows].sort((a, b) => {
     const column = columns.find((item) => item.key === sortKey);
     if (!column) return 0;
     const valueA = column.value(a);
@@ -40,7 +47,9 @@ function SortableTable<T extends { id: string; name: string }>({
       ? valueA - valueB
       : String(valueA).localeCompare(String(valueB), 'es');
     return direction === 'asc' ? compared : -compared;
-  });
+  }), [rows, columns, sortKey, direction]);
+  // Al reordenar o cambiar los datos se vuelve a la primera página.
+  const paged = useClientPagination(sorted, TABLE_PAGE_SIZE, `${sortKey}:${direction}:${rows.length}`);
 
   const toggle = (key: string) => {
     if (key === sortKey) {
@@ -53,6 +62,7 @@ function SortableTable<T extends { id: string; name: string }>({
   };
 
   return (
+    <div className="min-w-0">
     <div className="min-w-0 overflow-x-auto">
       <table className="min-w-[44rem] w-full text-left text-sm text-navy">
         <caption className="sr-only">{caption}</caption>
@@ -82,7 +92,7 @@ function SortableTable<T extends { id: string; name: string }>({
           </tr>
         </thead>
         <tbody>
-          {sorted.map((row) => (
+          {paged.items.map((row) => (
             <tr key={row.id} className="border-b border-navy/10">
               {columns.map((column) => (
                 <td key={column.key} className="min-w-0 break-words px-2 py-3">
@@ -93,6 +103,8 @@ function SortableTable<T extends { id: string; name: string }>({
           ))}
         </tbody>
       </table>
+    </div>
+      <Pagination page={paged.page} pageSize={paged.pageSize} total={paged.total} onPageChange={paged.setPage} label={label} />
     </div>
   );
 }
@@ -191,7 +203,7 @@ export function TutorsTable({ tutors }: { tutors: TutorAnalytics[] }) {
     { key: 'meetingsOrganized', label: 'Reuniones organizadas', value: (row) => row.meetingsOrganized, render: (row) => count(row.meetingsOrganized) },
     { key: 'meetingsAttended', label: 'Reuniones asistidas', value: (row) => row.meetingsAttended, render: (row) => count(row.meetingsAttended) },
   ];
-  return <SortableTable rows={tutors} columns={columns} caption="Tutores con finalización, entregas a tiempo, aprobación y reuniones" initialKey="completionRate" />;
+  return <SortableTable rows={tutors} columns={columns} caption="Tutores con finalización, entregas a tiempo, aprobación y reuniones" initialKey="completionRate" label="tutores" />;
 }
 
 export function DeansTable({ deans }: { deans: DeanAnalytics[] }) {
@@ -209,5 +221,5 @@ export function DeansTable({ deans }: { deans: DeanAnalytics[] }) {
     { key: 'meetingsOrganized', label: 'Reuniones organizadas', value: (row) => row.meetingsOrganized, render: (row) => count(row.meetingsOrganized) },
     { key: 'meetingsAttended', label: 'Reuniones asistidas', value: (row) => row.meetingsAttended, render: (row) => count(row.meetingsAttended) },
   ];
-  return <SortableTable rows={deans} columns={columns} caption="Decanos con finalización, entregas a tiempo y reuniones" initialKey="completionRate" />;
+  return <SortableTable rows={deans} columns={columns} caption="Decanos con finalización, entregas a tiempo y reuniones" initialKey="completionRate" label="decanos" />;
 }

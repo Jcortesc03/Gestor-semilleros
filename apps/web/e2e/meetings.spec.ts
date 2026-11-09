@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { E2E_SEED_PASSWORD } from './backend-env.ts';
+import { findProjectInList } from './project-list';
 
 const SEED_PROJECT = 'Proyecto demo de semillero';
 
@@ -31,7 +32,7 @@ test.describe('Crear reuniones (ADR 0010 §10)', () => {
   test('desde el proyecto, «Nueva reunión» abre Reuniones con el proyecto preseleccionado', async ({ page }) => {
     await signInAs(page, 'decano@example.test');
     await page.getByRole('complementary').getByRole('button', { name: 'Proyectos y actividades' }).click();
-    await page.getByText(SEED_PROJECT).first().click();
+    await (await findProjectInList(page, SEED_PROJECT)).click();
     await page.getByRole('button', { name: 'Nueva reunión' }).first().click();
 
     await expect(page.getByRole('heading', { name: 'Nueva reunión' })).toBeVisible();

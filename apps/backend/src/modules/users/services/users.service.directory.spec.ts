@@ -10,15 +10,21 @@ const users = [
 ];
 
 function setup() {
-  const findMany = jest.fn(async () => users);
-  const prisma = { user: { findMany } };
-  return { service: new UsersService(prisma as unknown as PrismaService, new PasswordService()), findMany };
+  const findMany = jest.fn(async (args: { skip?: number; take?: number }) =>
+    args.take === undefined ? users : users.slice(args.skip ?? 0, (args.skip ?? 0) + args.take),
+  );
+  const count = jest.fn(async () => users.length);
+  const prisma = { user: { findMany, count } };
+  return { service: new UsersService(prisma as unknown as PrismaService, new PasswordService()), findMany, count };
 }
 
-const query = (overrides: Partial<{ search: string | null; role: 'TUTOR' | null; limit: number; status: 'ALL' | 'INACTIVE' | null }> = {}) => ({
+const query = (
+  overrides: Partial<{ search: string | null; role: 'TUTOR' | null; page: number; pageSize: number; status: 'ALL' | 'INACTIVE' | null }> = {},
+) => ({
   search: null,
   role: null,
-  limit: 20,
+  page: 1,
+  pageSize: 20,
   status: null as 'ALL' | 'INACTIVE' | null,
   ...overrides,
 });
@@ -28,7 +34,7 @@ describe('UsersService.listDirectory', () => {
     const { service, findMany } = setup();
     const result = await service.listDirectory(query({ status: 'ALL' }));
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
-    expect(result[0]).toMatchObject({ id: 'u1', status: 'ACTIVE' });
+    expect(result.items[0]).toMatchObject({ id: 'u1', status: 'ACTIVE' });
   });
 
   it('con status INACTIVE filtra solo inactivos', async () => {
@@ -42,8 +48,8 @@ describe('UsersService.listDirectory', () => {
     const result = await service.listDirectory(query());
 
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { status: 'ACTIVE' } }));
-    expect(result[0]).toEqual({ id: 'u1', fullName: 'Ana Zambrano', email: 'ana.zambrano@example.test', roles: ['TUTOR'] });
-    expect(Object.keys(result[0]).sort()).toEqual(['email', 'fullName', 'id', 'roles']);
+    expect(result.items[0]).toEqual({ id: 'u1', fullName: 'Ana Zambrano', email: 'ana.zambrano@example.test', roles: ['TUTOR'] });
+    expect(Object.keys(result.items[0]).sort()).toEqual(['email', 'fullName', 'id', 'roles']);
   });
 
   it('filtra por rol global en la base de datos', async () => {
@@ -54,30 +60,45 @@ describe('UsersService.listDirectory', () => {
     );
   });
 
-  it('sin búsqueda limita en la consulta', async () => {
-    const { service, findMany } = setup();
-    const result = await service.listDirectory(query({ limit: 2 }));
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 2 }));
-    expect(result.map((u) => u.id)).toEqual(['u1', 'u2']);
+  it('sin búsqueda pagina en la consulta, con orden estable y total del mismo filtro', async () => {
+    const { service, findMany, count } = setup();
+    const result = await service.listDirectory(query({ page: 2, pageSize: 2 }));
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 2, take: 2, orderBy: [{ fullName: 'asc' }, { id: 'asc' }] }),
+    );
+    expect(count).toHaveBeenCalledWith({ where: { status: 'ACTIVE' } });
+    expect(result).toMatchObject({ total: 3, page: 2, pageSize: 2 });
+    expect(result.items.map((u) => u.id)).toEqual(['u3']);
   });
 
   it('busca sin distinguir mayúsculas ni tildes en nombre y correo', async () => {
     const { service } = setup();
-    expect((await service.listDirectory(query({ search: 'JOSE' }))).map((u) => u.id)).toEqual(['u2']);
-    expect((await service.listDirectory(query({ search: 'josé' }))).map((u) => u.id)).toEqual(['u2']);
-    expect((await service.listDirectory(query({ search: 'munoz' }))).map((u) => u.id)).toEqual(['u3']);
-    expect((await service.listDirectory(query({ search: 'ana.zam' }))).map((u) => u.id)).toEqual(['u1']);
+    expect((await service.listDirectory(query({ search: 'JOSE' }))).items.map((u) => u.id)).toEqual(['u2']);
+    expect((await service.listDirectory(query({ search: 'josé' }))).items.map((u) => u.id)).toEqual(['u2']);
+    expect((await service.listDirectory(query({ search: 'munoz' }))).items.map((u) => u.id)).toEqual(['u3']);
+    expect((await service.listDirectory(query({ search: 'ana.zam' }))).items.map((u) => u.id)).toEqual(['u1']);
   });
 
-  it('aplica el límite después de filtrar por búsqueda', async () => {
+  it('pagina después de filtrar por búsqueda y cuenta todas las coincidencias', async () => {
     const { service } = setup();
-    const result = await service.listDirectory(query({ search: 'example', limit: 1 }));
-    expect(result.map((u) => u.id)).toEqual(['u1']);
+    const result = await service.listDirectory(query({ search: 'example', page: 2, pageSize: 1 }));
+    expect(result).toMatchObject({ total: 3, page: 2, pageSize: 1 });
+    expect(result.items.map((u) => u.id)).toEqual(['u2']);
+  });
+
+  it('una página más allá del final devuelve items vacíos con el total real', async () => {
+    const { service } = setup();
+    expect(await service.listDirectory(query({ search: 'example', page: 5, pageSize: 2 }))).toEqual({
+      items: [],
+      total: 3,
+      page: 5,
+      pageSize: 2,
+    });
   });
 
   it('no devuelve resultados si nada coincide', async () => {
     const { service } = setup();
-    expect(await service.listDirectory(query({ search: 'inexistente' }))).toEqual([]);
+    expect(await service.listDirectory(query({ search: 'inexistente' }))).toEqual({ items: [], total: 0, page: 1, pageSize: 20 });
   });
 });
 

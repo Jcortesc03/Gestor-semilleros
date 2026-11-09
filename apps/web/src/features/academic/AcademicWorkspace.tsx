@@ -20,7 +20,8 @@ const confirmAction = (message: string) => window.confirm(message);
 
 export function AcademicWorkspace({ user, request, onCreateMeeting }: AcademicWorkspaceProps) {
   const data = useAcademicData(request);
-  const documents = useProjectDocuments(request, data.projectId);
+  // El selector de adjuntos pide hasta 100 documentos (ADR 0017); la sección Documentos pagina de 20 en 20.
+  const documents = useProjectDocuments(request, data.projectId, { pageSize: 100 });
   const { busy, error: actionError, run } = useAction();
   const { projects, projectId, boardId, boards, members, activities } = data;
 
@@ -59,7 +60,7 @@ export function AcademicWorkspace({ user, request, onCreateMeeting }: AcademicWo
                 });
                 createdId = created.id;
               },
-              () => data.reloadList({ preferredId: createdId, silent: true }),
+              () => data.reloadList({ preferredId: createdId, silent: true, page: 1 }),
             );
             return ok;
           }}
@@ -71,8 +72,14 @@ export function AcademicWorkspace({ user, request, onCreateMeeting }: AcademicWo
         selectedId={projectId}
         status={data.listStatus}
         error={data.listError}
+        search={data.search}
+        page={data.page}
+        pageSize={data.pageSize}
+        total={data.total}
         onSelect={data.selectProject}
         onRetry={() => void data.reloadList()}
+        onSearch={data.setSearch}
+        onPageChange={data.setPage}
       />
 
       {project && (
@@ -106,6 +113,7 @@ export function AcademicWorkspace({ user, request, onCreateMeeting }: AcademicWo
               <div className="grid gap-6 xl:grid-cols-2">
                 <MembersPanel
                   request={request}
+                  projectId={project.id}
                   members={members}
                   canManageTutors={can.manageTutors}
                   canManageStudents={can.manageStudents}
@@ -122,6 +130,7 @@ export function AcademicWorkspace({ user, request, onCreateMeeting }: AcademicWo
                   )}
                 />
                 <BoardPanel
+                  projectId={project.id}
                   boards={boards}
                   selectedId={boardId}
                   tutors={tutors}

@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import type { CurrentUser } from '../../types/auth.ts';
 import type { ApiRequest } from '../../types/api.ts';
@@ -17,9 +17,13 @@ import {
   type Announcement,
   type CreateAnnouncementInput,
   type GlobalRole,
-  type PublishableProject,
+  type AudienceProjects,
 } from './api';
 import { ANNOUNCEMENT_KIND_LABELS, hasRole, ROLE_OPTIONS, SelectField, textAreaClassName } from './shared';
+import { useDebouncedValue } from './useDebouncedValue';
+
+/** Espera tras la última tecla antes de buscar proyectos. */
+const PROJECT_SEARCH_DEBOUNCE_MS = 250;
 
 type AudienceType = 'ALL' | 'AREA' | 'ROLE' | 'FACULTY' | 'PROJECT';
 
@@ -81,7 +85,9 @@ export function PublishAnnouncementForm({ user, request, onPublished }: PublishA
   const [form, setForm] = useState<PublishFormState>(() => initialForm(defaultAudience));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
-  const [projects, setProjects] = useState<PublishableProject[] | null>(null);
+  const [projects, setProjects] = useState<AudienceProjects | null>(null);
+  const [projectSearch, setProjectSearch] = useState('');
+  const projectTerm = useDebouncedValue(projectSearch.trim(), PROJECT_SEARCH_DEBOUNCE_MS);
   const [projectsError, setProjectsError] = useState<unknown>();
   // Adjuntos (ADR 0015): solo para el tipo NEWS; se descartan al cambiar a otro tipo.
   const [files, setFiles] = useState<File[]>([]);
@@ -104,19 +110,19 @@ export function PublishAnnouncementForm({ user, request, onPublished }: PublishA
   const projectSources = { visible: hasRole(user, 'ADMIN', 'DEAN'), tutored: hasRole(user, 'TUTOR') && !isAdmin };
   const loadsProjects = form.audience === 'PROJECT';
 
-  // Los proyectos se cargan solo cuando la audiencia PROJECT está seleccionada.
+  // Los proyectos se cargan solo cuando la audiencia PROJECT está seleccionada, y se buscan por título.
   const { visible: loadsVisibleProjects, tutored: loadsTutoredProjects } = projectSources;
   useEffect(() => {
     if (!loadsProjects) return;
     let active = true;
     setProjects(null);
     setProjectsError(undefined);
-    listProjectsForAudience(request, { visible: loadsVisibleProjects, tutored: loadsTutoredProjects }).then(
+    listProjectsForAudience(request, { visible: loadsVisibleProjects, tutored: loadsTutoredProjects }, projectTerm).then(
       (items) => { if (active) setProjects(items); },
       (cause: unknown) => { if (active) setProjectsError(cause); },
     );
     return () => { active = false; };
-  }, [request, loadsVisibleProjects, loadsTutoredProjects, loadsProjects]);
+  }, [request, loadsVisibleProjects, loadsTutoredProjects, loadsProjects, projectTerm]);
 
   const audiences = buildAudiences(form);
 
@@ -234,6 +240,9 @@ export function PublishAnnouncementForm({ user, request, onPublished }: PublishA
         <ProjectSelect
           projects={projects}
           error={projectsError}
+          search={projectSearch}
+          searchTerm={projectTerm}
+          onSearchChange={setProjectSearch}
           value={form.projectId}
           disabled={busy}
           onChange={(projectId) => update('projectId', projectId)}
@@ -328,19 +337,42 @@ function RoleCheckboxes({ selected, disabled, onToggle }: RoleCheckboxesProps) {
 }
 
 interface ProjectSelectProps {
-  projects: PublishableProject[] | null;
+  projects: AudienceProjects | null;
   error: unknown;
+  /** Texto escrito y texto ya aplicado (tras la espera) de la búsqueda por título. */
+  search: string;
+  searchTerm: string;
+  onSearchChange: (value: string) => void;
   value: string;
   disabled: boolean;
   onChange: (projectId: string) => void;
 }
 
-/** Selector de proyectos destinatarios con estados de carga, error y vacío explícitos. */
-function ProjectSelect({ projects, error, value, disabled, onChange }: ProjectSelectProps) {
+/**
+ * Selector de proyectos destinatarios con búsqueda por título y estados de carga, error y vacío explícitos.
+ * No carga todos los proyectos (ADR 0017); el elegido se conserva aunque una búsqueda posterior no lo incluya.
+ */
+function ProjectSelect({ projects, error, search, searchTerm, onSearchChange, value, disabled, onChange }: ProjectSelectProps) {
   const id = useId();
   const loading = projects === null && error === undefined;
+  const known = useRef(new Map<string, string>());
+  for (const item of projects?.items ?? []) known.current.set(item.id, item.title);
+  const options = [...(projects?.items ?? [])];
+  if (value && !options.some((item) => item.id === value)) {
+    options.unshift({ id: value, title: known.current.get(value) ?? 'Proyecto seleccionado' });
+  }
   return (
     <div className="min-w-0 space-y-2">
+      <Field
+        type="search"
+        autoComplete="off"
+        label="Buscar proyecto"
+        hint="Filtra los proyectos por título."
+        value={search}
+        maxLength={100}
+        disabled={disabled}
+        onChange={(event) => onSearchChange(event.target.value)}
+      />
       <label htmlFor={id} className="block text-sm font-semibold text-navy">Proyecto destinatario</label>
       <select
         id={id}
@@ -351,11 +383,18 @@ function ProjectSelect({ projects, error, value, disabled, onChange }: ProjectSe
         onChange={(event) => onChange(event.target.value)}
       >
         <option value="">{loading ? 'Cargando proyectos…' : 'Seleccionar'}</option>
-        {projects?.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+        {options.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
       </select>
       {loading && <LoadingState label="Cargando proyectos…" />}
       {error !== undefined && <ErrorNotice error={error} />}
-      {projects?.length === 0 && <p className="text-sm text-navy/70">No hay proyectos disponibles para esta audiencia.</p>}
+      {projects?.items.length === 0 && (
+        <p className="text-sm text-navy/70">
+          {searchTerm ? `Ningún proyecto coincide con «${searchTerm}».` : 'No hay proyectos disponibles para esta audiencia.'}
+        </p>
+      )}
+      {projects?.more && (
+        <p className="text-sm text-navy/70">Hay más proyectos; escribe parte del título para encontrarlos.</p>
+      )}
     </div>
   );
 }

@@ -39,3 +39,13 @@ export function filteredBoardWhere(scope: AnalyticsScopeDto, q: AnalyticsQuery):
     ...(q.tutorId ? { responsibleTutorId: q.tutorId } : {}),
   };
 }
+
+/**
+ * Facultades de un proyecto que el usuario puede ver en la analítica (ADR 0016, alcance del decano):
+ * todas con alcance global o si el proyecto le llega por un área asignada; si le llega solo por
+ * decanato, únicamente las facultades que dirige (en proyectos compartidos no ve las demás).
+ */
+export function visibleProjectFaculties<T extends { id: string }>(scope: AnalyticsScopeDto, areaId: string, faculties: T[]): T[] {
+  if (scope.global || scope.areas.some((a) => a.id === areaId)) return faculties;
+  return faculties.filter((f) => scope.faculties.some((own) => own.id === f.id));
+}

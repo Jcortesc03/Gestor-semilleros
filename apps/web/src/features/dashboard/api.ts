@@ -1,5 +1,6 @@
 import { ApiError, isRecord, parseArray } from '../../lib/api.ts';
 import type { ApiRequest } from '../../types/api.ts';
+import { parsePage } from '../../lib/pagination.ts';
 
 export const DASHBOARD_ROLES = ['ADMIN', 'AREA_MANAGER', 'DEAN', 'TUTOR', 'STUDENT'] as const;
 export type DashboardRole = (typeof DASHBOARD_ROLES)[number];
@@ -118,13 +119,13 @@ export async function getDashboard(request: ApiRequest): Promise<DashboardData> 
   return parseDashboard(await request('/api/dashboard'));
 }
 
-/** Próximas reuniones programadas del usuario (máximo 5). */
+/** Próximas reuniones programadas del usuario: primera página de 5, sin paginador (ADR 0017). */
 export async function getUpcomingMeetings(request: ApiRequest, now: Date = new Date()): Promise<DashboardMeeting[]> {
-  const params = new URLSearchParams({ status: 'SCHEDULED', from: now.toISOString(), limit: '5' });
-  return parseArray(await request(`/api/meetings?${params.toString()}`), parseMeeting).slice(0, 5);
+  const params = new URLSearchParams({ status: 'SCHEDULED', from: now.toISOString(), pageSize: '5' });
+  return parsePage(await request(`/api/meetings?${params.toString()}`), parseMeeting).items.slice(0, 5);
 }
 
-/** Novedades más recientes visibles para el usuario (máximo 3). */
+/** Novedades más recientes visibles para el usuario: primera página de 3, sin paginador (ADR 0017). */
 export async function getRecentAnnouncements(request: ApiRequest): Promise<DashboardAnnouncement[]> {
-  return parseArray(await request('/api/announcements?limit=3'), parseAnnouncement).slice(0, 3);
+  return parsePage(await request('/api/announcements?pageSize=3'), parseAnnouncement).items.slice(0, 3);
 }

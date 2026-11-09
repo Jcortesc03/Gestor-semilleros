@@ -32,3 +32,21 @@ describe('PeopleRankings', () => {
     expect(screen.getByText(/Ningún decano organizó reuniones/)).toBeInTheDocument();
   });
 });
+
+describe('TutorsTable paginada', () => {
+  it('muestra 10 filas por página y avanza', async () => {
+    const { TutorsTable } = await import('../../../src/features/analytics/RankingTables');
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const tutors = Array.from({ length: 25 }, (_, i) => ({
+      id: `t${i}`, name: `Tutor ${String(i).padStart(2, '0')}`, projects: 1, boards: 1, activities: 10, done: i % 10,
+      completionRate: (i % 10) / 10, onTimeRate: null, approvalRate: null, meetingsOrganized: i, meetingsAttended: 0,
+    }));
+    render(<TutorsTable tutors={tutors} />);
+    expect(screen.getAllByRole('row')).toHaveLength(11);
+    expect(screen.getByText('1–10 de 25 · página 1 de 3')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Página siguiente' }));
+    expect(screen.getByText('11–20 de 25 · página 2 de 3')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Ordenar por tutor' }));
+    expect(screen.getByText('1–10 de 25 · página 1 de 3')).toBeInTheDocument();
+  });
+});

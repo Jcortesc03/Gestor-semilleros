@@ -8,6 +8,8 @@ import type { DirectoryRole, DirectoryUser } from './api.ts';
 
 export const USER_SEARCH_DEBOUNCE_MS = 250;
 export const USER_SEARCH_MIN_CHARS = 2;
+/** Coincidencias por búsqueda (ADR 0017): el selector no pagina; si no aparece la persona, se afina el texto. */
+export const USER_SEARCH_PAGE_SIZE = 20;
 
 type Phase = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -55,8 +57,8 @@ export function UserPicker({ request, label, role, excludeIds = [], selected = n
     setPhase('loading');
     setError(null);
     const timer = setTimeout(() => {
-      searchUsers(request, { search: term, ...(role ? { role } : {}) }).then(
-        (items) => { if (mine === ticket.current) { setResults(items); setPhase('ready'); } },
+      searchUsers(request, { search: term, ...(role ? { role } : {}), pageSize: USER_SEARCH_PAGE_SIZE }).then(
+        (page) => { if (mine === ticket.current) { setResults(page.items); setPhase('ready'); } },
         (reason: unknown) => { if (mine === ticket.current) { setError(reason); setPhase('error'); } },
       );
     }, USER_SEARCH_DEBOUNCE_MS);

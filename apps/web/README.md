@@ -78,6 +78,10 @@ Detalles de la imagen:
 
 Sección «Áreas y facultades» (`features/institution`), visible para administradores y encargados de área. El administrador crea, renombra (y describe, en las áreas) y elimina áreas y facultades, con confirmación antes de borrar; gestiona los encargados de cada área con el buscador de personas y consulta el historial de decanos de cada facultad, asigna un decano nuevo y cierra el vigente con confirmación. El encargado de área ve todas las áreas (el sistema no ofrece «mis áreas») y solo puede editar nombre y descripción; en las áreas ajenas el backend responde 403 y la web muestra ese mensaje. Los contratos están en [`docs/api/catalogs.md`](../../docs/api/catalogs.md) (sección «Administración»).
 
+## Proyectos y documentos
+
+El listado de proyectos busca por título en el servidor y pagina de 20 en 20 ([ADR 0017](../../docs/decisions/0017-paginacion-de-listas.md)); participantes, tableros y actividades se paginan en el cliente de 10 en 10. La sección «Documentos» del proyecto pagina de 20 en 20 y el selector de adjuntos de actividades pide hasta 100.
+
 ## Usuarios y contraseñas
 
 El administrador lista, busca y filtra usuarios (activos, inactivos o todos), edita su nombre y roles, los desactiva o reactiva y les fija una contraseña temporal. Quien entra con una temporal ve primero «Cambia tu contraseña» y no puede usar nada más hasta cambiarla. Cualquier usuario puede cambiar la suya desde la tarjeta de su cuenta. Política: 10–256 caracteres, con al menos una letra y un número, distinta del correo ([ADR 0011](../../docs/decisions/0011-gestion-de-usuarios.md)).

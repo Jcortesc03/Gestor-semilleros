@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { ApiRequest } from '../../types/api.ts';
-import { EmptyState, ErrorNotice, Field, LoadingState, PanelCard } from '../../components/WorkspaceUi';
+import { Button, EmptyState, ErrorNotice, Field, LoadingState, PanelCard } from '../../components/WorkspaceUi';
+import { Pagination } from '../../components/Pagination';
+import type { Page } from '../../lib/pagination';
 import { listInstitutionalUsers, type AdminUserListItem, type GlobalRole, type UserStatusFilter } from './api';
 import { ROLE_LABELS, ROLE_OPTIONS, SelectField, USER_STATUS_LABELS } from './shared';
 import { useDebouncedValue } from './useDebouncedValue';
@@ -9,8 +11,8 @@ import { useDebouncedValue } from './useDebouncedValue';
 export const SEARCH_DEBOUNCE_MS = 250;
 /** La búsqueda por texto exige al menos 2 caracteres (`docs/api/users.md`). */
 const MIN_SEARCH_CHARS = 2;
-/** Máximo que admite el contrato; si se alcanza, el listado puede estar incompleto. */
-export const DIRECTORY_LIMIT = 50;
+/** Usuarios por página del directorio de administración (ADR 0017). */
+export const DIRECTORY_PAGE_SIZE = 20;
 
 type RoleFilter = 'ALL' | GlobalRole;
 
@@ -38,22 +40,28 @@ export function UserDirectory({ request, selectedId, refreshToken, onSelect }: U
   const [status, setStatus] = useState<UserStatusFilter>('ACTIVE');
   const debouncedSearch = useDebouncedValue(searchText.trim(), SEARCH_DEBOUNCE_MS);
   const search = debouncedSearch.length >= MIN_SEARCH_CHARS ? debouncedSearch : undefined;
-  const [items, setItems] = useState<AdminUserListItem[]>();
+  // La página va ligada a los filtros: al cambiar la búsqueda, el rol o el estado se vuelve a la primera.
+  const filterKey = `${search ?? ''}|${role}|${status}`;
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  const page = pageState.key === filterKey ? pageState.page : 1;
+  const setPage = (next: number) => setPageState({ key: filterKey, page: next });
+  const [result, setResult] = useState<Page<AdminUserListItem>>();
   const [loadError, setLoadError] = useState<unknown>();
 
   useEffect(() => {
     // Cada ejecución tiene su propia bandera: una respuesta de un filtro anterior no pisa la vista actual.
     let active = true;
-    setItems(undefined);
+    setResult(undefined);
     setLoadError(undefined);
     listInstitutionalUsers(request, {
       ...(search === undefined ? {} : { search }),
       ...(role === 'ALL' ? {} : { role }),
       status,
-      limit: DIRECTORY_LIMIT,
+      page,
+      pageSize: DIRECTORY_PAGE_SIZE,
     })
       .then((value) => {
-        if (active) setItems(value);
+        if (active) setResult(value);
       })
       .catch((cause: unknown) => {
         if (active) setLoadError(cause);
@@ -61,7 +69,9 @@ export function UserDirectory({ request, selectedId, refreshToken, onSelect }: U
     return () => {
       active = false;
     };
-  }, [request, search, role, status, refreshToken]);
+  }, [request, search, role, status, page, refreshToken]);
+
+  const items = result?.items;
 
   const shortSearch = searchText.trim().length === 1;
 
@@ -83,8 +93,14 @@ export function UserDirectory({ request, selectedId, refreshToken, onSelect }: U
       <div className="mt-6">
         {loadError !== undefined && <ErrorNotice error={loadError} />}
         {loadError === undefined && items === undefined && <LoadingState label="Cargando usuarios…" />}
-        {items?.length === 0 && (
+        {result?.total === 0 && (
           <EmptyState title="No hay usuarios con estos filtros" description="Cambia el texto, el rol o el estado para ver otras cuentas." />
+        )}
+        {result !== undefined && result.total > 0 && result.items.length === 0 && (
+          <div className="space-y-3">
+            <p className="text-sm text-navy/70">Esta página ya no tiene usuarios.</p>
+            <Button variant="secondary" onClick={() => setPage(1)}>Ir a la primera página</Button>
+          </div>
         )}
         {items && items.length > 0 && (
           <ul aria-label="Usuarios" className="divide-y divide-navy/10 rounded-lg border border-navy/10">
@@ -111,10 +127,8 @@ export function UserDirectory({ request, selectedId, refreshToken, onSelect }: U
             ))}
           </ul>
         )}
-        {items && items.length >= DIRECTORY_LIMIT && (
-          <p className="mt-3 text-sm leading-relaxed text-navy/70">
-            Se muestran los primeros {DIRECTORY_LIMIT} usuarios. Afina la búsqueda para ver más.
-          </p>
+        {result !== undefined && (
+          <Pagination label="Usuarios" page={result.page} pageSize={result.pageSize} total={result.total} onPageChange={setPage} />
         )}
       </div>
     </PanelCard>

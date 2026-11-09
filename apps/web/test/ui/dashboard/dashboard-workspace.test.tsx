@@ -19,14 +19,20 @@ const section = (role: string, over: Record<string, unknown> = {}) => ({
 const meetings = [{ id: 'm-1', reason: 'Revisión de avances', startsAt: '2026-11-20T20:00:00.000Z', status: 'SCHEDULED', joinUrl: null, project: { id: 'p-1', title: 'Proyecto demo' } }];
 const news = [{ id: 'n-1', kind: 'NEWS', title: 'Convocatoria abierta', publishedAt: '2026-11-06T10:00:00.000Z', author: { id: 'u-1', fullName: 'Admin' } }];
 
+/** Primera página de la API (ADR 0017); un error se lanza tal cual. */
+function pageOf(items: unknown, pageSize: number) {
+  if (items instanceof Error) throw items;
+  return Array.isArray(items) ? { items, total: items.length, page: 1, pageSize } : items;
+}
+
 function fake(sections: unknown[] | Error, extra: { meetings?: unknown; news?: unknown } = {}) {
   return vi.fn<ApiRequest>(async (path) => {
     if (path === '/api/dashboard') {
       if (sections instanceof Error) throw sections;
       return { generatedAt: '2026-11-07T15:00:00.000Z', sections };
     }
-    if (path.startsWith('/api/meetings')) return extra.meetings ?? meetings;
-    if (path.startsWith('/api/announcements')) return extra.news ?? news;
+    if (path.startsWith('/api/meetings')) return pageOf(extra.meetings ?? meetings, 5);
+    if (path.startsWith('/api/announcements')) return pageOf(extra.news ?? news, 3);
     throw new ApiError(404);
   });
 }

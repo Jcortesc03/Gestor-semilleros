@@ -49,3 +49,103 @@ describe('ProjectsService.tutored', () => {
     await expect(service.tutored(usuario)).resolves.toEqual([]);
   });
 });
+
+const projectRecord = (over: Record<string, unknown> = {}) => ({
+  id: 'p1',
+  title: 'Proyecto de prueba',
+  description: null,
+  status: 'ACTIVE',
+  area: { id: 'a1', name: 'Área' },
+  faculties: [],
+  startsOn: null,
+  endsOn: null,
+  createdAt: new Date('2026-01-01T00:00:00Z'),
+  ...over,
+});
+
+function setupList(projects: unknown[], total: number) {
+  const findMany = jest.fn(async () => projects);
+  const count = jest.fn(async () => total);
+  const transaction = jest.fn(async (operations: Promise<unknown>[]) => Promise.all(operations));
+  const prisma = { project: { findMany, count }, $transaction: transaction };
+  const access = {
+    currentDeanFacultyIds: jest.fn(async (): Promise<string[]> => []),
+    managedAreaIds: jest.fn(async (): Promise<string[]> => []),
+  };
+  const service = new ProjectsService(prisma as unknown as PrismaService, access as unknown as ProjectAccessService);
+  return { service, findMany, count, transaction, access };
+}
+
+describe('ProjectsService.list', () => {
+  it('pide la página con orden estable y cuenta con el mismo filtro', async () => {
+    const { service, findMany, count, transaction } = setupList([projectRecord()], 41);
+
+    const result = await service.list(usuario, { search: null, page: 3, pageSize: 20 });
+
+    const where = { deletedAt: null, OR: [{ members: { some: { userId: 'usuario-1', status: 'ACTIVE' } } }] };
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: 40, take: 20 }));
+    expect(count).toHaveBeenCalledWith({ where });
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      items: [
+        {
+          id: 'p1',
+          title: 'Proyecto de prueba',
+          description: null,
+          status: 'ACTIVE',
+          area: { id: 'a1', name: 'Área' },
+          faculties: [],
+          startsOn: null,
+          endsOn: null,
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      total: 41,
+      page: 3,
+      pageSize: 20,
+    });
+  });
+
+  it('añade la búsqueda por título sin distinguir mayúsculas, combinada con la visibilidad', async () => {
+    const { service, findMany, count } = setupList([], 0);
+
+    await service.list(usuario, { search: 'Robótica', page: 1, pageSize: 20 });
+
+    const where = {
+      deletedAt: null,
+      OR: [{ members: { some: { userId: 'usuario-1', status: 'ACTIVE' } } }],
+      title: { contains: 'Robótica', mode: 'insensitive' },
+    };
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where, skip: 0, take: 20 }));
+    expect(count).toHaveBeenCalledWith({ where });
+  });
+
+  it('el administrador ve todos los proyectos sin el filtro de visibilidad', async () => {
+    const { service, findMany } = setupList([], 0);
+
+    await service.list({ ...usuario, roles: ['ADMIN'] }, { search: null, page: 1, pageSize: 20 });
+
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { deletedAt: null } }));
+  });
+
+  it('suma las facultades del decano y las áreas del encargado a la visibilidad (ADR 0010)', async () => {
+    const { service, findMany, access } = setupList([], 0);
+    access.currentDeanFacultyIds.mockResolvedValueOnce(['f1']);
+    access.managedAreaIds.mockResolvedValueOnce(['a1']);
+
+    await service.list({ ...usuario, roles: ['DEAN', 'AREA_MANAGER'] }, { search: null, page: 1, pageSize: 20 });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          deletedAt: null,
+          OR: [
+            { members: { some: { userId: 'usuario-1', status: 'ACTIVE' } } },
+            { faculties: { some: { facultyId: { in: ['f1'] } } } },
+            { areaId: { in: ['a1'] } },
+          ],
+        },
+      }),
+    );
+  });
+});

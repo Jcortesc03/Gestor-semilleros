@@ -13,22 +13,24 @@ function mockApiRequest(response: unknown) {
 
 const user = { id: 'u-1', fullName: 'Tatiana Tutora', email: 'tutor@example.test', roles: ['TUTOR'] };
 
-test('searchUsers builds the query string and parses the directory', async () => {
-  const mock = mockApiRequest([user]);
-  const users = await searchUsers(mock.request, { search: 'ta ñ', role: 'TUTOR', limit: 10 });
-  assert.deepEqual(users, [user]);
-  assert.equal(mock.calls[0].path, '/api/users?search=ta+%C3%B1&role=TUTOR&limit=10');
+const page = (items: unknown[]) => ({ items, total: items.length, page: 1, pageSize: 20 });
+
+test('searchUsers builds the query string and parses the page', async () => {
+  const mock = mockApiRequest({ items: [user], total: 31, page: 2, pageSize: 10 });
+  const result = await searchUsers(mock.request, { search: 'ta ñ', role: 'TUTOR', page: 2, pageSize: 10 });
+  assert.deepEqual(result, { items: [user], total: 31, page: 2, pageSize: 10 });
+  assert.equal(mock.calls[0].path, '/api/users?search=ta+%C3%B1&role=TUTOR&page=2&pageSize=10');
   assert.equal(mock.calls[0].options, undefined);
 });
 
 test('searchUsers without parameters calls the bare endpoint', async () => {
-  const mock = mockApiRequest([]);
-  assert.deepEqual(await searchUsers(mock.request), []);
+  const mock = mockApiRequest(page([]));
+  assert.deepEqual(await searchUsers(mock.request), page([]));
   assert.equal(mock.calls[0].path, '/api/users');
 });
 
 test('searchUsers rejects malformed responses with ApiError(0)', async () => {
-  for (const bad of [{}, [{ ...user, roles: ['SUPERUSER'] }], [{ ...user, email: 3 }], [{ ...user, roles: 'TUTOR' }], [{ id: 'u-1' }], [null]]) {
+  for (const bad of [{}, [user], page([{ ...user, roles: ['SUPERUSER'] }]), page([{ ...user, email: 3 }]), page([{ ...user, roles: 'TUTOR' }]), page([{ id: 'u-1' }]), page([null]), { items: [user], total: -1, page: 1, pageSize: 20 }]) {
     await assert.rejects(() => searchUsers(mockApiRequest(bad).request), { name: 'ApiError', status: 0 });
   }
 });

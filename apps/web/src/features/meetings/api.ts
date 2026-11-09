@@ -1,5 +1,6 @@
 import { ApiError, isRecord, parseArray } from '../../lib/api.ts';
 import type { ApiRequest } from '../../types/api.ts';
+import { parsePage, withPage, type Page, type PageRequest } from '../../lib/pagination.ts';
 
 export const MEETING_STATUSES = ['SCHEDULED', 'IN_PROGRESS', 'FINISHED', 'CANCELLED'] as const;
 export type MeetingStatus = (typeof MEETING_STATUSES)[number];
@@ -48,7 +49,11 @@ export interface CreateMeetingInput {
   joinUrl?: string;
 }
 
-export interface MeetingFilters { status?: MeetingStatus; from?: string; to?: string; limit?: number }
+/** Filtros y página de `GET /api/meetings` (ADR 0017; el servidor usa `pageSize` 50 por defecto). */
+export interface MeetingFilters extends PageRequest { status?: MeetingStatus; from?: string; to?: string }
+
+/** Búsqueda de proyectos para el selector: título (1–100 caracteres) y `pageSize` ≤ 100. */
+export interface ProjectSearch { search?: string; pageSize?: number }
 
 function fail(): never { throw new ApiError(0); }
 function str(value: unknown): string { if (typeof value !== 'string') fail(); return value; }
@@ -142,14 +147,14 @@ export async function unlinkMicrosoft(request: ApiRequest): Promise<void> {
   await request('/api/integrations/microsoft/link', { method: 'DELETE' });
 }
 
-export async function getMeetings(request: ApiRequest, filters: MeetingFilters = {}): Promise<Meeting[]> {
+export async function getMeetings(request: ApiRequest, filters: MeetingFilters = {}): Promise<Page<Meeting>> {
   const params = new URLSearchParams();
   if (filters.status) params.set('status', filters.status);
   if (filters.from) params.set('from', filters.from);
   if (filters.to) params.set('to', filters.to);
-  if (filters.limit !== undefined) params.set('limit', String(filters.limit));
+  withPage(params, filters);
   const query = params.toString();
-  return parseArray(await request(`/api/meetings${query ? `?${query}` : ''}`), parseMeeting);
+  return parsePage(await request(`/api/meetings${query ? `?${query}` : ''}`), parseMeeting);
 }
 
 export async function getMeeting(request: ApiRequest, id: string): Promise<Meeting> {
@@ -175,8 +180,18 @@ export async function setMeetingRecording(request: ApiRequest, id: string, recor
   return parseMeeting(await request(`/api/meetings/${enc(id)}/recording`, { method: 'PUT', body: { recordingUrl } }));
 }
 
-export async function getMeetingProjects(request: ApiRequest): Promise<MeetingProject[]> {
-  return parseArray(await request('/api/projects'), parseProject);
+/** Proyectos visibles para el selector (`GET /api/projects`, paginado): busca por título, no carga la lista completa. */
+export async function getMeetingProjects(request: ApiRequest, query: ProjectSearch = {}): Promise<Page<MeetingProject>> {
+  const params = new URLSearchParams();
+  if (query.search) params.set('search', query.search);
+  withPage(params, { pageSize: query.pageSize });
+  const suffix = params.toString();
+  return parsePage(await request(`/api/projects${suffix ? `?${suffix}` : ''}`), parseProject);
+}
+
+/** Un proyecto visible (`GET /api/projects/:projectId`): da el título del proyecto preseleccionado. */
+export async function getMeetingProject(request: ApiRequest, projectId: string): Promise<MeetingProject> {
+  return parseProject(await request(`/api/projects/${enc(projectId)}`));
 }
 
 export async function getProjectMembers(request: ApiRequest, projectId: string): Promise<ProjectMember[]> {

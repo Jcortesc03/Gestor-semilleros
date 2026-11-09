@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { E2E_SEED_PASSWORD } from './backend-env.ts';
+import { findProjectInList } from './project-list';
 
 /** Proyecto ficticio de la seed (apps/backend/src/cli/seed-database.ts). */
 const SEED_PROJECT = 'Proyecto demo de semillero';
@@ -20,7 +21,7 @@ async function signInAs(page: Page, email: string): Promise<void> {
 
 async function openSeedProject(page: Page): Promise<void> {
   await page.getByRole('complementary').getByRole('button', { name: 'Proyectos y actividades' }).click();
-  await page.getByText(SEED_PROJECT).first().click();
+  await (await findProjectInList(page, SEED_PROJECT)).click();
 }
 
 test.describe('Documentos en S3 (RustFS) contra el backend real', () => {
@@ -60,8 +61,8 @@ test.describe('Documentos en S3 (RustFS) contra el backend real', () => {
 
   test('un usuario ajeno al proyecto no puede descargar sus documentos', async ({ page }) => {
     await signInAs(page, 'tutor@example.test');
-    const projects = await (await page.request.get('/api/projects')).json() as { id: string; title: string }[];
-    const project = projects.find((item) => item.title === SEED_PROJECT);
+    const projects = await (await page.request.get(`/api/projects?search=${encodeURIComponent(SEED_PROJECT)}&pageSize=100`)).json() as { items: { id: string; title: string }[] };
+    const project = projects.items.find((item) => item.title === SEED_PROJECT);
     if (!project) throw new Error('No se encontró el proyecto sembrado.');
     const upload = await page.request.post(`/api/projects/${project.id}/documents`, {
       multipart: { file: { name: `privado-${Date.now()}.pdf`, mimeType: 'application/pdf', buffer: pdfBytes('privado') } },

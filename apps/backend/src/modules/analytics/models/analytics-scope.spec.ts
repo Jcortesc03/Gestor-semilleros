@@ -1,4 +1,4 @@
-import { filteredBoardWhere, filteredProjectWhere, scopeProjectWhere } from './analytics-scope';
+import { filteredBoardWhere, filteredProjectWhere, scopeProjectWhere, visibleProjectFaculties } from './analytics-scope';
 
 const empty = { from: null, to: null, areaId: null, facultyId: null, projectId: null, tutorId: null, projectStatus: null };
 
@@ -25,5 +25,14 @@ describe('alcance de la analítica', () => {
       { boards: { some: { deletedAt: null, responsibleTutorId: 't1' } } },
     ]);
     expect(filteredBoardWhere(scope, { ...empty, tutorId: 't1' })).toMatchObject({ deletedAt: null, responsibleTutorId: 't1' });
+  });
+
+  it('el decano solo ve sus facultades en proyectos compartidos, salvo que le lleguen por su área', () => {
+    const faculties = [{ id: 'fA' }, { id: 'fB' }];
+    const dean = { global: false, areas: [], faculties: [{ id: 'fA', name: 'A' }] };
+    expect(visibleProjectFaculties(dean, 'ar1', faculties)).toEqual([{ id: 'fA' }]);
+    const deanAndManager = { ...dean, areas: [{ id: 'ar1', name: 'Área' }] };
+    expect(visibleProjectFaculties(deanAndManager, 'ar1', faculties)).toEqual(faculties);
+    expect(visibleProjectFaculties({ global: true, areas: [], faculties: [] }, 'ar1', faculties)).toEqual(faculties);
   });
 });

@@ -6,7 +6,7 @@ import type { AuthUser } from '../../auth';
 import { hasStructuralFilter, type AnalyticsQuery } from '../dtos/analytics-query.dto';
 import type { AnalyticsFiltersDto, AnalyticsResponseDto, AnalyticsScopeDto, NamedDto } from '../dtos/analytics-response.dto';
 import { buildAnalytics, type DeanInput } from '../models/analytics-aggregation';
-import { filteredBoardWhere, filteredProjectWhere, scopeProjectWhere } from '../models/analytics-scope';
+import { filteredBoardWhere, filteredProjectWhere, scopeProjectWhere, visibleProjectFaculties } from '../models/analytics-scope';
 import { addDays, daysBetween } from '../models/analytics-time';
 
 const byName = (a: NamedDto, b: NamedDto) => a.name.localeCompare(b.name, 'es');
@@ -103,8 +103,13 @@ export class AnalyticsService {
         : null,
     ]);
 
+    const visibleProjects = projects.map((p) => ({
+      id: p.id,
+      area: p.area,
+      faculties: visibleProjectFaculties(scope, p.area.id, p.faculties.map((f) => f.faculty)),
+    }));
     const tutorIds = [...new Set(boards.map((b) => b.responsibleTutorId))];
-    const facultyIds = [...new Set(projects.flatMap((p) => p.faculties.map((f) => f.faculty.id)))];
+    const facultyIds = [...new Set(visibleProjects.flatMap((p) => p.faculties.map((f) => f.id)))];
     const [tutors, deanships] = await Promise.all([
       this.prisma.user.findMany({ where: { id: { in: tutorIds } }, select: { id: true, fullName: true } }),
       this.prisma.facultyDean.findMany({
@@ -126,7 +131,7 @@ export class AnalyticsService {
       scope,
       platformUsers: platformUsers?.map((u) => ({ status: u.status, createdAt: u.createdAt, roles: u.roles.map((r) => r.role) })) ?? null,
       participants: participants.length,
-      projects: projects.map((p) => ({ id: p.id, area: p.area, faculties: p.faculties.map((f) => f.faculty) })),
+      projects: visibleProjects,
       boards,
       activities: activities.map((a) => ({
         id: a.id,
@@ -176,7 +181,7 @@ export class AnalyticsService {
     const unique = (items: NamedDto[]) => [...new Map(items.map((i) => [i.id, i])).values()].sort(byName);
     return {
       areas: unique([...scope.areas, ...projects.map((p) => p.area)]),
-      faculties: unique([...scope.faculties, ...projects.flatMap((p) => p.faculties.map((f) => f.faculty))]),
+      faculties: unique([...scope.faculties, ...projects.flatMap((p) => visibleProjectFaculties(scope, p.area.id, p.faculties.map((f) => f.faculty)))]),
       projects: unique(projects.map((p) => ({ id: p.id, name: p.title }))),
       tutors: unique(projects.flatMap((p) => p.boards.map((b) => ({ id: b.responsibleTutor.id, name: b.responsibleTutor.fullName })))),
     };
