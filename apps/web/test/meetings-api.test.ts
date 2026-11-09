@@ -60,19 +60,23 @@ test('unlinks with DELETE', async () => {
   assert.deepEqual(mock.calls[0], { path: '/api/integrations/microsoft/link', options: { method: 'DELETE' } });
 });
 
+const page = (items: unknown[], extra: Partial<{ total: number; page: number; pageSize: number }> = {}) => ({ items, total: items.length, page: 1, pageSize: 50, ...extra });
+
 test('lists and reads meetings with query and encoded ids', async () => {
-  const mock = mockApiRequest([meeting]);
-  const list = await getMeetings(mock.request, { status: 'SCHEDULED', limit: 10 });
-  assert.equal(mock.calls[0].path, '/api/meetings?status=SCHEDULED&limit=10');
-  assert.equal(list[0].participants[0].fullName, 'Ana');
-  const plain = mockApiRequest([]);
+  const mock = mockApiRequest(page([meeting], { total: 11, page: 2, pageSize: 10 }));
+  const list = await getMeetings(mock.request, { status: 'SCHEDULED', page: 2, pageSize: 10 });
+  assert.equal(mock.calls[0].path, '/api/meetings?status=SCHEDULED&page=2&pageSize=10');
+  assert.equal(list.items[0].participants[0].fullName, 'Ana');
+  assert.deepEqual([list.total, list.page, list.pageSize], [11, 2, 10]);
+  const plain = mockApiRequest(page([]));
   await getMeetings(plain.request);
   assert.equal(plain.calls[0].path, '/api/meetings');
   const one = mockApiRequest(meeting);
   await getMeeting(one.request, 'a/b');
   assert.equal(one.calls[0].path, '/api/meetings/a%2Fb');
-  await assert.rejects(() => getMeetings(mockApiRequest([{ ...meeting, status: 'X' }]).request));
+  await assert.rejects(() => getMeetings(mockApiRequest(page([{ ...meeting, status: 'X' }])).request));
   await assert.rejects(() => getMeetings(mockApiRequest({}).request));
+  await assert.rejects(() => getMeetings(mockApiRequest([meeting]).request));
 });
 
 test('creates a meeting with the exact POST body', async () => {
@@ -100,9 +104,12 @@ test('sets and clears the recording link', async () => {
 });
 
 test('lists projects and flattens project members', async () => {
-  const projects = mockApiRequest([{ id: 'p-1', title: 'Proyecto', status: 'ACTIVE' }]);
-  assert.deepEqual(await getMeetingProjects(projects.request), [{ id: 'p-1', title: 'Proyecto' }]);
+  const projects = mockApiRequest(page([{ id: 'p-1', title: 'Proyecto', status: 'ACTIVE' }], { pageSize: 50 }));
+  assert.deepEqual((await getMeetingProjects(projects.request)).items, [{ id: 'p-1', title: 'Proyecto' }]);
   assert.equal(projects.calls[0].path, '/api/projects');
+  const searched = mockApiRequest(page([]));
+  await getMeetingProjects(searched.request, { search: 'robó tica', pageSize: 50 });
+  assert.equal(searched.calls[0].path, '/api/projects?search=rob%C3%B3+tica&pageSize=50');
   const members = mockApiRequest([{ id: 'mm', user: { id: 'u-2', fullName: 'Ana', email: 'ana@example.test' }, projectRole: 'STUDENT' }]);
   assert.deepEqual(await getProjectMembers(members.request, 'p-1'), [{ userId: 'u-2', fullName: 'Ana', email: 'ana@example.test', projectRole: 'STUDENT' }]);
   assert.equal(members.calls[0].path, '/api/projects/p-1/members');

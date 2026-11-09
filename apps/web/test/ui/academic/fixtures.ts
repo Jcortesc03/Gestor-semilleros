@@ -33,6 +33,11 @@ export const makeActivity = (n: number, boardId: string, title: string) => ({
 
 export type Routes = Record<string, (options?: ApiOptions) => unknown>;
 
+/** Respuesta paginada del backend (ADR 0017) para las rutas que devuelven `{ items, total, page, pageSize }`. */
+export function pageOf<T>(items: readonly T[], page = 1, pageSize = 20) {
+  return { items, total: items.length, page, pageSize };
+}
+
 /** `request` falso: resuelve por "MÉTODO ruta"; una ruta ausente rechaza la prueba. */
 export function fakeRequest(routes: Routes) {
   return vi.fn<ApiRequest>(async (path, options) => {

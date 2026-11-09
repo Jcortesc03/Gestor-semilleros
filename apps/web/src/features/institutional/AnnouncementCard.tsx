@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Download, Eye } from 'lucide-react';
 import type { ApiRequest } from '../../types/api.ts';
 import { Button, ErrorNotice, formatDate } from '../../components/WorkspaceUi';
+import { Pagination, useClientPagination } from '../../components/Pagination';
 import { canPreviewInline, DOCUMENT_FORMAT_LABELS, formatFileSize } from '../documents/index.ts';
 import {
   announcementAttachmentUrl,
@@ -126,19 +127,28 @@ function AttachmentList({ announcementId, attachments }: { announcementId: strin
   );
 }
 
+const DELIVERY_CHANNELS: readonly NotificationChannel[] = ['EMAIL', 'WHATSAPP'];
+
+/**
+ * Resumen de entregas por canal. La API lo devuelve completo (ADR 0017, paginación en el cliente);
+ * con los dos canales actuales cabe en una página y el paginador no se muestra.
+ */
 function DeliverySummaryView({ summary }: { summary: DeliverySummary }) {
-  const channels: NotificationChannel[] = ['EMAIL', 'WHATSAPP'];
+  const rows = useClientPagination(DELIVERY_CHANNELS, 10);
   return (
-    <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-      {channels.map((channel) => {
-        const counts = summary[channel];
-        return (
-          <p key={channel} className="rounded-lg bg-white p-3">
-            <strong className="block">{CHANNEL_LABELS[channel]}</strong>
-            Enviados: {counts.SENT} · Pendientes: {counts.PENDING} · Fallidos: {counts.FAILED} · Omitidos: {counts.SKIPPED}
-          </p>
-        );
-      })}
+    <div className="mt-4">
+      <div className="grid gap-3 text-sm sm:grid-cols-2">
+        {rows.items.map((channel) => {
+          const counts = summary[channel];
+          return (
+            <p key={channel} className="rounded-lg bg-white p-3">
+              <strong className="block">{CHANNEL_LABELS[channel]}</strong>
+              Enviados: {counts.SENT} · Pendientes: {counts.PENDING} · Fallidos: {counts.FAILED} · Omitidos: {counts.SKIPPED}
+            </p>
+          );
+        })}
+      </div>
+      <Pagination label="Entregas" page={rows.page} pageSize={rows.pageSize} total={rows.total} onPageChange={rows.setPage} />
     </div>
   );
 }

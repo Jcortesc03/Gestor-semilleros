@@ -90,7 +90,7 @@ test.describe('Selección sin UUID', () => {
   test('un error de validación del backend se muestra con su texto en español', async ({ page }) => {
     await signInAs(page, 'admin@example.test');
     // Petición inválida a la API real desde la sesión del navegador: el contrato devuelve `errors[]`.
-    const response = await page.request.get('/api/users?limit=999');
+    const response = await page.request.get('/api/users?pageSize=999');
     expect(response.status()).toBe(400);
     const body = await response.json() as { message: string; errors: string[] };
     expect(body.message).toBe('Datos inválidos.');

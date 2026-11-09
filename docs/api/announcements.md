@@ -221,29 +221,30 @@ Ejemplo de `400` con un destino inexistente:
 
 ## `GET /api/announcements`
 
-Devuelve el feed visible para el usuario.
+Devuelve el feed visible para el usuario, paginado ([ADR 0017](../decisions/0017-paginacion-de-listas.md)).
 
 ### Consulta
 
 | Parámetro | Tipo | Obligatorio | Reglas |
 | --- | --- | --- | --- |
 | `kind` | string | No | `NEWS`, `COMMUNICATION`, `CHANGE` o `NOTIFICATION`. |
-| `limit` | string numérica | No | Entero entre 1 y 100. Por defecto `50`. |
-| `before` | string de fecha | No | Se interpreta con `Date.parse`; se devuelven las novedades con `publishedAt` **estrictamente anterior**. |
+| `page` | string numérica | No | Entero ≥ 1. Por defecto `1`. |
+| `pageSize` | string numérica | No | Entero entre 1 y 100. Por defecto `50`. Sustituye al antiguo `limit`, que ahora es un campo no permitido. |
+| `before` | string de fecha | No | Filtro: se interpreta con `Date.parse`; se devuelven las novedades con `publishedAt` **estrictamente anterior**. |
 
 Los parámetros desconocidos se rechazan. El feed solo incluye novedades con `publishedAt <= ahora`.
 
 ```http
-GET /api/announcements?kind=NOTIFICATION&limit=20&before=2026-11-06T00:00:00.000Z
+GET /api/announcements?kind=NOTIFICATION&page=2&pageSize=20&before=2026-11-06T00:00:00.000Z
 ```
 
-Orden: `publishedAt` descendente y, a igual fecha, `id` descendente. No hay paginación por cursor más allá de `before`.
+Orden estable: `publishedAt` descendente y, a igual fecha, `id` descendente. `total` cuenta todas las novedades visibles que cumplen `kind` y `before`; una página más allá del final devuelve `items: []` con el `total` real.
 
 ### Respuestas
 
 | Código | Cuándo | Cuerpo |
 | --- | --- | --- |
-| `200` | Correcto | `AnnouncementResponseDto[]` (vacío si no hay novedades visibles). |
+| `200` | Correcto | Página `{ items: AnnouncementResponseDto[], total, page, pageSize }`. |
 | `400` | Parámetros inválidos | `{ message: "Datos inválidos.", errors: string[] }` |
 | `401` | Sin sesión o sesión expirada | `{ message: "Sesión no válida o expirada." }` |
 
@@ -252,21 +253,27 @@ Mensajes de validación exactos:
 - `El cuerpo debe ser un objeto JSON.`
 - `Campos no permitidos: campo1, campo2.`
 - `kind no es válido. Valores permitidos: NEWS, COMMUNICATION, CHANGE, NOTIFICATION.`
-- `limit debe ser un entero entre 1 y 100.`
+- `page debe ser un entero mayor o igual que 1.`
+- `pageSize debe ser un entero entre 1 y 100.`
 - `before debe ser una fecha ISO 8601.`
 
 ```json
-[
-  {
-    "id": "00000000-0000-0000-0000-000000000001",
-    "kind": "NEWS",
-    "title": "Convocatoria de semilleros",
-    "content": "La convocatoria estará abierta hasta el 30 de noviembre.",
-    "publishedAt": "2026-11-06T15:00:00.000Z",
-    "author": { "id": "00000000-0000-0000-0000-000000000030", "fullName": "Encargado de Área" },
-    "audiences": [{ "type": "ALL" }]
-  }
-]
+{
+  "items": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "kind": "NEWS",
+      "title": "Convocatoria de semilleros",
+      "content": "La convocatoria estará abierta hasta el 30 de noviembre.",
+      "publishedAt": "2026-11-06T15:00:00.000Z",
+      "author": { "id": "00000000-0000-0000-0000-000000000030", "fullName": "Encargado de Área" },
+      "audiences": [{ "type": "ALL" }]
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "pageSize": 50
+}
 ```
 
 ## `GET /api/announcements/:id`
@@ -286,7 +293,7 @@ Devuelve una novedad visible para el usuario.
 
 ## `GET /api/announcements/:id/deliveries`
 
-Resumen de las copias externas de la novedad: cuántos envíos hay por canal y estado. Solo el autor o un administrador. La novedad debe ser visible para el usuario; si no, responde `404` antes de comprobar la propiedad.
+No se pagina (ADR 0017): es un resumen acotado. Resumen de las copias externas de la novedad: cuántos envíos hay por canal y estado. Solo el autor o un administrador. La novedad debe ser visible para el usuario; si no, responde `404` antes de comprobar la propiedad.
 
 | Código | Cuándo | Cuerpo |
 | --- | --- | --- |

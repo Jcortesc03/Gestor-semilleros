@@ -4,6 +4,8 @@ import { Bell, Plus, RefreshCw } from 'lucide-react';
 import type { CurrentUser } from '../../types/auth.ts';
 import type { ApiRequest } from '../../types/api.ts';
 import { Button, EmptyState, ErrorNotice, LoadingState, PanelCard } from '../../components/WorkspaceUi';
+import { Pagination } from '../../components/Pagination';
+import { pageCount, type Page } from '../../lib/pagination';
 import { getAnnouncements, type Announcement, type AnnouncementKind, type AnnouncementQuery } from './api';
 import { AnnouncementCard } from './AnnouncementCard';
 import { PublishAnnouncementForm } from './PublishAnnouncementForm';
@@ -12,8 +14,8 @@ import { hasRole } from './shared';
 /** Filtro del listado: «Todas» no envía `kind`; el resto usa el tipo del contrato. */
 type FeedFilter = 'ALL' | AnnouncementKind;
 
-/** Tamaño de página: `limit=20`; una página más corta indica que no quedan novedades. */
-const PAGE_SIZE = 20;
+/** Novedades por página (ADR 0017). */
+export const ANNOUNCEMENTS_PAGE_SIZE = 20;
 
 const FEED_TABS: readonly { value: FeedFilter; label: string; empty: string }[] = [
   { value: 'ALL', label: 'Todas', empty: 'No hay novedades visibles' },
@@ -29,33 +31,32 @@ function feedQuery(filter: FeedFilter): AnnouncementQuery {
 
 export function AnnouncementsSection({ user, request }: { user: CurrentUser; request: ApiRequest }) {
   const [filter, setFilter] = useState<FeedFilter>('ALL');
-  const [items, setItems] = useState<Announcement[] | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [moreError, setMoreError] = useState<unknown>();
+  const [page, setPage] = useState(1);
+  const [feed, setFeed] = useState<Page<Announcement> | null>(null);
   const [loadError, setLoadError] = useState<unknown>();
   const [reloadToken, setReloadToken] = useState(0);
   const [composerOpen, setComposerOpen] = useState(false);
   const [publishedCount, setPublishedCount] = useState<number>();
   const tabsId = useId();
   const composerId = useId();
-  // Cada carga de la primera página (cambio de pestaña o recarga) avanza la versión; una respuesta de
-  // «Cargar más» solo se aplica si la versión sigue siendo la misma cuando llega.
-  const feedVersion = useRef(0);
+  const panelRef = useRef<HTMLDivElement>(null);
   // ADR 0010 sec. 8: cada rol publica dentro de su alcance; el formulario decide las audiencias.
   const canPublish = hasRole(user, 'ADMIN', 'AREA_MANAGER', 'DEAN', 'TUTOR');
   const activeTab = FEED_TABS.find((tab) => tab.value === filter) ?? FEED_TABS[0];
 
   useEffect(() => {
-    // Cada ejecución del efecto tiene su propia bandera: al cambiar de pestaña o con StrictMode, la
-    // limpieza descarta la respuesta obsoleta y solo la ejecución vigente actualiza la vista.
+    // Cada ejecución del efecto tiene su propia bandera: al cambiar de pestaña o de página, o con StrictMode,
+    // la limpieza descarta la respuesta obsoleta y solo la ejecución vigente actualiza la vista.
     let active = true;
-    feedVersion.current += 1;
-    getAnnouncements(request, { ...feedQuery(filter), limit: PAGE_SIZE })
+    getAnnouncements(request, { ...feedQuery(filter), page, pageSize: ANNOUNCEMENTS_PAGE_SIZE })
       .then((value) => {
         if (!active) return;
-        setItems(value);
-        setHasMore(value.length === PAGE_SIZE);
+        // Si la página quedó más allá del final (p. ej. tras eliminar), se salta a la última que existe.
+        if (value.items.length === 0 && value.total > 0 && page > 1) {
+          setPage(pageCount(value.total, value.pageSize));
+          return;
+        }
+        setFeed(value);
         setLoadError(undefined);
       })
       .catch((cause: unknown) => {
@@ -64,40 +65,25 @@ export function AnnouncementsSection({ user, request }: { user: CurrentUser; req
     return () => {
       active = false;
     };
-  }, [request, filter, reloadToken]);
+  }, [request, filter, page, reloadToken]);
 
   function selectFilter(next: FeedFilter) {
     if (next === filter) return;
     setFilter(next);
-    setItems(null);
+    setPage(1);
+    setFeed(null);
     setLoadError(undefined);
-    setHasMore(false);
-    setLoadingMore(false);
-    setMoreError(undefined);
+  }
+
+  function changePage(next: number) {
+    setPage(next);
+    setFeed(null);
+    setLoadError(undefined);
+    panelRef.current?.scrollIntoView?.({ block: 'start' });
   }
 
   function reload() {
-    setLoadingMore(false);
-    setMoreError(undefined);
     setReloadToken((token) => token + 1);
-  }
-
-  async function loadMore() {
-    const last = items && items.length > 0 ? items[items.length - 1] : undefined;
-    if (!last || loadingMore) return;
-    const version = feedVersion.current;
-    setLoadingMore(true);
-    setMoreError(undefined);
-    try {
-      const page = await getAnnouncements(request, { ...feedQuery(filter), limit: PAGE_SIZE, before: last.publishedAt });
-      if (version !== feedVersion.current) return;
-      setItems((current) => [...(current ?? []), ...page]);
-      setHasMore(page.length === PAGE_SIZE);
-    } catch (cause) {
-      if (version === feedVersion.current) setMoreError(cause);
-    } finally {
-      if (version === feedVersion.current) setLoadingMore(false);
-    }
   }
 
   function toggleComposer() {
@@ -112,8 +98,9 @@ export function AnnouncementsSection({ user, request }: { user: CurrentUser; req
     reload();
   }
 
-  function handleDeleted(id: string) {
-    setItems((current) => current?.filter((item) => item.id !== id) ?? null);
+  function handleDeleted() {
+    // Se recarga la página actual para mantener el total y rellenar el hueco con la siguiente novedad.
+    reload();
   }
 
   return (
@@ -170,34 +157,27 @@ export function AnnouncementsSection({ user, request }: { user: CurrentUser; req
           </div>
         )}
         <FeedTabs selected={filter} idPrefix={tabsId} onSelect={selectFilter} />
-        <div role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-tab-${filter}`} className="min-w-0">
+        <div ref={panelRef} role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-tab-${filter}`} className="min-w-0">
           {loadError !== undefined && <ErrorNotice error={loadError} />}
-          {items === null && loadError === undefined && <LoadingState label="Cargando novedades…" />}
-          {items?.length === 0 && (
+          {feed === null && loadError === undefined && <LoadingState label="Cargando novedades…" />}
+          {feed?.total === 0 && (
             <EmptyState title={activeTab.empty} description="No hay novedades de este tipo para tu audiencia." />
           )}
-          {items && items.length > 0 && (
-            <>
-              <div className="space-y-4">
-                {items.map((item) => (
-                  <AnnouncementCard
-                    key={item.id}
-                    item={item}
-                    canManage={hasRole(user, 'ADMIN') || item.author.id === user.id}
-                    request={request}
-                    onDeleted={handleDeleted}
-                  />
-                ))}
-              </div>
-              {hasMore && (
-                <div className="mt-5 space-y-3">
-                  {moreError !== undefined && <ErrorNotice error={moreError} />}
-                  <Button variant="secondary" disabled={loadingMore} onClick={() => void loadMore()}>
-                    Cargar más
-                  </Button>
-                </div>
-              )}
-            </>
+          {feed && feed.items.length > 0 && (
+            <div className="space-y-4">
+              {feed.items.map((item) => (
+                <AnnouncementCard
+                  key={item.id}
+                  item={item}
+                  canManage={hasRole(user, 'ADMIN') || item.author.id === user.id}
+                  request={request}
+                  onDeleted={handleDeleted}
+                />
+              ))}
+            </div>
+          )}
+          {feed && (
+            <Pagination label="Novedades" page={feed.page} pageSize={feed.pageSize} total={feed.total} onPageChange={changePage} />
           )}
         </div>
       </PanelCard>

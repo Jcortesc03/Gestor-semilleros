@@ -9,6 +9,7 @@ import {
   unknownFieldsError,
   type ValidationResult,
 } from '../../../common/utils/validation';
+import { PAGE_FIELDS, parsePageQuery, type PageQuery } from '../../../common/utils/pagination';
 
 /** Audiencia validada de una novedad: el tipo determina el destino. */
 export type AudienceDto =
@@ -26,10 +27,9 @@ export interface CreateAnnouncementDto {
   audiences: AudienceDto[];
 }
 
-/** Parámetros validados del listado de novedades. */
-export interface ListAnnouncementsQuery {
+/** Parámetros validados del listado de novedades (paginado según ADR 0017). */
+export interface ListAnnouncementsQuery extends PageQuery {
   kind?: AnnouncementKind;
-  limit: number;
   before?: Date;
 }
 
@@ -37,16 +37,13 @@ const MAX_TITLE_LENGTH = 200;
 const MAX_CONTENT_LENGTH = 5000;
 const MIN_AUDIENCES = 1;
 const MAX_AUDIENCES = 20;
-const DEFAULT_LIMIT = 50;
-const MIN_LIMIT = 1;
-const MAX_LIMIT = 100;
+export const DEFAULT_ANNOUNCEMENTS_PAGE_SIZE = 50;
 const CREATE_FIELDS = ['kind', 'title', 'content', 'audiences'] as const;
-const LIST_FIELDS = ['kind', 'limit', 'before'] as const;
+const LIST_FIELDS = ['kind', 'before', ...PAGE_FIELDS] as const;
 
 const TITLE_ERROR = `title es obligatorio (máximo ${MAX_TITLE_LENGTH} caracteres).`;
 const CONTENT_ERROR = `content es obligatorio (máximo ${MAX_CONTENT_LENGTH} caracteres).`;
 const AUDIENCES_ERROR = `audiences debe ser una lista de ${MIN_AUDIENCES} a ${MAX_AUDIENCES} audiencias.`;
-const LIMIT_ERROR = 'limit debe ser un entero entre 1 y 100.';
 const BEFORE_ERROR = 'before debe ser una fecha ISO 8601.';
 
 /** Campos permitidos en cada elemento de `audiences` según su tipo. */
@@ -208,12 +205,7 @@ export function parseListAnnouncements(query: unknown): ValidationResult<ListAnn
     else kind = parsed;
   }
 
-  let limit = DEFAULT_LIMIT;
-  if (body.limit !== undefined) {
-    const parsed = typeof body.limit === 'string' && /^\d+$/.test(body.limit) ? Number(body.limit) : Number.NaN;
-    if (!Number.isInteger(parsed) || parsed < MIN_LIMIT || parsed > MAX_LIMIT) errors.push(LIMIT_ERROR);
-    else limit = parsed;
-  }
+  const page = parsePageQuery(body, errors, DEFAULT_ANNOUNCEMENTS_PAGE_SIZE);
 
   let before: Date | undefined;
   if (body.before !== undefined) {
@@ -224,7 +216,7 @@ export function parseListAnnouncements(query: unknown): ValidationResult<ListAnn
 
   if (errors.length > 0) return fail(errors);
 
-  const result: ListAnnouncementsQuery = { limit };
+  const result: ListAnnouncementsQuery = { ...page };
   if (kind !== undefined) result.kind = kind;
   if (before !== undefined) result.before = before;
   return ok(result);

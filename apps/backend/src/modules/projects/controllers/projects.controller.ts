@@ -20,6 +20,7 @@ import { SessionGuard } from '../../../common/guards/session.guard';
 import { validated } from '../../../common/utils/validation';
 import type { AuthUser } from '../../auth';
 import { parseAddMember, parseUpdateMember } from '../dtos/member.dto';
+import { parseProjectListQuery } from '../dtos/project-list-query.dto';
 import { parseCreateProject, parseUpdateProject } from '../dtos/project.dto';
 import { MembersService } from '../services/members.service';
 import { ProjectsService } from '../services/projects.service';
@@ -39,8 +40,8 @@ export class ProjectsController {
   }
 
   @Get()
-  list(@CurrentUser() user: AuthUser) {
-    return this.projects.list(user);
+  list(@CurrentUser() user: AuthUser, @Query() query: unknown) {
+    return this.projects.list(user, validated(parseProjectListQuery(query)));
   }
 
   @Get('tutored')

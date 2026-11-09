@@ -65,8 +65,9 @@ COPY --chown=node:node --chmod=755 apps/backend/docker-entrypoint.sh ./docker-en
 
 # Directorio de trabajo escribible: Baileys guarda la sesión de WhatsApp en
 # "<cwd>/<WHATSAPP_SESSION_NAME>_sessions" (por defecto "whatsapp_sessions").
+# Sin instrucción VOLUME (Railway la rechaza): la persistencia la da quien ejecuta la imagen,
+# p. ej. el volumen "whatsapp-sessions" de docker/compose.prod.yaml o un volumen de Railway en esta ruta.
 RUN mkdir -p /app/whatsapp_sessions && chown node:node /app /app/whatsapp_sessions
-VOLUME ["/app/whatsapp_sessions"]
 
 USER node
 EXPOSE 3000

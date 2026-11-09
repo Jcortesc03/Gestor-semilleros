@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { AcademicWorkspace } from '../../../src/features/academic';
 import { ApiError } from '../../../src/lib/api';
-import { admin, deferred, fakeRequest, makeActivity, makeBoard, makeMember, makeProject, student, uuid } from './fixtures';
+import { admin, deferred, fakeRequest, makeActivity, makeBoard, makeMember, makeProject, pageOf, student, uuid } from './fixtures';
 
 const p1 = makeProject(10, 'Semillero de robótica');
 const p2 = makeProject(11, 'Semillero de datos');
@@ -15,13 +15,14 @@ const members = [makeMember(30, 'Tutor de Ejemplo', 'TUTOR'), makeMember(31, 'Es
 const projectRoutes = (id: string, boards: unknown[], activities: Record<string, unknown[]> = {}) => ({
   [`GET /api/projects/${id}/boards`]: () => boards,
   [`GET /api/projects/${id}/members`]: () => members,
-  [`GET /api/projects/${id}/documents`]: () => [],
+  [`GET /api/projects/${id}/documents`]: () => pageOf([]),
+  [`GET /api/projects/${id}/documents?pageSize=100`]: () => pageOf([], 1, 100),
   ...Object.fromEntries(Object.entries(activities).map(([boardId, list]) => [`GET /api/boards/${boardId}/activities`, () => list])),
 });
 
 describe('AcademicWorkspace', () => {
   it('termina la carga inicial y muestra la lista bajo StrictMode', async () => {
-    const request = fakeRequest({ 'GET /api/projects': () => [p1, p2], ...projectRoutes(p1.id, [b1], { [b1.id]: [a1] }), ...projectRoutes(p2.id, []) });
+    const request = fakeRequest({ 'GET /api/projects': () => pageOf([p1, p2]), ...projectRoutes(p1.id, [b1], { [b1.id]: [a1] }), ...projectRoutes(p2.id, []) });
     render(<StrictMode><AcademicWorkspace user={admin} request={request} /></StrictMode>);
 
     expect(screen.getByText('Cargando proyectos académicos…')).toBeInTheDocument();
@@ -31,14 +32,14 @@ describe('AcademicWorkspace', () => {
   });
 
   it('muestra el estado vacío cuando no hay proyectos', async () => {
-    const request = fakeRequest({ 'GET /api/projects': () => [] });
+    const request = fakeRequest({ 'GET /api/projects': () => pageOf([]) });
     render(<AcademicWorkspace user={student} request={request} />);
     expect(await screen.findByText('No hay proyectos visibles')).toBeInTheDocument();
   });
 
   it('muestra el error y permite reintentar', async () => {
     let fail = true;
-    const request = fakeRequest({ 'GET /api/projects': () => { if (fail) throw new ApiError(500); return []; } });
+    const request = fakeRequest({ 'GET /api/projects': () => { if (fail) throw new ApiError(500); return pageOf([]); } });
     render(<AcademicWorkspace user={student} request={request} />);
     expect(await screen.findByRole('alert')).toHaveTextContent('El servicio no está disponible');
 
@@ -50,7 +51,7 @@ describe('AcademicWorkspace', () => {
   it('al seleccionar un proyecto muestra sus tableros, participantes y actividades', async () => {
     const b2 = makeBoard(41, p2.id, 'Tablero de datos');
     const a2 = makeActivity(51, b2.id, 'Limpiar el conjunto de datos');
-    const request = fakeRequest({ 'GET /api/projects': () => [p1, p2], ...projectRoutes(p1.id, [b1], { [b1.id]: [a1] }), ...projectRoutes(p2.id, [b2], { [b2.id]: [a2] }) });
+    const request = fakeRequest({ 'GET /api/projects': () => pageOf([p1, p2]), ...projectRoutes(p1.id, [b1], { [b1.id]: [a1] }), ...projectRoutes(p2.id, [b2], { [b2.id]: [a2] }) });
     render(<AcademicWorkspace user={admin} request={request} />);
 
     expect(await screen.findByText('Redactar la introducción')).toBeInTheDocument();
@@ -66,7 +67,7 @@ describe('AcademicWorkspace', () => {
     const created = makeProject(12, 'Semillero nuevo');
     let list: unknown[] = [p1];
     const request = fakeRequest({
-      'GET /api/projects': () => list,
+      'GET /api/projects': () => pageOf(list),
       'GET /api/areas': () => [{ id: uuid(1), name: 'Área de prueba', description: null }],
       'GET /api/faculties': () => [{ id: uuid(2), name: 'Ingeniería' }, { id: uuid(3), name: 'Ciencias' }],
       'POST /api/projects': () => { list = [created, p1]; return created; },
@@ -95,9 +96,9 @@ describe('AcademicWorkspace', () => {
   it('añade un participante buscándolo en el directorio, sin escribir UUID', async () => {
     const found = { id: uuid(60), fullName: 'Ana Estudiante', email: 'ana@example.test', roles: ['STUDENT'] };
     const request = fakeRequest({
-      'GET /api/projects': () => [p1],
+      'GET /api/projects': () => pageOf([p1]),
       ...projectRoutes(p1.id, []),
-      'GET /api/users?search=ana&role=STUDENT': () => [found],
+      'GET /api/users?search=ana&role=STUDENT&pageSize=20': () => pageOf([found]),
       [`POST /api/projects/${p1.id}/members`]: () => makeMember(60, 'Ana Estudiante', 'STUDENT'),
     });
     render(<AcademicWorkspace user={admin} request={request} />);
@@ -116,19 +117,19 @@ describe('AcademicWorkspace', () => {
 
   it('filtra por rol TUTOR al añadir un tutor', async () => {
     const request = fakeRequest({
-      'GET /api/projects': () => [p1],
+      'GET /api/projects': () => pageOf([p1]),
       ...projectRoutes(p1.id, []),
-      'GET /api/users?search=tu&role=TUTOR': () => [],
+      'GET /api/users?search=tu&role=TUTOR&pageSize=20': () => pageOf([]),
     });
     render(<AcademicWorkspace user={admin} request={request} />);
     await screen.findByText('Participantes');
     await userEvent.selectOptions(screen.getByLabelText('Rol en el proyecto'), 'TUTOR');
     await userEvent.type(screen.getByRole('combobox', { name: 'Persona a añadir' }), 'tu');
-    await waitFor(() => expect(request).toHaveBeenCalledWith('/api/users?search=tu&role=TUTOR'));
+    await waitFor(() => expect(request).toHaveBeenCalledWith('/api/users?search=tu&role=TUTOR&pageSize=20'));
   });
 
   it('un estudiante no ve formularios de gestión', async () => {
-    const request = fakeRequest({ 'GET /api/projects': () => [p1], ...projectRoutes(p1.id, [b1], { [b1.id]: [a1] }) });
+    const request = fakeRequest({ 'GET /api/projects': () => pageOf([p1]), ...projectRoutes(p1.id, [b1], { [b1.id]: [a1] }) });
     render(<AcademicWorkspace user={student} request={request} />);
     await screen.findByText('Redactar la introducción');
     expect(screen.queryByRole('button', { name: 'Crear proyecto' })).not.toBeInTheDocument();
@@ -138,7 +139,7 @@ describe('AcademicWorkspace', () => {
 
   it('el botón «Nueva reunión» del proyecto avisa con el id del proyecto', async () => {
     const onCreateMeeting = vi.fn();
-    const request = fakeRequest({ 'GET /api/projects': () => [p1], ...projectRoutes(p1.id, []) });
+    const request = fakeRequest({ 'GET /api/projects': () => pageOf([p1]), ...projectRoutes(p1.id, []) });
     render(<AcademicWorkspace user={admin} request={request} onCreateMeeting={onCreateMeeting} />);
     await userEvent.click(await screen.findByRole('button', { name: 'Nueva reunión' }));
     expect(onCreateMeeting).toHaveBeenCalledTimes(1);
@@ -150,7 +151,7 @@ describe('AcademicWorkspace', () => {
     const dean = { id: uuid(91), email: 'decano@example.test', fullName: 'Decano', roles: ['DEAN'], mustChangePassword: false };
     const areaManager = { id: uuid(92), email: 'encargado@example.test', fullName: 'Encargada', roles: ['AREA_MANAGER'], mustChangePassword: false };
     for (const user of [admin, tutor, dean, areaManager]) {
-      const request = fakeRequest({ 'GET /api/projects': () => [p1], ...projectRoutes(p1.id, []) });
+      const request = fakeRequest({ 'GET /api/projects': () => pageOf([p1]), ...projectRoutes(p1.id, []) });
       const view = render(<AcademicWorkspace user={user} request={request} onCreateMeeting={vi.fn()} />);
       expect(await screen.findByRole('button', { name: 'Nueva reunión' })).toBeInTheDocument();
       view.unmount();
@@ -158,7 +159,7 @@ describe('AcademicWorkspace', () => {
   });
 
   it('un estudiante no ve el botón «Nueva reunión» del proyecto', async () => {
-    const request = fakeRequest({ 'GET /api/projects': () => [p1], ...projectRoutes(p1.id, []) });
+    const request = fakeRequest({ 'GET /api/projects': () => pageOf([p1]), ...projectRoutes(p1.id, []) });
     render(<AcademicWorkspace user={student} request={request} onCreateMeeting={vi.fn()} />);
     expect(await screen.findByRole('heading', { name: 'Semillero de robótica' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Nueva reunión' })).not.toBeInTheDocument();
@@ -170,7 +171,7 @@ describe('AcademicWorkspace', () => {
     const lateBoards = deferred<unknown[]>();
     const lateMembers = deferred<unknown[]>();
     const request = fakeRequest({
-      'GET /api/projects': () => [p1, p2],
+      'GET /api/projects': () => pageOf([p1, p2]),
       [`GET /api/projects/${p1.id}/boards`]: () => lateBoards.promise,
       [`GET /api/projects/${p1.id}/members`]: () => lateMembers.promise,
       ...projectRoutes(p2.id, [b2], { [b2.id]: [a2] }),

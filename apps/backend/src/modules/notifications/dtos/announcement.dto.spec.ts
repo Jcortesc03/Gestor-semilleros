@@ -248,22 +248,25 @@ describe('parseCreateAnnouncement', () => {
 });
 
 describe('parseListAnnouncements', () => {
-  it('trata undefined y null como query vacía y usa limit 50', () => {
-    expect(parseListAnnouncements(undefined)).toEqual({ ok: true, value: { limit: 50 } });
-    expect(parseListAnnouncements(null)).toEqual({ ok: true, value: { limit: 50 } });
-    expect(parseListAnnouncements({})).toEqual({ ok: true, value: { limit: 50 } });
+  it('trata undefined y null como query vacía y usa la página 1 de 50', () => {
+    const value = { page: 1, pageSize: 50 };
+    expect(parseListAnnouncements(undefined)).toEqual({ ok: true, value });
+    expect(parseListAnnouncements(null)).toEqual({ ok: true, value });
+    expect(parseListAnnouncements({})).toEqual({ ok: true, value });
   });
 
-  it('acepta kind, limit y before válidos', () => {
-    expect(parseListAnnouncements({ kind: 'CHANGE', limit: '25', before: '2026-11-30T12:00:00.000Z' })).toEqual({
+  it('acepta kind, page, pageSize y before válidos', () => {
+    expect(
+      parseListAnnouncements({ kind: 'CHANGE', page: '2', pageSize: '25', before: '2026-11-30T12:00:00.000Z' }),
+    ).toEqual({
       ok: true,
-      value: { kind: 'CHANGE', limit: 25, before: new Date('2026-11-30T12:00:00.000Z') },
+      value: { kind: 'CHANGE', page: 2, pageSize: 25, before: new Date('2026-11-30T12:00:00.000Z') },
     });
   });
 
-  it.each(['1', '50', '100'])('acepta el límite %s', (limit) => {
-    const result = parseListAnnouncements({ limit });
-    expect(result.ok && result.value.limit).toBe(Number(limit));
+  it.each(['1', '50', '100'])('acepta el tamaño de página %s', (pageSize) => {
+    const result = parseListAnnouncements({ pageSize });
+    expect(result.ok && result.value.pageSize).toBe(Number(pageSize));
   });
 
   it('rechaza cuerpos de query que no son objetos', () => {
@@ -274,22 +277,25 @@ describe('parseListAnnouncements', () => {
 
   it.each([
     ['kind desconocido', { kind: 'ALERT' }, /kind no es válido\. Valores permitidos: NEWS, COMMUNICATION, CHANGE, NOTIFICATION\./],
-    ['límite cero', { limit: '0' }, /limit debe ser un entero entre 1 y 100\./],
-    ['límite alto', { limit: '101' }, /limit debe ser un entero entre 1 y 100\./],
-    ['límite negativo', { limit: '-1' }, /limit debe ser un entero entre 1 y 100\./],
-    ['límite decimal', { limit: '1.5' }, /limit debe ser un entero entre 1 y 100\./],
-    ['límite no numérico', { limit: 'muchos' }, /limit debe ser un entero entre 1 y 100\./],
-    ['límite vacío', { limit: '' }, /limit debe ser un entero entre 1 y 100\./],
-    ['límite no textual', { limit: 5 }, /limit debe ser un entero entre 1 y 100\./],
+    ['tamaño cero', { pageSize: '0' }, /pageSize debe ser un entero entre 1 y 100\./],
+    ['tamaño alto', { pageSize: '101' }, /pageSize debe ser un entero entre 1 y 100\./],
+    ['tamaño negativo', { pageSize: '-1' }, /pageSize debe ser un entero entre 1 y 100\./],
+    ['tamaño decimal', { pageSize: '1.5' }, /pageSize debe ser un entero entre 1 y 100\./],
+    ['tamaño no numérico', { pageSize: 'muchos' }, /pageSize debe ser un entero entre 1 y 100\./],
+    ['tamaño vacío', { pageSize: '' }, /pageSize debe ser un entero entre 1 y 100\./],
+    ['tamaño no textual', { pageSize: 5 }, /pageSize debe ser un entero entre 1 y 100\./],
+    ['página cero', { page: '0' }, /page debe ser un entero mayor o igual que 1\./],
+    ['página no numérica', { page: 'dos' }, /page debe ser un entero mayor o igual que 1\./],
+    ['limit ya no se admite', { limit: '10' }, /Campos no permitidos: limit\./],
     ['before inválido', { before: 'ayer' }, /before debe ser una fecha ISO 8601\./],
     ['before no textual', { before: 20261130 }, /before debe ser una fecha ISO 8601\./],
-    ['campos no permitidos', { status: 'ACTIVE', page: '2' }, /Campos no permitidos: status, page\./],
+    ['campos no permitidos', { status: 'ACTIVE', cursor: '2' }, /Campos no permitidos: status, cursor\./],
   ])('rechaza: %s', (_caso, query, pattern) => {
     expect(listErrors(query).join(' ')).toMatch(pattern);
   });
 
   it('acumula todos los errores del query', () => {
-    const errors = listErrors({ kind: 'ALERT', limit: '999', before: 'no-fecha', extra: 'x' });
+    const errors = listErrors({ kind: 'ALERT', pageSize: '999', before: 'no-fecha', extra: 'x' });
     expect(errors).toHaveLength(4);
   });
 });

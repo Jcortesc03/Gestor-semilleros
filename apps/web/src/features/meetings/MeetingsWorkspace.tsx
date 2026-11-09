@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ExternalLink, Link2, Unlink, Video } from 'lucide-react';
 import { Button, EmptyState, ErrorNotice, Field, LoadingState, PanelCard, inputClassName } from '../../components/WorkspaceUi';
+import { Pagination } from '../../components/Pagination';
+import type { Page } from '../../lib/pagination';
 import { UserPicker, canSearchUsers } from '../directory';
 import type { DirectoryUser } from '../directory';
 import type { CurrentUser } from '../../types/auth';
 import type { ApiRequest } from '../../types/api';
 import {
-  changeMeetingStatus, createMeeting, getMeeting, getMeetingProjects, getMeetings, getMicrosoftConnectUrl,
+  changeMeetingStatus, createMeeting, getMeeting, getMeetingProject, getMeetingProjects, getMeetings, getMicrosoftConnectUrl,
   getMicrosoftStatus, getProjectMembers, setMeetingRecording, unlinkMicrosoft,
 } from './api';
 import type { Meeting, MeetingProject, MeetingStatus, MicrosoftAccountType, MicrosoftStatus, ProjectMember } from './api';
@@ -25,6 +27,11 @@ const ACCOUNT_TYPE_LABELS: Record<MicrosoftAccountType, string> = {
 const PERSONAL_ACCOUNT_NOTE = 'Microsoft no genera enlaces de Teams para cuentas personales: al crear una reunión deberás indicar el enlace (Teams gratis, Meet, Zoom…).';
 
 const MAX_JOIN_URL_LENGTH = 2048;
+/** Reuniones por página en el listado (ADR 0017). */
+export const MEETINGS_PAGE_SIZE = 20;
+/** Proyectos que ofrece el selector por búsqueda (ADR 0017: búsqueda + `pageSize` ≤ 100). */
+export const PROJECT_OPTIONS_PAGE_SIZE = 50;
+const PROJECT_SEARCH_DEBOUNCE_MS = 250;
 
 /** Devuelve el mensaje de error del enlace de la reunión o `null` si es válido (https://, hasta 2048 caracteres). */
 function validateJoinUrl(value: string): string | null {
@@ -65,7 +72,11 @@ function useRemote<T>(load: () => Promise<T>, deps: readonly unknown[]): [Remote
 
 export function MeetingsWorkspace({ user, request, initialProjectId }: MeetingsWorkspaceProps) {
   const [microsoft, reloadMicrosoft] = useRemote(() => getMicrosoftStatus(request), [request]);
-  const [meetings, reloadMeetings] = useRemote(() => getMeetings(request), [request]);
+  const [meetingsPage, setMeetingsPage] = useState(1);
+  const [meetings, reloadMeetings] = useRemote(
+    () => getMeetings(request, { page: meetingsPage, pageSize: MEETINGS_PAGE_SIZE }),
+    [request, meetingsPage],
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const canCreate = user.roles.includes('TUTOR') || user.roles.includes('ADMIN') || user.roles.includes('DEAN') || user.roles.includes('AREA_MANAGER');
   const linked = microsoft.phase === 'ready' && microsoft.data.linked;
@@ -99,12 +110,18 @@ export function MeetingsWorkspace({ user, request, initialProjectId }: MeetingsW
       >
         {meetings.phase === 'loading' && <LoadingState label="Cargando reuniones…" />}
         {meetings.phase === 'error' && <div className="space-y-4"><ErrorNotice error={meetings.error} /><Button variant="secondary" onClick={reloadMeetings}>Reintentar</Button></div>}
-        {meetings.phase === 'ready' && meetings.data.length === 0 && (
+        {meetings.phase === 'ready' && meetings.data.total === 0 && (
           <EmptyState title="No tienes reuniones" description="Cuando organices o te inviten a una reunión aparecerá aquí." />
         )}
-        {meetings.phase === 'ready' && meetings.data.length > 0 && (
+        {meetings.phase === 'ready' && meetings.data.total > 0 && meetings.data.items.length === 0 && (
+          <div className="space-y-3">
+            <p className="text-sm text-navy/70">Esta página ya no tiene reuniones.</p>
+            <Button variant="secondary" onClick={() => setMeetingsPage(1)}>Ir a la primera página</Button>
+          </div>
+        )}
+        {meetings.phase === 'ready' && meetings.data.items.length > 0 && (
           <ul className="divide-y divide-navy/10">
-            {meetings.data.map((meeting) => (
+            {meetings.data.items.map((meeting) => (
               <li key={meeting.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
                   <p className="font-semibold">{meeting.reason}</p>
@@ -117,6 +134,15 @@ export function MeetingsWorkspace({ user, request, initialProjectId }: MeetingsW
               </li>
             ))}
           </ul>
+        )}
+        {meetings.phase === 'ready' && (
+          <Pagination
+            label="Reuniones"
+            page={meetings.data.page}
+            pageSize={meetings.data.pageSize}
+            total={meetings.data.total}
+            onPageChange={setMeetingsPage}
+          />
         )}
       </PanelCard>
       {selectedId && (
@@ -192,7 +218,16 @@ function MicrosoftPanel({ request, state, reload }: { request: ApiRequest; state
 function CreateMeeting({ user, request, linked, accountType, initialProjectId, onCreated }: {
   user: CurrentUser; request: ApiRequest; linked: boolean; accountType: MicrosoftAccountType | null; initialProjectId?: string; onCreated: (meeting: Meeting) => void;
 }) {
-  const [projects] = useRemote<MeetingProject[]>(() => getMeetingProjects(request), [request]);
+  const [projectSearch, setProjectSearch] = useState('');
+  const [projectTerm, setProjectTerm] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setProjectTerm(projectSearch.trim().slice(0, 100)), PROJECT_SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [projectSearch]);
+  const [projects] = useRemote<Page<MeetingProject>>(
+    () => getMeetingProjects(request, { ...(projectTerm ? { search: projectTerm } : {}), pageSize: PROJECT_OPTIONS_PAGE_SIZE }),
+    [request, projectTerm],
+  );
   const [reason, setReason] = useState('');
   const [startsAt, setStartsAt] = useState('');
   const [duration, setDuration] = useState('60');
@@ -205,6 +240,25 @@ function CreateMeeting({ user, request, linked, accountType, initialProjectId, o
   const [error, setError] = useState<unknown>(null);
   const [created, setCreated] = useState(false);
   const [members, setMembers] = useState<Remote<ProjectMember[]> | null>(null);
+  // El proyecto preseleccionado puede no estar en la primera página del selector: se pide su título.
+  const [preselected, setPreselected] = useState<MeetingProject | null>(null);
+  useEffect(() => {
+    if (!initialProjectId) return undefined;
+    let current = true;
+    getMeetingProject(request, initialProjectId).then(
+      (project) => { if (current) setPreselected(project); },
+      () => undefined, // Sin título se muestra «Proyecto seleccionado»; el servidor valida el proyecto al crear.
+    );
+    return () => { current = false; };
+  }, [request, initialProjectId]);
+  // Recuerda los títulos vistos para conservar la opción elegida aunque una búsqueda posterior no la incluya.
+  const knownProjects = useRef(new Map<string, string>());
+  if (preselected) knownProjects.current.set(preselected.id, preselected.title);
+  if (projects.phase === 'ready') for (const p of projects.data.items) knownProjects.current.set(p.id, p.title);
+  const projectOptions: MeetingProject[] = projects.phase === 'ready' ? [...projects.data.items] : [];
+  if (projectId && !projectOptions.some((p) => p.id === projectId)) {
+    projectOptions.unshift({ id: projectId, title: knownProjects.current.get(projectId) ?? 'Proyecto seleccionado' });
+  }
 
   useEffect(() => {
     if (initialProjectId) setProjectId(initialProjectId);
@@ -281,13 +335,29 @@ function CreateMeeting({ user, request, linked, accountType, initialProjectId, o
           />
         )}
         <div className="space-y-2">
+          <Field
+            label="Buscar proyecto"
+            type="search"
+            value={projectSearch}
+            maxLength={100}
+            onChange={(e) => setProjectSearch(e.target.value)}
+            hint="Filtra la lista de proyectos por título."
+          />
           <label htmlFor="meeting-project" className="block text-sm font-semibold">Proyecto</label>
           <select id="meeting-project" className={inputClassName} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
             <option value="">Sin proyecto</option>
-            {projects.phase === 'ready' && projects.data.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+            {projectOptions.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
           </select>
           {projects.phase === 'loading' && <LoadingState label="Cargando proyectos…" />}
           {projects.phase === 'error' && <ErrorNotice error={projects.error} />}
+          {projects.phase === 'ready' && projects.data.total === 0 && projectTerm && (
+            <p className="text-sm text-navy/70">Ningún proyecto coincide con «{projectTerm}».</p>
+          )}
+          {projects.phase === 'ready' && projects.data.total > projects.data.items.length && (
+            <p className="text-sm text-navy/70">
+              Se muestran {projects.data.items.length} de {projects.data.total} proyectos; escribe parte del título para encontrar otros.
+            </p>
+          )}
           <p className="text-sm text-navy/70">{projectId ? 'Los participantes se eligen entre los miembros del proyecto.' : 'Sin proyecto, puedes invitar a cualquier usuario activo.'}</p>
         </div>
         {!projectId && (canSearchUsers(user.roles) ? (

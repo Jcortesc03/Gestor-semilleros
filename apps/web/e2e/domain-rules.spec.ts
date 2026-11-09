@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { E2E_SEED_PASSWORD } from './backend-env.ts';
+import { findProjectInList } from './project-list';
 
 /** Datos ficticios de la seed (apps/backend/src/cli/seed-database.ts). */
 const SEED_AREA = 'Semillero de investigación';
@@ -44,7 +45,7 @@ test.describe('Reglas del ADR 0010 contra el backend real', () => {
     await signInAs(page, 'encargado.area@example.test');
 
     await page.goto('/panel#academic');
-    await expect(page.getByText(SEED_PROJECT).first()).toBeVisible();
+    await expect(await findProjectInList(page, SEED_PROJECT)).toBeVisible();
 
     await page.goto('/panel#announcements');
     await page.getByRole('button', { name: 'Nueva novedad' }).click();

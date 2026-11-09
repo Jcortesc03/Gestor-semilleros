@@ -78,6 +78,9 @@ Detalles de la imagen:
 
 Sección «Áreas y facultades» (`features/institution`), visible para administradores y encargados de área. El administrador crea, renombra (y describe, en las áreas) y elimina áreas y facultades, con confirmación antes de borrar; gestiona los encargados de cada área con el buscador de personas y consulta el historial de decanos de cada facultad, asigna un decano nuevo y cierra el vigente con confirmación. El encargado de área ve todas las áreas (el sistema no ofrece «mis áreas») y solo puede editar nombre y descripción; en las áreas ajenas el backend responde 403 y la web muestra ese mensaje. Los contratos están en [`docs/api/catalogs.md`](../../docs/api/catalogs.md) (sección «Administración»).
 
+## Proyectos y documentos
+
+El listado de proyectos busca por título en el servidor y pagina de 20 en 20 ([ADR 0017](../../docs/decisions/0017-paginacion-de-listas.md)); participantes, tableros y actividades se paginan en el cliente de 10 en 10. La sección «Documentos» del proyecto pagina de 20 en 20 y el selector de adjuntos de actividades pide hasta 100.
 ## Inscripciones
 
 Sección «Inscripciones» (`features/enrollments`), visible para administradores y encargados de área (el backend también exige el permiso). Se lee como un panel simple: el control «Importar inscripciones» pide el área, la vista previa y la confirmación antes de guardar; sin fuente configurada muestra «La fuente aún no está configurada.» y no se exponen identificadores ni rangos técnicos. La lista admite filtros por área, facultad, período, estado y búsqueda, con paginación y orden nuevo primero; cada fila tiene sus propios botones de aceptar o rechazar, sin selección múltiple. Al aceptar se crea un usuario STUDENT con contraseña temporal aleatoria, cambio obligatorio al iniciar sesión y correo de aprobación con el correo y esa contraseña; si el correo ya existe, la solicitud no se acepta. Solo las solicitudes rechazadas pueden eliminarse, con confirmación de que el borrado es local y no borra la respuesta en Google; el sistema conserva las rechazadas 3 días desde el rechazo. «Exportar Excel» descarga el `.xlsx` real generado por el backend con los mismos filtros. La guía de creación del formulario público está en [`docs/guides/enrollment-form.md`](../../docs/guides/enrollment-form.md); en el entorno local ya existe un formulario personal y su hoja privada, y el backend está configurado para leerla.
@@ -86,6 +89,15 @@ Sección «Inscripciones» (`features/enrollments`), visible para administradore
 
 El administrador lista, busca y filtra usuarios (activos, inactivos o todos), edita su nombre y roles, los desactiva o reactiva y les fija una contraseña temporal. Quien entra con una temporal ve primero «Cambia tu contraseña» y no puede usar nada más hasta cambiarla. Cualquier usuario puede cambiar la suya desde la tarjeta de su cuenta. Política: 10–256 caracteres, con al menos una letra y un número, distinta del correo ([ADR 0011](../../docs/decisions/0011-gestion-de-usuarios.md)).
 
+## Analítica
+
+Sección «Analítica» (`features/analytics`), visible para administradores, encargados de área y decanos según su alcance ([ADR 0016](../../docs/decisions/0016-modulo-de-analitica.md)). Consume `GET /api/analytics/filters` y `GET /api/analytics` ([contrato](../../docs/api/analytics.md)) y no calcula métricas en el cliente: solo valida la respuesta y dibuja.
+
+- Filtros por periodo (atajos de 30 y 90 días, este año y todo), área, facultad, proyecto, tutor y estado del proyecto; el query string omite los filtros vacíos.
+- Tarjetas KPI con su definición y, cuando el contrato devuelve `comparison`, la diferencia frente al periodo anterior.
+- Gráficas en SVG propio, sin dependencias nuevas: rankings de facultades y áreas, barras agrupadas de tutores y decanos, columnas por día de la semana, líneas mensuales y distribuciones.
+- Tablas ordenables de tutores y decanos, y tabla de patrones que resalta el grupo con mayor finalización o éxito.
+- Estados de carga, error (incluido el 403 sin permisos) y vacío; las tasas sin denominador se muestran como «—». Cada gráfica incluye título accesible y una tabla alternativa.
 ## Recuperar contraseña
 
 En el login, «Olvidé mi contraseña» pide el correo de la cuenta. El usuario recibe un código de 6 dígitos, lo verifica y después elige y confirma una nueva contraseña. El código vence en 10 minutos, permite 5 intentos y sirve una sola vez. Requiere SMTP y la migración `password_recovery` en el backend; no depende de las preferencias de notificaciones. Consulta [el contrato](../../docs/api/auth.md#recuperación-por-código-de-correo) y [ADR 0016](../../docs/decisions/0016-recuperacion-de-contrasena.md).

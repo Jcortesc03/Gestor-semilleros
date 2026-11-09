@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Users } from 'lucide-react';
+import { Pagination, useClientPagination } from '../../components/Pagination.tsx';
 import { Button, EmptyState, PanelCard, inputClassName } from '../../components/WorkspaceUi.tsx';
 import type { ApiRequest } from '../../types/api.ts';
 import { UserPicker } from '../directory/index.ts';
@@ -10,6 +11,7 @@ import { PROJECT_ROLE_LABELS } from './labels.ts';
 
 interface MembersPanelProps {
   request: ApiRequest;
+  projectId: string;
   members: Member[];
   canManageTutors: boolean;
   canManageStudents: boolean;
@@ -20,9 +22,11 @@ interface MembersPanelProps {
   onToggleLeader: (member: Member) => void;
 }
 
-export function MembersPanel({ request, members, canManageTutors, canManageStudents, busy, onAdd, onRemove, onTogglePrimary, onToggleLeader }: MembersPanelProps) {
+export function MembersPanel({ request, projectId, members, canManageTutors, canManageStudents, busy, onAdd, onRemove, onTogglePrimary, onToggleLeader }: MembersPanelProps) {
   const [picked, setPicked] = useState<DirectoryUser | null>(null);
   const [role, setRole] = useState<ProjectRole>('STUDENT');
+  // Lista acotada por proyecto: se pagina en el cliente y vuelve a la página 1 al cambiar de proyecto (ADR 0017).
+  const paginated = useClientPagination(members, 10, projectId);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -72,7 +76,7 @@ export function MembersPanel({ request, members, canManageTutors, canManageStude
         <div className="mt-5"><EmptyState title="Sin participantes" description="No hay participantes activos visibles en este proyecto." /></div>
       ) : (
         <ul className="mt-5 divide-y divide-navy/10">
-          {members.map((item) => {
+          {paginated.items.map((item) => {
             const isTutor = item.projectRole === 'TUTOR';
             const canManage = isTutor ? canManageTutors : canManageStudents;
             return (
@@ -94,6 +98,7 @@ export function MembersPanel({ request, members, canManageTutors, canManageStude
           })}
         </ul>
       )}
+      <Pagination label="Participantes" page={paginated.page} pageSize={paginated.pageSize} total={paginated.total} onPageChange={paginated.setPage} />
     </PanelCard>
   );
 }

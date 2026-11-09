@@ -191,7 +191,7 @@ describe('GET /api/users (e2e)', () => {
     return agent;
   }
 
-  const names = (body: { fullName: string }[]) => body.map((u) => u.fullName);
+  const names = (body: { items: { fullName: string }[] }) => body.items.map((u) => u.fullName);
 
   describe('autorización', () => {
     it('responde 401 sin sesión', async () => {
@@ -232,11 +232,12 @@ describe('GET /api/users (e2e)', () => {
     it('expone exactamente id, fullName, email y roles', async () => {
       const agent = await sessionAs('tutor.dir@example.test');
       const res = await agent.get('/api/users').expect(200);
-      for (const user of res.body) {
+      expect(Object.keys(res.body).sort()).toEqual(['items', 'page', 'pageSize', 'total']);
+      for (const user of res.body.items) {
         expect(Object.keys(user).sort()).toEqual(['email', 'fullName', 'id', 'roles']);
       }
-      expect(JSON.stringify(res.body)).not.toMatch(/passwordHash|status|createdAt|phone/);
-      expect(res.body.find((u: { email: string }) => u.email === 'jose.alvarez@example.test').roles.sort()).toEqual([
+      expect(JSON.stringify(res.body.items)).not.toMatch(/passwordHash|status|createdAt|phone/);
+      expect(res.body.items.find((u: { email: string }) => u.email === 'jose.alvarez@example.test').roles.sort()).toEqual([
         'STUDENT',
         'TUTOR',
       ]);
@@ -258,7 +259,7 @@ describe('GET /api/users (e2e)', () => {
     it('no encuentra a los inactivos aunque coincida el texto', async () => {
       const agent = await sessionAs('tutor.dir@example.test');
       const res = await agent.get('/api/users').query({ search: 'ignacio' }).expect(200);
-      expect(res.body).toEqual([]);
+      expect(res.body).toEqual({ items: [], total: 0, page: 1, pageSize: 20 });
     });
 
     it('filtra por rol global', async () => {
@@ -274,7 +275,7 @@ describe('GET /api/users (e2e)', () => {
       ]);
     });
 
-    it('limita a 20 resultados por defecto y acepta hasta 50', async () => {
+    it('pagina de 20 en 20 por defecto, con total y sin solapar páginas', async () => {
       for (let i = 1; i <= 22; i++) {
         await prisma.user.create({
           data: {
@@ -285,9 +286,26 @@ describe('GET /api/users (e2e)', () => {
         });
       }
       const agent = await sessionAs('tutor.dir@example.test');
-      expect((await agent.get('/api/users').expect(200)).body).toHaveLength(20);
-      expect((await agent.get('/api/users').query({ limit: 2 }).expect(200)).body).toHaveLength(2);
-      expect((await agent.get('/api/users').query({ limit: 50 }).expect(200)).body).toHaveLength(28);
+      const first = (await agent.get('/api/users').expect(200)).body;
+      expect(first).toMatchObject({ total: 28, page: 1, pageSize: 20 });
+      expect(first.items).toHaveLength(20);
+      const second = (await agent.get('/api/users').query({ page: 2 }).expect(200)).body;
+      expect(second).toMatchObject({ total: 28, page: 2, pageSize: 20 });
+      expect(second.items).toHaveLength(8);
+      const ids = [...first.items, ...second.items].map((u: { id: string }) => u.id);
+      expect(new Set(ids).size).toBe(28);
+
+      expect((await agent.get('/api/users').query({ pageSize: 2 }).expect(200)).body.items).toHaveLength(2);
+      expect((await agent.get('/api/users').query({ pageSize: 100 }).expect(200)).body.items).toHaveLength(28);
+      // Con búsqueda la página se recorta después de filtrar y el total cuenta las coincidencias.
+      const searched = (await agent.get('/api/users').query({ search: 'extra', page: 3, pageSize: 10 }).expect(200)).body;
+      expect(searched).toMatchObject({ total: 22, page: 3, pageSize: 10 });
+      expect(names(searched)).toEqual(['Estudiante Extra 21', 'Estudiante Extra 22']);
+    });
+
+    it('una página más allá del final devuelve items vacíos con el total real', async () => {
+      const agent = await sessionAs('tutor.dir@example.test');
+      expect((await agent.get('/api/users').query({ page: 9 }).expect(200)).body).toEqual({ items: [], total: 6, page: 9, pageSize: 20 });
     });
   });
 
@@ -295,9 +313,11 @@ describe('GET /api/users (e2e)', () => {
     it.each([
       ['parámetro desconocido', { orderBy: 'id' }, 'Campos no permitidos: orderBy.'],
       ['búsqueda de un carácter', { search: 'a' }, 'search debe tener entre 2 y 100 caracteres.'],
-      ['límite cero', { limit: '0' }, 'limit debe ser un entero entre 1 y 50.'],
-      ['límite por encima del máximo', { limit: '51' }, 'limit debe ser un entero entre 1 y 50.'],
-      ['límite no numérico', { limit: 'diez' }, 'limit debe ser un entero entre 1 y 50.'],
+      ['tamaño cero', { pageSize: '0' }, 'pageSize debe ser un entero entre 1 y 100.'],
+      ['tamaño por encima del máximo', { pageSize: '101' }, 'pageSize debe ser un entero entre 1 y 100.'],
+      ['tamaño no numérico', { pageSize: 'diez' }, 'pageSize debe ser un entero entre 1 y 100.'],
+      ['página cero', { page: '0' }, 'page debe ser un entero mayor o igual que 1.'],
+      ['limit, que ya no se admite', { limit: '5' }, 'Campos no permitidos: limit.'],
       ['rol desconocido', { role: 'SUPERUSER' }, 'role debe ser uno de'],
     ])('responde 400 por %s', async (_caso, query, expected) => {
       const agent = await sessionAs('tutor.dir@example.test');
@@ -340,22 +360,22 @@ describe('Gestión de usuarios (e2e, ADR 0011)', () => {
 
     it('el administrador ve todos, solo activos o solo inactivos, con el campo status', async () => {
       const admin = await world.as('admin');
-      const all = (await admin.get('/api/users').query({ status: 'ALL', limit: 50 }).expect(200)).body as { email: string; status: string }[];
+      const all = (await admin.get('/api/users').query({ status: 'ALL', pageSize: 100 }).expect(200)).body.items as { email: string; status: string }[];
       expect(all.find((u) => u.email === 'inactivo@example.test')?.status).toBe('INACTIVE');
       expect(all.find((u) => u.email === 'tutor@example.test')?.status).toBe('ACTIVE');
 
-      const inactive = (await admin.get('/api/users').query({ status: 'INACTIVE' }).expect(200)).body as { email: string }[];
+      const inactive = (await admin.get('/api/users').query({ status: 'INACTIVE' }).expect(200)).body.items as { email: string }[];
       expect(inactive.map((u) => u.email)).toEqual(['inactivo@example.test']);
 
-      const active = (await admin.get('/api/users').query({ status: 'ACTIVE', limit: 50 }).expect(200)).body as { status: string }[];
+      const active = (await admin.get('/api/users').query({ status: 'ACTIVE', pageSize: 100 }).expect(200)).body.items as { status: string }[];
       expect(active.every((u) => u.status === 'ACTIVE')).toBe(true);
     });
 
     it('por defecto solo lista activos y no expone status', async () => {
       const admin = await world.as('admin');
-      const res = await admin.get('/api/users').query({ limit: 50 }).expect(200);
+      const res = await admin.get('/api/users').query({ pageSize: 100 }).expect(200);
       expect(JSON.stringify(res.body)).not.toContain('inactivo@example.test');
-      expect(Object.keys(res.body[0]).sort()).toEqual(['email', 'fullName', 'id', 'roles']);
+      expect(Object.keys(res.body.items[0]).sort()).toEqual(['email', 'fullName', 'id', 'roles']);
     });
 
     it('responde 403 a un decano o tutor que usa status, y 400 al administrador con un valor inválido', async () => {
@@ -513,7 +533,7 @@ describe('Gestión de usuarios (e2e, ADR 0011)', () => {
 
       const membership = await world.prisma.projectMember.findFirstOrThrow({ where: { projectId: project.id, userId: world.ids.student } });
       expect(membership.status).toBe('ACTIVE');
-      const directory = (await admin.get('/api/users').query({ search: 'student', limit: 50 }).expect(200)).body as { email: string }[];
+      const directory = (await admin.get('/api/users').query({ search: 'student', pageSize: 100 }).expect(200)).body.items as { email: string }[];
       expect(directory.map((u) => u.email)).not.toContain('student@example.test');
     });
 

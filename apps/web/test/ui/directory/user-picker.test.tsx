@@ -9,6 +9,8 @@ import type { ApiRequest } from '../../../src/types/api';
 
 const ana: DirectoryUser = { id: 'u-1', fullName: 'Ana Pérez', email: 'ana@example.test', roles: ['STUDENT'] };
 const andres: DirectoryUser = { id: 'u-2', fullName: 'Andrés Gómez', email: 'andres@example.test', roles: ['STUDENT'] };
+/** Página de `GET /api/users` (ADR 0017). */
+const page = (items: DirectoryUser[]) => ({ items, total: items.length, page: 1, pageSize: 20 });
 
 function Harness({ request, role }: { request: ApiRequest; role?: 'STUDENT' }) {
   const [selected, setSelected] = useState<DirectoryUser | null>(null);
@@ -17,7 +19,7 @@ function Harness({ request, role }: { request: ApiRequest; role?: 'STUDENT' }) {
 
 describe('UserPicker', () => {
   it('espera el debounce y el mínimo de 2 caracteres antes de buscar', async () => {
-    const request = vi.fn<ApiRequest>(async () => [ana]);
+    const request = vi.fn<ApiRequest>(async () => page([ana]));
     render(<Harness request={request} role="STUDENT" />);
     const input = screen.getByRole('combobox', { name: 'Persona' });
 
@@ -28,21 +30,21 @@ describe('UserPicker', () => {
     await userEvent.type(input, 'n');
     expect(request).not.toHaveBeenCalled();
     await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
-    expect(request).toHaveBeenCalledWith('/api/users?search=an&role=STUDENT');
+    expect(request).toHaveBeenCalledWith('/api/users?search=an&role=STUDENT&pageSize=20');
     expect(await screen.findByRole('option', { name: /Ana Pérez/ })).toHaveTextContent('ana@example.test');
   });
 
   it('una ráfaga de teclas produce una sola consulta', async () => {
-    const request = vi.fn<ApiRequest>(async () => [ana]);
+    const request = vi.fn<ApiRequest>(async () => page([ana]));
     render(<Harness request={request} />);
     await userEvent.type(screen.getByRole('combobox'), 'ana p');
     await screen.findByRole('option');
     expect(request).toHaveBeenCalledTimes(1);
-    expect(request).toHaveBeenCalledWith('/api/users?search=ana+p');
+    expect(request).toHaveBeenCalledWith('/api/users?search=ana+p&pageSize=20');
   });
 
   it('se elige con el teclado: flechas, Enter y Escape', async () => {
-    const request = vi.fn<ApiRequest>(async () => [ana, andres]);
+    const request = vi.fn<ApiRequest>(async () => page([ana, andres]));
     render(<Harness request={request} />);
     const input = screen.getByRole('combobox');
     await userEvent.type(input, 'an');
@@ -77,9 +79,9 @@ describe('UserPicker', () => {
     await userEvent.type(input, 'd');
     await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
 
-    resolvers[1]([andres]);
+    resolvers[1](page([andres]));
     expect(await screen.findByRole('option', { name: /Andrés Gómez/ })).toBeInTheDocument();
-    resolvers[0]([ana]);
+    resolvers[0](page([ana]));
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.queryByRole('option', { name: /Ana Pérez/ })).not.toBeInTheDocument();
     expect(screen.getByRole('option', { name: /Andrés Gómez/ })).toBeInTheDocument();
@@ -92,7 +94,7 @@ describe('UserPicker', () => {
     await userEvent.type(screen.getByRole('combobox'), 'zz');
     expect(screen.getByRole('status')).toHaveTextContent('Buscando usuarios…');
     await waitFor(() => expect(request).toHaveBeenCalled());
-    resolve([]);
+    resolve(page([]));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('No encontramos usuarios con ese criterio.'));
     expect(screen.queryByRole('option')).not.toBeInTheDocument();
   });
@@ -113,7 +115,7 @@ describe('UserPicker', () => {
   });
 
   it('no ofrece usuarios excluidos', async () => {
-    const request = vi.fn<ApiRequest>(async () => [ana, andres]);
+    const request = vi.fn<ApiRequest>(async () => page([ana, andres]));
     render(<UserPicker request={request} label="Persona" excludeIds={['u-1']} onSelect={() => undefined} />);
     await userEvent.type(screen.getByRole('combobox'), 'an');
     expect(await screen.findAllByRole('option')).toHaveLength(1);

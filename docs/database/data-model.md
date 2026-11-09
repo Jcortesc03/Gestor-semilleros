@@ -90,10 +90,12 @@ No incluye al decano, cuyo vínculo se deriva de `project_faculties` → `facult
 
 ### Tableros y actividades
 
-**`boards`**: `id` PK · `project_id` FK NN · `title` NN · `due_date` NN (fecha) · `progress_status` NN (`ProgressStatus`, por defecto `PENDING`) · `result?` (`WorkResult`) · `responsible_tutor_id` FK→users NN · `responsible_student_id` FK→users NN · `created_at` · `updated_at` · `deleted_at?`.
+**`boards`**: `id` PK · `project_id` FK NN · `title` NN · `due_date` NN (fecha) · `progress_status` NN (`ProgressStatus`, por defecto `PENDING`) · `result?` (`WorkResult`) · `responsible_tutor_id` FK→users NN · `responsible_student_id` FK→users NN · `completed_at?` · `created_at` · `updated_at` · `deleted_at?`.
+- `completed_at`: momento en que el progreso pasó a `DONE`; nulo si no está terminado. Lo mantiene el servicio y tiene índice (DB-17, ADR 0016).
 Validación en el servicio: los dos responsables deben ser `project_members` activos del mismo proyecto y con el rol correspondiente (DB-05).
 
-**`activities`**: `id` PK · `board_id` FK NN · `author_id` FK→users NN · `title` NN · `description?` · `progress_status` NN (por defecto `PENDING`) · `result?` · `approval_status` NN (`ApprovalStatus`, por defecto `PENDING`) · `approved_by_id?` FK→users · `approved_at?` · `created_at` · `updated_at` · `deleted_at?`.
+**`activities`**: `id` PK · `board_id` FK NN · `author_id` FK→users NN · `title` NN · `description?` · `progress_status` NN (por defecto `PENDING`) · `result?` · `approval_status` NN (`ApprovalStatus`, por defecto `PENDING`) · `approved_by_id?` FK→users · `approved_at?` · `completed_at?` · `created_at` · `updated_at` · `deleted_at?`.
+- `completed_at`: momento en que el progreso pasó a `DONE`; se borra al salir de `DONE` y no se modifica si se reenvía `DONE`. Con índice (DB-17, ADR 0016).
 - Progreso y resultado en columnas separadas (RN-04, DB-09). Solo se guarda el estado actual de la aprobación (P-12).
 - CHECK: si la aprobación es `PENDING`, `approved_by_id` y `approved_at` son nulos; en otro caso, ambos tienen valor.
 - No guarda `project_id`; se obtiene a través de `board_id` (3FN).
@@ -208,6 +210,7 @@ erDiagram
         enum result "nullable"
         uuid responsible_tutor_id FK
         uuid responsible_student_id FK
+        datetime completed_at "nullable"
     }
     activities {
         uuid id PK
@@ -217,6 +220,7 @@ erDiagram
         enum result "nullable"
         enum approval_status
         uuid approved_by_id FK "nullable"
+        datetime completed_at "nullable"
     }
     activity_attachments {
         uuid id PK
@@ -303,4 +307,4 @@ El proyecto usa **Prisma 7.10.1** con **PostgreSQL 18.6**. Puntos relevantes del
 10. **`onDelete`:** definido de forma explícita en cada relación (§6).
 11. **Mapeo de nombres:** `@@map`/`@map` a snake_case (DB-13).
 12. **Auth.js:** si se usa su adaptador de Prisma, este exige modelos propios (cuentas, sesiones, tokens) que deben convivir con `users`. Depende del flujo de autenticación, que está pendiente (`AGENTS.md` §4).
-13. **Índices:** el esquema declara `@@index` sobre las FK más consultadas y sobre `deleted_at` en las tablas con eliminación lógica.
+13. **Índices:** el esquema declara `@@index` sobre las FK más consultadas y sobre `deleted_at` en las tablas con eliminación lógica, además de `completed_at` en `boards` y `activities` (DB-17).

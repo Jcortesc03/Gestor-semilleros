@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "admin:create": "nest build && node dist/cli/create-admin.js",
     "db:seed": "nest build && node dist/cli/seed.js",
+    "db:seed:bulk": "nest build && node dist/cli/seed-bulk.js",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "test:e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.config.js --runInBand",
     "db:format": "prisma format",

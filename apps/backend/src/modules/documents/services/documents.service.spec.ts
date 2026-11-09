@@ -32,7 +32,7 @@ const record = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-function setup(opts: { configured?: boolean; access?: ProjectAccess; doc?: ReturnType<typeof record> | null; attached?: number; putFails?: boolean; createFails?: boolean } = {}) {
+function setup(opts: { configured?: boolean; access?: ProjectAccess; doc?: ReturnType<typeof record> | null; attached?: number; putFails?: boolean; createFails?: boolean; documents?: ReturnType<typeof record>[]; total?: number } = {}) {
   const storage: jest.Mocked<DocumentStorage> = {
     isConfigured: jest.fn(() => opts.configured ?? true),
     put: jest.fn(async (_key: string, _body: Buffer, _type: string) => {
@@ -49,10 +49,12 @@ function setup(opts: { configured?: boolean; access?: ProjectAccess; doc?: Retur
         return record({ uploadedById: 'u1' });
       }),
       findFirst: jest.fn(async () => (opts.doc === undefined ? record() : opts.doc)),
-      findMany: jest.fn(async () => []),
+      findMany: jest.fn(async () => opts.documents ?? []),
+      count: jest.fn(async () => opts.total ?? opts.documents?.length ?? 0),
       update: jest.fn(async () => undefined),
     },
     activityAttachment: { count: jest.fn(async () => opts.attached ?? 0) },
+    $transaction: jest.fn(async (operations: Promise<unknown>[]) => Promise.all(operations)),
   };
   const projects = {
     resolve: jest.fn(async () => opts.access ?? access()),
@@ -150,5 +152,29 @@ describe('DocumentsService.download', () => {
     failing.storage.get.mockRejectedValueOnce(new Error('NoSuchKey'));
     await expect(failing.service.download(user, 'd1')).rejects.toBeInstanceOf(ServiceUnavailableException);
     await expect(setup({ configured: false }).service.download(user, 'd1')).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+});
+
+describe('DocumentsService.list', () => {
+  it('devuelve una página ordenada y cuenta con el mismo filtro', async () => {
+    const { service, prisma } = setup({ documents: [record(), record({ id: 'd2' })], total: 41 });
+
+    const result = await service.list(user, 'p1', { page: 3, pageSize: 20 });
+
+    const where = { projectId: 'p1', deletedAt: null };
+    expect(prisma.document.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: 40, take: 20 }),
+    );
+    expect(prisma.document.count).toHaveBeenCalledWith({ where });
+    expect(result).toMatchObject({ total: 41, page: 3, pageSize: 20 });
+    expect(result.items.map((item) => item.id)).toEqual(['d1', 'd2']);
+  });
+
+  it('no consulta si el proyecto no es visible', async () => {
+    const { service, prisma, projects } = setup();
+    projects.resolve.mockRejectedValueOnce(new NotFoundException());
+
+    await expect(service.list(user, 'p1', { page: 1, pageSize: 20 })).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.document.findMany).not.toHaveBeenCalled();
   });
 });

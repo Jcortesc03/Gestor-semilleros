@@ -1,5 +1,6 @@
 import type { ApiRequest } from '../../types/api.ts';
 import { ApiError, isRecord, parseArray } from '../../lib/api.ts';
+import { parsePage, withPage, type Page, type PageRequest } from '../../lib/pagination.ts';
 
 /** Contrato: `docs/api/documents.md` (ADR 0013). El servidor es quien valida; aquí solo se evita un viaje inútil. */
 
@@ -53,8 +54,18 @@ export function parseDocument(value: unknown): ProjectDocument {
 
 const projectDocumentsPath = (projectId: string) => `/api/projects/${encodeURIComponent(projectId)}/documents`;
 
-export async function listDocuments(request: ApiRequest, projectId: string): Promise<ProjectDocument[]> {
-  return parseArray(await request(projectDocumentsPath(projectId)), parseDocument);
+/** Documentos por página de la sección Documentos (ADR 0017; el servidor usa 20 por defecto). */
+export const DOCUMENTS_PAGE_SIZE = 20;
+
+/**
+ * Documentos del proyecto, paginados (ADR 0017). La página 1 se omite de la URL; el selector de
+ * adjuntos pide `pageSize` hasta 100 y la sección Documentos usa el valor por defecto.
+ */
+export async function listDocuments(request: ApiRequest, projectId: string, params: PageRequest = {}): Promise<Page<ProjectDocument>> {
+  const query = new URLSearchParams();
+  withPage(query, { page: params.page !== undefined && params.page > 1 ? params.page : undefined, pageSize: params.pageSize });
+  const suffix = query.toString();
+  return parsePage(await request(`${projectDocumentsPath(projectId)}${suffix ? `?${suffix}` : ''}`), parseDocument);
 }
 
 /** Sube un archivo ya validado con `validateDocumentFile`; el campo multipart se llama `file`. */

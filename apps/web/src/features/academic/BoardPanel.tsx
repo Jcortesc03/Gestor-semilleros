@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Archive, ClipboardList, Pencil } from 'lucide-react';
+import { Pagination, useClientPagination } from '../../components/Pagination.tsx';
 import { Button, EmptyState, Field, PanelCard, formatDate, inputClassName } from '../../components/WorkspaceUi.tsx';
 import type { Board, Member, ProgressStatus } from './api.ts';
 import { PROGRESS_LABELS } from './labels.ts';
@@ -8,6 +9,7 @@ import { PROGRESS_LABELS } from './labels.ts';
 export interface BoardValues { title: string; dueDate: string; tutorId: string; studentId: string; progressStatus: ProgressStatus }
 
 interface BoardPanelProps {
+  projectId: string;
   boards: Board[];
   selectedId: string;
   tutors: Member[];
@@ -70,8 +72,16 @@ function BoardForm({ initial, tutors, students, busy, submitLabel, withProgress 
   );
 }
 
-export function BoardPanel({ boards, selectedId, tutors, students, canManage, busy, onSelect, onCreate, onUpdate, onDelete }: BoardPanelProps) {
+export function BoardPanel({ projectId, boards, selectedId, tutors, students, canManage, busy, onSelect, onCreate, onUpdate, onDelete }: BoardPanelProps) {
   const [editingId, setEditingId] = useState('');
+  // Lista acotada por proyecto: se pagina en el cliente y vuelve a la página 1 al cambiar de proyecto (ADR 0017).
+  const paginated = useClientPagination(boards, 10, projectId);
+
+  // Si el tablero seleccionado está en otra página (p. ej. tras recargar), se muestra su página.
+  useEffect(() => {
+    const index = boards.findIndex((board) => board.id === selectedId);
+    if (index >= 0) paginated.setPage(Math.floor(index / 10) + 1);
+  }, [boards, selectedId]);
 
   return (
     <PanelCard
@@ -94,7 +104,7 @@ export function BoardPanel({ boards, selectedId, tutors, students, canManage, bu
         <div className={canManage ? 'mt-5' : ''}><EmptyState title="Sin tableros" description="Los tableros del proyecto aparecerán aquí." /></div>
       ) : (
         <ul className="mt-5 space-y-2">
-          {boards.map((board) => {
+          {paginated.items.map((board) => {
             const selected = board.id === selectedId;
             return (
               <li key={board.id} className={`rounded-lg border p-4 ${selected ? 'border-navy bg-navy text-white' : 'border-navy/15 bg-canvas'}`}>
@@ -128,6 +138,7 @@ export function BoardPanel({ boards, selectedId, tutors, students, canManage, bu
           })}
         </ul>
       )}
+      <Pagination label="Tableros" page={paginated.page} pageSize={paginated.pageSize} total={paginated.total} onPageChange={paginated.setPage} />
     </PanelCard>
   );
 }

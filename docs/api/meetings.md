@@ -157,7 +157,7 @@ El cuerpo del evento de Teams es el motivo seguido de `Reunión agendada desde e
 
 ## `GET /api/meetings`
 
-Lista las reuniones visibles para el usuario (ver [Visibilidad](#visibilidad)), ordenadas por `startsAt` ascendente. Antes de leer se aplican los cambios de estado por horario.
+Lista las reuniones visibles para el usuario (ver [Visibilidad](#visibilidad)), paginadas ([ADR 0017](../decisions/0017-paginacion-de-listas.md)) y ordenadas por `startsAt` ascendente e `id` como desempate. Antes de leer se aplican los cambios de estado por horario.
 
 ### Consulta
 
@@ -166,7 +166,8 @@ Lista las reuniones visibles para el usuario (ver [Visibilidad](#visibilidad)), 
 | `status` | `SCHEDULED`, `IN_PROGRESS`, `FINISHED` o `CANCELLED`. |
 | `from` | Fecha ISO 8601; incluye las reuniones con `startsAt` desde ese momento. |
 | `to` | Fecha ISO 8601; incluye las reuniones con `startsAt` hasta ese momento. No puede ser anterior a `from`. |
-| `limit` | Entero entre 1 y 100. Por defecto 50. |
+| `page` | Entero ≥ 1. Por defecto 1. |
+| `pageSize` | Entero entre 1 y 100. Por defecto 50. Sustituye al antiguo `limit`, que ahora es un campo no permitido. |
 
 Cualquier otro parámetro se rechaza.
 
@@ -177,13 +178,14 @@ Mensajes de validación exactos (`400`):
 - `from debe ser una fecha ISO 8601.`
 - `to debe ser una fecha ISO 8601.`
 - `to no puede ser anterior a from.`
-- `limit debe ser un entero entre 1 y 100.`
+- `page debe ser un entero mayor o igual que 1.`
+- `pageSize debe ser un entero entre 1 y 100.`
 
 ### Respuestas
 
 | Código | Cuándo | Cuerpo |
 | --- | --- | --- |
-| `200` | Correcto | Arreglo de `MeetingResponseDto` (vacío si no hay). |
+| `200` | Correcto | Página `{ items: MeetingResponseDto[], total, page, pageSize }`. `total` cuenta las reuniones visibles que cumplen los filtros; una página más allá del final devuelve `items: []` con el `total` real. |
 | `400` | Consulta inválida | `{ message: "Datos inválidos.", errors: string[] }` |
 | `401` | Sin sesión o sesión expirada | `{ message: "Sesión no válida o expirada." }` |
 

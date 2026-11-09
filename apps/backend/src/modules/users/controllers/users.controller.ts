@@ -26,6 +26,7 @@ import { parseUpdateUser } from '../dtos/update-user.dto';
 import type { UserDetailDto } from '../dtos/user-detail.dto';
 import type { UserDirectoryItemDto } from '../dtos/user-directory-item.dto';
 import { parseUserDirectoryQuery } from '../dtos/user-directory-query.dto';
+import type { PageDto } from '../../../common/utils/pagination';
 import type { UserResponseDto } from '../dtos/user-response.dto';
 import { UsersService } from '../services/users.service';
 
@@ -51,7 +52,7 @@ export class UsersController {
    */
   @Get()
   @Roles('ADMIN', 'DEAN', 'AREA_MANAGER', 'TUTOR')
-  directory(@CurrentUser() user: AuthUser, @Query() query: unknown): Promise<UserDirectoryItemDto[]> {
+  directory(@CurrentUser() user: AuthUser, @Query() query: unknown): Promise<PageDto<UserDirectoryItemDto>> {
     if ('status' in (asObject(query) ?? {}) && !user.roles.includes('ADMIN')) {
       throw new ForbiddenException('No tienes permisos para realizar esta acción.');
     }

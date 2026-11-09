@@ -32,18 +32,21 @@ test('rejects malformed dashboards', () => {
   assert.throws(() => parseDashboard({ ...data, sections: [{ ...section, activities: { ...section.activities, byProgress: { PENDING: 0 } } }] }));
 });
 
-test('asks for the next five scheduled meetings', async () => {
-  const m = mock([{ id: 'm-1', reason: 'R', startsAt: '2026-11-20T20:00:00.000Z', status: 'SCHEDULED', joinUrl: null, project: null }]);
+const pageOf = (items: unknown[], pageSize: number) => ({ items, total: items.length, page: 1, pageSize });
+
+test('asks for the first page of five scheduled meetings', async () => {
+  const m = mock(pageOf([{ id: 'm-1', reason: 'R', startsAt: '2026-11-20T20:00:00.000Z', status: 'SCHEDULED', joinUrl: null, project: null }], 5));
   const result = await getUpcomingMeetings(m.request, new Date('2026-11-07T00:00:00.000Z'));
-  assert.match(m.calls[0], /^\/api\/meetings\?status=SCHEDULED&from=.+&limit=5$/);
+  assert.match(m.calls[0], /^\/api\/meetings\?status=SCHEDULED&from=.+&pageSize=5$/);
   assert.equal(result.length, 1);
-  await assert.rejects(() => getUpcomingMeetings(mock([{ id: 1 }]).request));
+  await assert.rejects(() => getUpcomingMeetings(mock(pageOf([{ id: 1 }], 5)).request));
+  await assert.rejects(() => getUpcomingMeetings(mock([]).request));
 });
 
-test('asks for the three latest announcements', async () => {
-  const m = mock([{ id: 'n-1', kind: 'NEWS', title: 'T', publishedAt: '2026-11-06T00:00:00.000Z', author: { id: 'u', fullName: 'Admin' } }]);
+test('asks for the first page of three announcements', async () => {
+  const m = mock(pageOf([{ id: 'n-1', kind: 'NEWS', title: 'T', publishedAt: '2026-11-06T00:00:00.000Z', author: { id: 'u', fullName: 'Admin' } }], 3));
   const result = await getRecentAnnouncements(m.request);
-  assert.equal(m.calls[0], '/api/announcements?limit=3');
+  assert.equal(m.calls[0], '/api/announcements?pageSize=3');
   assert.equal(result[0].author, 'Admin');
   await assert.rejects(() => getRecentAnnouncements(mock({}).request));
 });

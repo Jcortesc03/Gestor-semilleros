@@ -11,6 +11,7 @@ import type {
   UpdateActivityDto,
 } from '../dtos/activity.dto';
 import type { ActivityResponseDto } from '../dtos/board-response.dto';
+import { completionChange } from './boards.service';
 import { WorkAccessService } from './work-access.service';
 
 const userRef = { select: { id: true, fullName: true } } as const;
@@ -105,13 +106,16 @@ export class ActivitiesService {
     }
 
     const data: Prisma.ActivityUncheckedUpdateInput = { ...dto };
-    if (dto.progressStatus !== undefined && dto.progressStatus !== 'DONE') {
-      // Salir de DONE reinicia la aprobación en la misma escritura (ADR 0010, sec. 5).
+    if (dto.progressStatus !== undefined) {
       const current = await this.prisma.activity.findUniqueOrThrow({
         where: { id: activityId },
-        select: { approvalStatus: true },
+        select: { progressStatus: true, approvalStatus: true },
       });
-      if (current.approvalStatus !== 'PENDING') {
+      // Momento de terminación (ADR 0016): se fija al entrar en DONE y se borra al salir.
+      const completedAt = completionChange(current.progressStatus, dto.progressStatus);
+      if (completedAt !== undefined) data.completedAt = completedAt;
+      if (dto.progressStatus !== 'DONE' && current.approvalStatus !== 'PENDING') {
+        // Salir de DONE reinicia la aprobación en la misma escritura (ADR 0010, sec. 5).
         data.approvalStatus = 'PENDING';
         data.approvedById = null;
         data.approvedAt = null;

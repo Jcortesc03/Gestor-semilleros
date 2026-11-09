@@ -1,5 +1,6 @@
 import type { ApiRequest } from '../../types/api.ts';
 import { ApiError, isRecord, parseArray } from '../../lib/api.ts';
+import { parsePage, withPage, type Page, type PageRequest } from '../../lib/pagination.ts';
 
 export const DIRECTORY_ROLES = ['ADMIN', 'AREA_MANAGER', 'DEAN', 'TUTOR', 'STUDENT'] as const;
 export type DirectoryRole = (typeof DIRECTORY_ROLES)[number];
@@ -9,7 +10,7 @@ export interface DirectoryUser { id: string; fullName: string; email: string; ro
 export interface Area { id: string; name: string; description: string | null }
 export interface Faculty { id: string; name: string }
 
-export interface SearchUsersParams { search?: string; role?: DirectoryRole; limit?: number }
+export interface SearchUsersParams extends PageRequest { search?: string; role?: DirectoryRole }
 
 function fail(): never { throw new ApiError(0); }
 function str(value: unknown): string { if (typeof value !== 'string' || value === '') fail(); return value; }
@@ -36,14 +37,17 @@ export function parseFaculty(value: unknown): Faculty {
   return { id: str(r.id), name: str(r.name) };
 }
 
-/** Busca usuarios activos. Solo ADMIN, DEAN, AREA_MANAGER y TUTOR; otro rol recibe 403. */
-export async function searchUsers(request: ApiRequest, params: SearchUsersParams = {}): Promise<DirectoryUser[]> {
+/**
+ * Busca usuarios activos y devuelve una página (ADR 0017). Solo ADMIN, DEAN, AREA_MANAGER y TUTOR;
+ * otro rol recibe 403. Los selectores usan búsqueda y `pageSize`, nunca cargan el directorio completo.
+ */
+export async function searchUsers(request: ApiRequest, params: SearchUsersParams = {}): Promise<Page<DirectoryUser>> {
   const query = new URLSearchParams();
   if (params.search !== undefined) query.set('search', params.search);
   if (params.role !== undefined) query.set('role', params.role);
-  if (params.limit !== undefined) query.set('limit', String(params.limit));
+  withPage(query, params);
   const suffix = query.toString();
-  return parseArray(await request(`/api/users${suffix ? `?${suffix}` : ''}`), parseDirectoryUser);
+  return parsePage(await request(`/api/users${suffix ? `?${suffix}` : ''}`), parseDirectoryUser);
 }
 
 /** `managed`: solo las áreas del encargado actual (docs/api/catalogs.md). */

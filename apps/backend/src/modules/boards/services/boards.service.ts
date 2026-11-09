@@ -1,11 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '../../../generated/prisma/client';
+import type { ProgressStatus } from '../../../generated/prisma/enums';
 import { PrismaService } from '../../../database/prisma.service';
 import type { AuthUser } from '../../auth';
 import { can } from '../../projects';
 import type { CreateBoardDto, UpdateBoardDto } from '../dtos/board.dto';
 import type { BoardResponseDto } from '../dtos/board-response.dto';
 import { WorkAccessService } from './work-access.service';
+
+/**
+ * Cambio de `completedAt` al actualizar el progreso (ADR 0016): `Date` al entrar en DONE,
+ * `null` al salir de DONE y `undefined` (no tocar) si no cambia el estado de terminación.
+ */
+export const completionChange = (current: ProgressStatus, next: ProgressStatus): Date | null | undefined => {
+  if (next === 'DONE') return current === 'DONE' ? undefined : new Date();
+  return current === 'DONE' ? null : undefined;
+};
 
 const userRef = { select: { id: true, fullName: true } } as const;
 const boardInclude = {
@@ -65,7 +75,17 @@ export class BoardsService {
     this.work.projects.assert(can.manageBoards(access));
     await this.assertResponsibles(projectId, dto.responsibleTutorId, dto.responsibleStudentId);
 
-    const board = await this.prisma.board.update({ where: { id: boardId }, data: dto, include: boardInclude });
+    const data: Prisma.BoardUncheckedUpdateInput = { ...dto };
+    if (dto.progressStatus !== undefined) {
+      const current = await this.prisma.board.findUniqueOrThrow({
+        where: { id: boardId },
+        select: { progressStatus: true },
+      });
+      // Momento de terminación (ADR 0016): se fija al entrar en DONE y se borra al salir.
+      const completedAt = completionChange(current.progressStatus, dto.progressStatus);
+      if (completedAt !== undefined) data.completedAt = completedAt;
+    }
+    const board = await this.prisma.board.update({ where: { id: boardId }, data, include: boardInclude });
     return toResponse(board);
   }
 

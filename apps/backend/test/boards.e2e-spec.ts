@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
+import { PrismaService } from '../src/database/prisma.service';
 import { buildProject, buildWorld, type World } from './fixtures';
 import { createTestApp, resetDatabase } from './helpers';
 
@@ -38,6 +39,16 @@ describe('Tableros y actividades (e2e)', () => {
       await (await world.as(by)).post(`/api/boards/${boardId}/activities`).send({ title: 'Leer artículo' }).expect(201)
     ).body.id;
   }
+
+  /** Momento de terminación guardado (ADR 0016); no forma parte de las respuestas de la API. */
+  const completedAt = async (model: 'board' | 'activity', id: string): Promise<Date | null> => {
+    const prisma = app.get(PrismaService);
+    const row =
+      model === 'board'
+        ? await prisma.board.findUniqueOrThrow({ where: { id }, select: { completedAt: true } })
+        : await prisma.activity.findUniqueOrThrow({ where: { id }, select: { completedAt: true } });
+    return row.completedAt;
+  };
 
   async function assign(activityId: string, person: 'student' | 'leader' = 'student') {
     await (await world.as('leader')).post(`/api/activities/${activityId}/assignees`).send({ userId: world.ids[person] }).expect(201);
@@ -115,6 +126,25 @@ describe('Tableros y actividades (e2e)', () => {
         .expect(200);
       expect(res.body).toMatchObject({ progressStatus: 'DONE', result: 'SUCCESS' });
       await (await world.as('leader')).patch(`/api/boards/${boardId}`).send({ title: 'X' }).expect(403);
+    });
+
+    it('el tablero guarda el momento de terminación al pasar a DONE y lo borra al salir (ADR 0016)', async () => {
+      const boardId = await createBoard();
+      const tutor = await world.as('tutor');
+      expect(await completedAt('board', boardId)).toBeNull();
+
+      await tutor.patch(`/api/boards/${boardId}`).send({ progressStatus: 'DONE' }).expect(200);
+      const first = await completedAt('board', boardId);
+      expect(first).toBeInstanceOf(Date);
+
+      // Reenviar DONE (o editar otros campos) no cambia el momento de terminación.
+      await tutor.patch(`/api/boards/${boardId}`).send({ progressStatus: 'DONE', result: 'SUCCESS' }).expect(200);
+      await tutor.patch(`/api/boards/${boardId}`).send({ title: 'Otro título' }).expect(200);
+      expect(await completedAt('board', boardId)).toEqual(first);
+
+      const res = await tutor.patch(`/api/boards/${boardId}`).send({ progressStatus: 'IN_PROGRESS' }).expect(200);
+      expect(res.body).not.toHaveProperty('completedAt');
+      expect(await completedAt('board', boardId)).toBeNull();
     });
 
     it('eliminar un tablero oculta también sus actividades', async () => {
@@ -302,6 +332,28 @@ describe('Tableros y actividades (e2e)', () => {
       await tutor.post(`/api/activities/${activityId}/approval`).send({ status: 'APPROVED' }).expect(200);
       const res = await tutor.patch(`/api/activities/${activityId}`).send({ progressStatus: 'DONE', result: 'SUCCESS' }).expect(200);
       expect(res.body).toMatchObject({ approvalStatus: 'APPROVED', approvedBy: { id: world.ids.tutor } });
+    });
+
+    it('la actividad guarda el momento de terminación al pasar a DONE y lo borra al salir (ADR 0016)', async () => {
+      const activityId = await createActivity(await createBoard());
+      await assign(activityId);
+      const student = await world.as('student');
+      expect(await completedAt('activity', activityId)).toBeNull();
+
+      await student.patch(`/api/activities/${activityId}`).send({ progressStatus: 'IN_PROGRESS' }).expect(200);
+      expect(await completedAt('activity', activityId)).toBeNull();
+
+      await student.patch(`/api/activities/${activityId}`).send({ progressStatus: 'DONE' }).expect(200);
+      const first = await completedAt('activity', activityId);
+      expect(first).toBeInstanceOf(Date);
+
+      // Reenviar DONE no cambia el momento de terminación.
+      const again = await student.patch(`/api/activities/${activityId}`).send({ progressStatus: 'DONE' }).expect(200);
+      expect(again.body).not.toHaveProperty('completedAt');
+      expect(await completedAt('activity', activityId)).toEqual(first);
+
+      await student.patch(`/api/activities/${activityId}`).send({ progressStatus: 'IN_PROGRESS' }).expect(200);
+      expect(await completedAt('activity', activityId)).toBeNull();
     });
 
     it('el líder gestiona encargados en cualquier actividad del proyecto', async () => {

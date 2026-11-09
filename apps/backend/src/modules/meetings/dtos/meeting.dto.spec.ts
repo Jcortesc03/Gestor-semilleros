@@ -397,9 +397,9 @@ describe('parseRecording', () => {
 });
 
 describe('parseListMeetings', () => {
-  it('usa limit 50 y no incluye filtros cuando no hay parámetros', () => {
+  it('usa la página 1 de 50 y no incluye filtros cuando no hay parámetros', () => {
     for (const input of [{}, undefined, null]) {
-      expect(parseListMeetings(input)).toEqual({ ok: true, value: { limit: 50 } });
+      expect(parseListMeetings(input)).toEqual({ ok: true, value: { page: 1, pageSize: 50 } });
     }
   });
 
@@ -409,7 +409,8 @@ describe('parseListMeetings', () => {
         status: 'IN_PROGRESS',
         from: '2026-11-01T00:00:00Z',
         to: '2026-11-30T23:59:59Z',
-        limit: '25',
+        page: '3',
+        pageSize: '25',
       }),
     ).toEqual({
       ok: true,
@@ -417,7 +418,8 @@ describe('parseListMeetings', () => {
         status: 'IN_PROGRESS',
         from: new Date('2026-11-01T00:00:00.000Z'),
         to: new Date('2026-11-30T23:59:59.000Z'),
-        limit: 25,
+        page: 3,
+        pageSize: 25,
       },
     });
   });
@@ -439,7 +441,7 @@ describe('parseListMeetings', () => {
     const result = parseListMeetings({ from: '2026-11-01', to: '2026-11-02' });
     expect(result).toEqual({
       ok: true,
-      value: { from: new Date('2026-11-01T00:00:00.000Z'), to: new Date('2026-11-02T00:00:00.000Z'), limit: 50 },
+      value: { from: new Date('2026-11-01T00:00:00.000Z'), to: new Date('2026-11-02T00:00:00.000Z'), page: 1, pageSize: 50 },
     });
   });
 
@@ -461,17 +463,27 @@ describe('parseListMeetings', () => {
     expect(listErrors({ from: 'x', to: '2026-11-09T00:00:00Z' })).toEqual(['from debe ser una fecha ISO 8601.']);
   });
 
-  it('acepta limit entre 1 y 100', () => {
-    for (const [limit, expected] of [['1', 1], ['100', 100], ['050', 50]] as const) {
-      const result = parseListMeetings({ limit });
-      expect(result.ok && result.value.limit).toBe(expected);
+  it('acepta pageSize entre 1 y 100', () => {
+    for (const [pageSize, expected] of [['1', 1], ['100', 100], ['050', 50]] as const) {
+      const result = parseListMeetings({ pageSize });
+      expect(result.ok && result.value.pageSize).toBe(expected);
     }
   });
 
-  it('rechaza limit fuera de rango, decimal, negativo o que no es texto numérico', () => {
-    for (const limit of ['0', '101', '-1', '1.5', 'abc', '', ' 5', '5 ', '1e2', 10, ['10']]) {
-      expect(listErrors({ limit })).toEqual(['limit debe ser un entero entre 1 y 100.']);
+  it('rechaza pageSize fuera de rango, decimal, negativo o que no es texto numérico', () => {
+    for (const pageSize of ['0', '101', '-1', '1.5', 'abc', '', ' 5', '5 ', '1e2', 10, ['10']]) {
+      expect(listErrors({ pageSize })).toEqual(['pageSize debe ser un entero entre 1 y 100.']);
     }
+  });
+
+  it('rechaza page menor que 1 o no numérico', () => {
+    for (const page of ['0', '-1', '1.5', 'abc', ['1']]) {
+      expect(listErrors({ page })).toEqual(['page debe ser un entero mayor o igual que 1.']);
+    }
+  });
+
+  it('ya no admite limit', () => {
+    expect(listErrors({ limit: '10' })).toEqual(['Campos no permitidos: limit.']);
   });
 
   it('rechaza consultas que no son objetos', () => {
@@ -482,14 +494,14 @@ describe('parseListMeetings', () => {
 
   it('rechaza campos desconocidos y acumula todos los errores', () => {
     expect(listErrors({ extra: '1' })).toEqual(['Campos no permitidos: extra.']);
-    const input = { extra: '1', status: 'X', from: 'a', to: 'b', limit: '0' };
+    const input = { extra: '1', status: 'X', from: 'a', to: 'b', pageSize: '0' };
     expect(() => parseListMeetings(input)).not.toThrow();
     expect(listErrors(input)).toEqual([
       'Campos no permitidos: extra.',
       expect.stringMatching(/^status no es válido\./),
       'from debe ser una fecha ISO 8601.',
       'to debe ser una fecha ISO 8601.',
-      'limit debe ser un entero entre 1 y 100.',
+      'pageSize debe ser un entero entre 1 y 100.',
     ]);
   });
 });
