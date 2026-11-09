@@ -39,7 +39,17 @@ export function AreasPanel({ request, admin }: AreasPanelProps) {
   }));
 
   return (
-    <PanelCard title="Áreas">
+    <PanelCard
+      title="Áreas"
+      help={{
+        title: 'Áreas',
+        description: 'Catálogo de áreas académicas. Permite crear, renombrar y eliminar áreas, y asignarles sus encargados. Eliminar un área con proyectos o novedades asociadas no es posible.',
+        roles: {
+          ADMIN: 'Como administrador, creas, renombras y eliminas áreas, y asignas o quitas sus encargados.',
+          AREA_MANAGER: 'Como encargado de área, ves todas las áreas pero solo puedes editar el nombre y la descripción de las tuyas; crearlas, eliminarlas o asignar encargados requiere ser administrador.',
+        },
+      }}
+    >
       {admin ? (
         <section aria-labelledby="areas-create-title" className="mb-8 min-w-0">
           <h3 id="areas-create-title" className="mb-4 text-base font-bold text-navy">Crear área</h3>

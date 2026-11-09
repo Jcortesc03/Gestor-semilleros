@@ -9,7 +9,7 @@ import { roleLabel } from '../lib/roles';
 import { BrandMark } from '../components/BrandMark';
 import { AlertMessage } from '../components/AlertMessage';
 import { ChangePasswordPage } from '../pages/ChangePasswordPage';
-import { Button, PanelCard } from '../components/WorkspaceUi';
+import { Button, HelpRolesProvider, PanelCard } from '../components/WorkspaceUi';
 import { AcademicWorkspace } from '../features/academic';
 import { AnalyticsWorkspace } from '../features/analytics';
 import { EnrollmentsWorkspace, canManageEnrollments } from '../features/enrollments';
@@ -30,13 +30,6 @@ interface WorkspaceProps {
   onRefresh: () => void;
   signingOut: boolean;
   error: string | null;
-}
-
-function getInitials(user: CurrentUser): string {
-  const parts = user.fullName.trim().split(/\s+/).filter((part) => part.length > 0);
-  if (parts.length >= 2) return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('');
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return user.email.trim().charAt(0).toUpperCase() || 'U';
 }
 
 export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, error }: WorkspaceProps) {
@@ -117,22 +110,7 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
   function renderNavigation() {
     return <>
       <BrandMark variant="light" />
-      <div className="mt-8 min-w-0 rounded-xl bg-navy-soft p-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <span
-            aria-hidden="true"
-            className="grid size-10 shrink-0 place-items-center rounded-full bg-gold text-sm font-bold text-navy"
-          >
-            {getInitials(user)}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-white">{user.fullName}</p>
-            <p className="truncate text-xs text-white/75">{user.email}</p>
-          </div>
-        </div>
-        <p className="mt-3 border-t border-white/10 pt-3 text-[0.6875rem] font-semibold uppercase leading-relaxed tracking-[0.18em] text-gold">{user.roles.map(roleLabel).join(' · ') || 'Sin roles asignados'}</p>
-      </div>
-      <nav aria-label="Secciones de la aplicación" className="mt-7 space-y-1.5">
+      <nav aria-label="Secciones de la aplicación" className="mt-8 space-y-1.5">
         {navigation.map(({ key, label, icon: Icon }) => (
           <button key={key} type="button" disabled={signingOut} aria-current={page === key ? 'page' : undefined}
             onClick={() => navigate(key)} className={`flex min-h-12 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${page === key ? 'bg-gold text-navy' : 'text-white/85 hover:bg-white/10 hover:text-white'}`}>
@@ -148,8 +126,9 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
 
   const title = navigation.find((item) => item.key === page)?.label ?? 'Mi panel';
   return (
+    <HelpRolesProvider roles={user.roles}>
     <div className="min-h-dvh overflow-x-clip bg-canvas text-navy lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
-      <aside className="on-dark relative hidden h-dvh flex-col gap-5 overflow-hidden bg-navy p-6 text-white lg:flex">
+      <aside className="on-dark relative hidden h-dvh flex-col gap-5 overflow-hidden bg-navy p-6 text-white lg:sticky lg:top-0 lg:flex lg:self-start">
         <div aria-hidden="true" className="texture-dots pointer-events-none absolute -right-12 top-0 h-44 w-44 opacity-30" />
         <div className="relative flex min-h-0 flex-1 flex-col gap-5">{renderNavigation()}</div>
       </aside>
@@ -166,30 +145,56 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
         <main inert={signingOut} aria-busy={signingOut} className="mx-auto w-full max-w-7xl space-y-7 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-navy/70">Tu espacio de investigación</p>
-            <h1 className="mt-2 text-balance text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">{title}</h1>
+            <h1 className="mt-2 text-balance text-3xl font-extrabold tracking-tight text-navy sm:text-4xl">{page === 'account' ? `Hola, ${user.fullName}` : title}</h1>
             <div aria-hidden="true" className="hairline-gold mt-4" />
           </div>
           {error && <AlertMessage message={error} />}
           {page === 'account' ? <>
             <DashboardWorkspace user={user} request={request} onNavigate={goTo} />
-            <PanelCard title={`Hola, ${user.fullName}`} action={<>
+            <PanelCard title="Mi cuenta" help={{
+              title: 'Mi cuenta',
+              description: 'Muestra tu correo y tus roles. «Actualizar cuenta» recarga tus datos y «Cambiar contraseña» abre el formulario para cambiarla.',
+              roles: {
+                ADMIN: 'Como administrador, ves tu correo y roles; «Actualizar cuenta» recarga tus datos y «Cambiar contraseña» la cambia.',
+                AREA_MANAGER: 'Como encargado de área, ves tu correo y roles; «Actualizar cuenta» recarga tus datos y «Cambiar contraseña» la cambia.',
+                DEAN: 'Como decano, ves tu correo y roles; «Actualizar cuenta» recarga tus datos y «Cambiar contraseña» la cambia.',
+                TUTOR: 'Como tutor, ves tu correo y roles; «Actualizar cuenta» recarga tus datos y «Cambiar contraseña» la cambia.',
+                STUDENT: 'Como estudiante, ves tu correo y roles; «Actualizar cuenta» recarga tus datos y «Cambiar contraseña» la cambia.',
+              },
+            }} action={<>
               <Button variant="secondary" onClick={onRefresh}>Actualizar cuenta</Button>
               <Button variant="secondary" onClick={() => { setPasswordChanged(false); setChangingPassword(true); }}>Cambiar contraseña</Button>
             </>}>
-              <dl className="grid gap-6 sm:grid-cols-2">
+              <dl className="grid gap-6 sm:grid-cols-3">
+                <div className="min-w-0"><dt className="text-sm text-navy/70">Nombre de la cuenta</dt><dd className="mt-1 font-semibold text-navy">{user.fullName}</dd></div>
                 <div className="min-w-0"><dt className="text-sm text-navy/70">Correo electrónico</dt><dd className="mt-1 break-all font-semibold text-navy">{user.email}</dd></div>
-                <div className="min-w-0"><dt className="text-sm text-navy/70">Roles asignados</dt><dd className="mt-1 font-semibold text-navy">{user.roles.map(roleLabel).join(' · ') || 'Sin roles asignados'}</dd></div>
+                <div className="min-w-0"><dt className="text-sm text-navy/70">Cargo</dt><dd className="mt-1 font-semibold text-navy">{user.roles.map(roleLabel).join(' · ') || 'Sin roles asignados'}</dd></div>
               </dl>
             </PanelCard>
             {passwordChanged && <AlertMessage variant="plain" message="Tu contraseña se actualizó." />}
             {changingPassword && (
-              <ChangePasswordPage
-                mode="voluntary"
-                email={user.email}
-                request={request}
-                onCancel={() => setChangingPassword(false)}
-                onChanged={() => { setChangingPassword(false); setPasswordChanged(true); }}
-              />
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-navy/60 p-4"
+                onClick={(event) => { if (event.target === event.currentTarget) setChangingPassword(false); }}
+              >
+                <div className="relative w-full max-w-lg" onClick={(event) => event.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() => setChangingPassword(false)}
+                    aria-label="Cerrar cambiar contraseña"
+                    className="absolute right-3 top-3 z-10 grid size-11 place-items-center rounded-lg text-navy/70 transition hover:bg-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+                  >
+                    <X aria-hidden="true" className="size-5" />
+                  </button>
+                  <ChangePasswordPage
+                    mode="voluntary"
+                    email={user.email}
+                    request={request}
+                    onCancel={() => setChangingPassword(false)}
+                    onChanged={() => { setChangingPassword(false); setPasswordChanged(true); }}
+                  />
+                </div>
+              </div>
             )}
           </> : page === 'academic'
             ? <AcademicWorkspace user={user} request={request} onCreateMeeting={(projectId) => goToMeetings(projectId)} />
@@ -205,5 +210,6 @@ export function Workspace({ user, onSignOut, onExpired, onRefresh, signingOut, e
         </main>
       </div>
     </div>
+    </HelpRolesProvider>
   );
 }

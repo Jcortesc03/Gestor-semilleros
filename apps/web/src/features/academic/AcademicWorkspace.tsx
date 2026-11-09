@@ -110,7 +110,7 @@ export function AcademicWorkspace({ user, request, onCreateMeeting }: AcademicWo
 
           {data.detailStatus === 'ready' && (
             <>
-              <div className="grid gap-6 xl:grid-cols-2">
+              <div className="space-y-6">
                 <MembersPanel
                   request={request}
                   projectId={project.id}

@@ -87,7 +87,17 @@ function WhatsappStatusPanel({ request }: { request: ApiRequest }) {
   }
 
   return (
-    <PanelCard title="Estado de WhatsApp" action={<MessageCircle aria-hidden="true" className="size-5 text-gold" />}>
+    <PanelCard
+      title="Estado de WhatsApp"
+      action={<MessageCircle aria-hidden="true" className="size-5 text-gold" />}
+      help={{
+        title: 'Estado de WhatsApp',
+        description: 'Muestra si el servicio de WhatsApp está vinculado. Para vincularlo, escanea el código QR desde WhatsApp → Ajustes → Dispositivos vinculados. «Actualizar» recarga el estado.',
+        roles: {
+          ADMIN: 'Como administrador, consultas y actualizas el estado de vinculación de WhatsApp; no envías mensajes desde aquí.',
+        },
+      }}
+    >
       <p className="mb-6 text-sm leading-relaxed text-navy/75">
         Estado reportado por el backend. Mientras se espera la vinculación se actualiza solo cada pocos segundos, porque WhatsApp
         renueva el QR. Para vincular la cuenta, escanéalo desde WhatsApp → Ajustes → Dispositivos vinculados.

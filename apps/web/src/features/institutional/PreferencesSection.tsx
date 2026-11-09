@@ -69,10 +69,10 @@ export function PreferencesSection({ request }: { request: ApiRequest }) {
   }, [request]);
 
   if (loadError !== undefined) {
-    return <PanelCard title="Preferencias de notificación"><ErrorNotice error={loadError} /></PanelCard>;
+    return <PanelCard title="Preferencias de notificación" help={{ title: 'Preferencias de notificación', description: 'Elige cómo quieres recibir copias de novedades y avisos de reuniones: por correo, por WhatsApp o ambas. Son tus preferencias personales.' }}><ErrorNotice error={loadError} /></PanelCard>;
   }
   if (!saved || !draft) {
-    return <PanelCard title="Preferencias de notificación"><LoadingState label="Cargando preferencias…" /></PanelCard>;
+    return <PanelCard title="Preferencias de notificación" help={{ title: 'Preferencias de notificación', description: 'Elige cómo quieres recibir copias de novedades y avisos de reuniones: por correo, por WhatsApp o ambas. Son tus preferencias personales.' }}><LoadingState label="Cargando preferencias…" /></PanelCard>;
   }
 
   const update = buildUpdate(saved, draft);
@@ -113,7 +113,20 @@ export function PreferencesSection({ request }: { request: ApiRequest }) {
   }
 
   return (
-    <PanelCard title="Preferencias de notificación">
+    <PanelCard
+      title="Preferencias de notificación"
+      help={{
+        title: 'Preferencias de notificación',
+        description: 'Elige cómo quieres recibir copias de las novedades y avisos de reuniones: por correo, por WhatsApp o ambas. «País y número» guardan tu teléfono para WhatsApp (vacío lo borra). Marca las casillas que quieras y pulsa «Guardar preferencias». Son tus preferencias personales; nadie más puede cambiarlas.',
+        roles: {
+          ADMIN: 'Como administrador, son tus preferencias personales de correo y WhatsApp; no cambian las de otros usuarios.',
+          AREA_MANAGER: 'Como encargado de área, son tus preferencias personales; recibes copias según lo que marques aquí.',
+          DEAN: 'Como decano, son tus preferencias personales; recibes copias según lo que marques aquí.',
+          TUTOR: 'Como tutor, son tus preferencias personales; recibes copias según lo que marques aquí.',
+          STUDENT: 'Como estudiante, son tus preferencias personales; recibes copias según lo que marques aquí.',
+        },
+      }}
+    >
       <form className="space-y-6" onSubmit={save}>
         <div className="grid min-w-0 gap-4 sm:grid-cols-2">
           <div className="min-w-0 space-y-2">

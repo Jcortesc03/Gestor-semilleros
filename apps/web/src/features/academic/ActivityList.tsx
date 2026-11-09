@@ -33,7 +33,21 @@ export function ActivityList({ board, activities, status, error, students, curre
   };
 
   return (
-    <PanelCard title={`Actividades de ${board.title}`} action={status === 'ready' ? <span className="text-sm text-navy/70">{activities.length} en el tablero</span> : undefined}>
+    <PanelCard
+      title={`Actividades de ${board.title}`}
+      action={status === 'ready' ? <span className="text-sm text-navy/70">{activities.length} en el tablero</span> : undefined}
+      help={{
+        title: 'Actividades',
+        description: 'Son las tareas del tablero: el formulario crea una actividad con título y descripción; al editarla cambias sus datos; aprobarla marca que se completó y asignarla la reparte entre estudiantes.',
+        roles: {
+          ADMIN: 'Como administrador, puedes crear, editar, asignar y aprobar actividades en cualquier proyecto.',
+          AREA_MANAGER: 'Como encargado de área, ves las actividades de los tableros de tus proyectos, pero crearlas, asignarlas o aprobarlas requiere ser tutor, líder o administrador del proyecto.',
+          DEAN: 'Como decano, ves las actividades de los proyectos de tus facultades, pero crearlas o aprobarlas requiere ser tutor, líder o administrador.',
+          TUTOR: 'Como tutor, puedes crear actividades, asignarlas y aprobar sus avances en el proyecto que tutorizas.',
+          STUDENT: 'Como estudiante, ves las actividades asignadas y marcas tus avances; si eres líder del proyecto, además puedes crear y gestionar actividades.',
+        },
+      }}
+    >
       {canManage && (
         <form className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end" onSubmit={(event) => void submit(event)}>
           <Field label="Título de la actividad" value={title} maxLength={200} onChange={(event) => setTitle(event.target.value)} required />

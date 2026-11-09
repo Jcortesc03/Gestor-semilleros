@@ -28,7 +28,18 @@ export function InstitutionWorkspace({ user, request }: InstitutionWorkspaceProp
     return <AreasPanel request={request} admin={false} />;
   }
   return (
-    <PanelCard title="Áreas y facultades">
+    <PanelCard
+      title="Áreas y facultades"
+      help={{
+        title: 'Áreas y facultades',
+        description: 'Catálogo de áreas y facultades. Solo administradores y encargados de área pueden gestionarlo; por eso esta sección aparece vacía con otros roles.',
+        roles: {
+          DEAN: 'Como decano, no gestionas áreas ni facultades desde aquí; solo ves este aviso.',
+          TUTOR: 'Como tutor, no gestionas áreas ni facultades; solo ves este aviso.',
+          STUDENT: 'Como estudiante, no gestionas áreas ni facultades; solo ves este aviso.',
+        },
+      }}
+    >
       <EmptyState title="Sección no disponible para este rol" description="Solo administradores y encargados de área gestionan áreas y facultades." />
     </PanelCard>
   );

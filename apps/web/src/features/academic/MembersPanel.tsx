@@ -34,9 +34,23 @@ export function MembersPanel({ request, projectId, members, canManageTutors, can
   };
 
   return (
-    <PanelCard title="Participantes" action={<Users aria-hidden="true" className="size-5 text-gold" />}>
+    <PanelCard
+      title="Participantes"
+      action={<Users aria-hidden="true" className="size-5 text-gold" />}
+      help={{
+        title: 'Participantes',
+        description: 'Busca una persona, elige su rol en el proyecto y pulsa «Añadir participante» para incorporarla. En cada participante: «Hacer líder» lo convierte en líder estudiante; «Quitar liderazgo» lo deja como estudiante normal sin sacarlo del proyecto; «Retirar a …» lo elimina por completo del proyecto (deja de participar y de verlo). Si es tutor, «Marcar principal» lo designa tutor principal y «Quitar principal» le quita esa marca.',
+        roles: {
+          ADMIN: 'Como administrador, gestionas todos los participantes de cualquier proyecto, tutores y estudiantes. Busca una persona, elige su rol (Estudiante, Líder estudiante o Tutor) y pulsa «Añadir participante» para incorporarla. En cada participante: «Hacer líder» lo convierte en líder; «Quitar liderazgo» lo deja como estudiante normal sin sacarlo; «Retirar a …» lo saca por completo del proyecto. No hay nada que no puedas hacer aquí.',
+          AREA_MANAGER: 'Como encargado de área, gestionas los participantes de los proyectos de tus áreas. Igual que el administrador: buscas, eliges rol y añades; «Quitar liderazgo» deja a la persona como estudiante normal y «Retirar a …» la saca del proyecto. No puedes crear tableros ni actividades en estos proyectos (eso requiere ser tutor o administrador).',
+          DEAN: 'Como decano, gestionas los participantes de los proyectos de tus facultades, igual que el encargado de área en sus áreas. «Quitar liderazgo» deja a la persona como estudiante normal; «Retirar a …» la saca del proyecto. No creas tableros ni actividades sin ser tutor o administrador.',
+          TUTOR: 'Como tutor, solo puedes añadir y retirar estudiantes del proyecto que tutorizas; no puedes gestionar tutores ni cambiar su tutor principal. «Quitar liderazgo» deja a un estudiante como normal y «Retirar a …» lo saca de tu proyecto.',
+          STUDENT: 'Como estudiante solo ves la lista de participantes y sus roles; no puedes añadir ni retirar a nadie, aunque seas líder. Los botones de gestión no aparecen para tu rol.',
+        },
+      }}
+    >
       {canManageStudents && (
-        <form className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" onSubmit={(event) => void submit(event)}>
+        <form className="grid gap-3 sm:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_auto] sm:items-start" onSubmit={(event) => void submit(event)}>
           <UserPicker
             request={request}
             label="Persona a añadir"
@@ -47,14 +61,15 @@ export function MembersPanel({ request, projectId, members, canManageTutors, can
             onClear={() => setPicked(null)}
             disabled={busy}
           />
-          <label className="block space-y-2 text-sm font-semibold">Rol en el proyecto
-            <select className={inputClassName} value={role} onChange={(event) => { setRole(event.target.value as ProjectRole); setPicked(null); }}>
+          <label className="block space-y-2 text-sm font-semibold">
+            <span className="block whitespace-nowrap">Rol en el proyecto</span>
+            <select className={inputClassName} value={role} onChange={(event) => setRole(event.target.value as ProjectRole)}>
               <option value="STUDENT">{PROJECT_ROLE_LABELS.STUDENT}</option>
               <option value="STUDENT_LEADER">{PROJECT_ROLE_LABELS.STUDENT_LEADER}</option>
               {canManageTutors && <option value="TUTOR">{PROJECT_ROLE_LABELS.TUTOR}</option>}
             </select>
           </label>
-          <Button type="submit" disabled={busy || !picked}>Añadir participante</Button>
+          <Button type="submit" className="sm:mt-7" disabled={busy || !picked}>Añadir participante</Button>
         </form>
       )}
       {members.length === 0 ? (
