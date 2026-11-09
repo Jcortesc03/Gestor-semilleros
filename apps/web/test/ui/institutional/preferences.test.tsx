@@ -51,7 +51,8 @@ describe('Preferencias de notificación', () => {
     const user = userEvent.setup();
     render(<InstitutionalWorkspace user={admin} request={request} section="preferences" />);
 
-    await user.type(await screen.findByLabelText('Teléfono internacional'), '+573000000001');
+    await user.selectOptions(await screen.findByLabelText('País del teléfono'), 'CO');
+    await user.type(screen.getByLabelText('Número de teléfono'), '3000000001');
     await user.click(screen.getByRole('checkbox', { name: 'Noticia por WhatsApp' }));
     await user.click(screen.getByRole('button', { name: 'Guardar preferencias' }));
 
@@ -61,6 +62,64 @@ describe('Preferencias de notificación', () => {
         phone: '+573000000001',
         preferences: [{ kind: 'NEWS', channel: 'WHATSAPP', enabled: true }],
       },
+    });
+  });
+
+  it('ofrece Latinoamérica y países frecuentes con el prefijo automático y límite nacional', async () => {
+    const request = fakeRequest(async () => matrix());
+    const user = userEvent.setup();
+    render(<InstitutionalWorkspace user={admin} request={request} section="preferences" />);
+    const country = await screen.findByLabelText('País del teléfono');
+    for (const code of ['AR', 'BO', 'BR', 'CL', 'CO', 'CR', 'CU', 'DO', 'EC', 'SV', 'GT', 'HT', 'HN', 'MX', 'NI', 'PA', 'PY', 'PE', 'PR', 'UY', 'VE', 'US', 'CA', 'ES']) {
+      expect(country.querySelector(`option[value="${code}"]`)).not.toBeNull();
+    }
+    await user.selectOptions(country, 'VE');
+    expect(screen.getByText('Prefijo: +58')).toBeInTheDocument();
+    const number = screen.getByLabelText('Número de teléfono');
+    expect(number).toHaveAttribute('maxlength', '10');
+    await user.type(number, '412123456789');
+    expect(number).toHaveValue('4121234567');
+    await user.click(screen.getByRole('button', { name: 'Guardar preferencias' }));
+    expect(request).toHaveBeenCalledWith('/api/me/notification-preferences', { method: 'PUT', body: { phone: '+584121234567' } });
+  });
+
+  it('impide guardar números incompletos o con letras y conserva el número al cambiar de país', async () => {
+    const request = fakeRequest(async () => matrix());
+    const user = userEvent.setup();
+    render(<InstitutionalWorkspace user={admin} request={request} section="preferences" />);
+    await user.selectOptions(await screen.findByLabelText('País del teléfono'), 'VE');
+    const number = screen.getByLabelText('Número de teléfono');
+    await user.type(number, '412abc');
+    expect(screen.getByRole('button', { name: 'Guardar preferencias' })).toBeDisabled();
+    await user.clear(number);
+    await user.type(number, '412123456');
+    expect(screen.getByRole('button', { name: 'Guardar preferencias' })).toBeDisabled();
+    await user.selectOptions(screen.getByLabelText('País del teléfono'), 'CR');
+    expect(number).toHaveValue('412123456');
+    expect(screen.getByRole('button', { name: 'Guardar preferencias' })).toBeDisabled();
+  });
+
+  it('separa un teléfono guardado y permite borrarlo sin modificar las preferencias', async () => {
+    const request = fakeRequest(async (_path, options) => options?.method === 'PUT' ? matrix() : matrix('+573000000001'));
+    const user = userEvent.setup();
+    render(<InstitutionalWorkspace user={admin} request={request} section="preferences" />);
+    expect(await screen.findByLabelText('País del teléfono')).toHaveValue('CO');
+    const number = screen.getByLabelText('Número de teléfono');
+    expect(number).toHaveValue('3000000001');
+    expect(screen.getByRole('button', { name: 'Guardar preferencias' })).toBeDisabled();
+    await user.clear(number);
+    await user.click(screen.getByRole('button', { name: 'Guardar preferencias' }));
+    expect(request).toHaveBeenCalledWith('/api/me/notification-preferences', { method: 'PUT', body: { phone: null } });
+  });
+
+  it('no reescribe teléfonos existentes de países no incluidos al cambiar una preferencia', async () => {
+    const request = fakeRequest(async () => matrix('+971501234567'));
+    const user = userEvent.setup();
+    render(<InstitutionalWorkspace user={admin} request={request} section="preferences" />);
+    await user.click(await screen.findByRole('checkbox', { name: 'Noticia por WhatsApp' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar preferencias' }));
+    expect(request).toHaveBeenCalledWith('/api/me/notification-preferences', {
+      method: 'PUT', body: { preferences: [{ kind: 'NEWS', channel: 'WHATSAPP', enabled: true }] },
     });
   });
 

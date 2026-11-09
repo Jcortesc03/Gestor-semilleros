@@ -10,6 +10,7 @@ interface LoginPageProps {
   onSubmit: (credentials: Credentials) => Promise<void>;
   /** Presente solo si el backend tiene habilitado Google. */
   onGoogle?: () => Promise<void>;
+  onForgotPassword?: () => void;
   pending: boolean;
   error: string | null;
 }
@@ -29,7 +30,7 @@ const ERROR_ID = "login-error";
  * sobre beige. Una sola familia (Montserrat), radios 8–12 px y
  * foco siempre visible. Sin héroe completo ni pruebas inventadas.
  */
-export function LoginPage({ onSubmit, onGoogle, pending, error }: LoginPageProps) {
+export function LoginPage({ onSubmit, onGoogle, onForgotPassword, pending, error }: LoginPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -143,6 +144,10 @@ export function LoginPage({ onSubmit, onGoogle, pending, error }: LoginPageProps
 
           {error ? <div className="mb-6"><AlertMessage id={ERROR_ID} message={error} /></div> : null}
 
+          {onForgotPassword && <button type="button" onClick={onForgotPassword} disabled={pending}
+            className="mb-5 min-h-11 text-sm font-semibold text-navy underline decoration-gold underline-offset-4 disabled:opacity-50">
+            Olvidé mi contraseña
+          </button>}
           <form onSubmit={handleSubmit} noValidate={false} className="space-y-5">
             <div>
               <label

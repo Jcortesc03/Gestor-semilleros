@@ -81,6 +81,9 @@ Sección «Áreas y facultades» (`features/institution`), visible para administ
 ## Proyectos y documentos
 
 El listado de proyectos busca por título en el servidor y pagina de 20 en 20 ([ADR 0017](../../docs/decisions/0017-paginacion-de-listas.md)); participantes, tableros y actividades se paginan en el cliente de 10 en 10. La sección «Documentos» del proyecto pagina de 20 en 20 y el selector de adjuntos de actividades pide hasta 100.
+## Inscripciones
+
+Sección «Inscripciones» (`features/enrollments`), visible para administradores y encargados de área (el backend también exige el permiso). Se lee como un panel simple: el control «Importar inscripciones» pide el área, la vista previa y la confirmación antes de guardar; sin fuente configurada muestra «La fuente aún no está configurada.» y no se exponen identificadores ni rangos técnicos. La lista admite filtros por área, facultad, período, estado y búsqueda, con paginación y orden nuevo primero; cada fila tiene sus propios botones de aceptar o rechazar, sin selección múltiple. Al aceptar se crea un usuario STUDENT con contraseña temporal aleatoria, cambio obligatorio al iniciar sesión y correo de aprobación con el correo y esa contraseña; si el correo ya existe, la solicitud no se acepta. Solo las solicitudes rechazadas pueden eliminarse, con confirmación de que el borrado es local y no borra la respuesta en Google; el sistema conserva las rechazadas 3 días desde el rechazo. «Exportar Excel» descarga el `.xlsx` real generado por el backend con los mismos filtros. La guía de creación del formulario público está en [`docs/guides/enrollment-form.md`](../../docs/guides/enrollment-form.md); en el entorno local ya existe un formulario personal y su hoja privada, y el backend está configurado para leerla.
 
 ## Usuarios y contraseñas
 
@@ -95,6 +98,17 @@ Sección «Analítica» (`features/analytics`), visible para administradores, en
 - Gráficas en SVG propio, sin dependencias nuevas: rankings de facultades y áreas, barras agrupadas de tutores y decanos, columnas por día de la semana, líneas mensuales y distribuciones.
 - Tablas ordenables de tutores y decanos, y tabla de patrones que resalta el grupo con mayor finalización o éxito.
 - Estados de carga, error (incluido el 403 sin permisos) y vacío; las tasas sin denominador se muestran como «—». Cada gráfica incluye título accesible y una tabla alternativa.
+## Recuperar contraseña
+
+En el login, «Olvidé mi contraseña» pide el correo de la cuenta. El usuario recibe un código de 6 dígitos, lo verifica y después elige y confirma una nueva contraseña. El código vence en 10 minutos, permite 5 intentos y sirve una sola vez. Requiere SMTP y la migración `password_recovery` en el backend; no depende de las preferencias de notificaciones. Consulta [el contrato](../../docs/api/auth.md#recuperación-por-código-de-correo) y [ADR 0016](../../docs/decisions/0016-recuperacion-de-contrasena.md).
+
+## Teléfono en preferencias
+
+Selecciona el país y escribe el número nacional en el segundo campo: el prefijo internacional se agrega automáticamente. El selector incluye los países latinoamericanos, Puerto Rico, Belice, Guyana y Surinam, además de Alemania, Australia, Canadá, China, España, Estados Unidos, Francia, India, Italia, Japón, Portugal, Reino Unido y Suiza. Para los países que comparten `+1`, el número nacional incluye el código de área.
+
+La web admite solo dígitos y las longitudes nacionales de líneas fijas y móviles del país seleccionado, tomadas de [libphonenumber](https://github.com/google/libphonenumber/blob/master/resources/PhoneNumberMetadata.xml) el 8 de noviembre de 2026. No comprueba que la línea exista ni que tenga WhatsApp. No agregues el prefijo internacional ni un código de salida; los ceros que forman parte del número nacional, como en Italia, se conservan.
+
+La API sigue recibiendo un único teléfono E.164. Borrar el número lo elimina; los teléfonos guardados, incluso de países fuera del selector, se conservan al cambiar únicamente las preferencias de notificación. En códigos compartidos como `+1`, el país no se puede recuperar con certeza solo a partir del prefijo.
 
 ## Diseño
 

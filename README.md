@@ -15,6 +15,8 @@
 
 <a id="contenido"></a>
 
+La recuperación de contraseña por correo está disponible desde «Olvidé mi contraseña»: código de 6 dígitos, 10 minutos y 5 intentos. Requiere SMTP y aplicar la migración `password_recovery`; ver [ADR 0016](docs/decisions/0016-recuperacion-de-contrasena.md).
+
 ## 📑 Contenido
 
 - [Descripción](#descripcion)

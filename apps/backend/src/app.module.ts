@@ -11,9 +11,16 @@ import { MeetingsModule } from './modules/meetings';
 import { DashboardModule } from './modules/dashboard';
 import { FacultiesModule } from './modules/faculties';
 import { DocumentsModule } from './modules/documents';
+
 import { AnalyticsModule } from './modules/analytics';
 
 @Module({
   imports: [ConfigModule, DatabaseModule, AuthModule, UsersModule, ProjectsModule, BoardsModule, IntegrationsModule, NotificationsModule, MeetingsModule, DashboardModule, FacultiesModule, DocumentsModule, AnalyticsModule],
+
+import { EnrollmentModule } from './modules/enrollment';
+
+@Module({
+  imports: [ConfigModule, DatabaseModule, AuthModule, UsersModule, ProjectsModule, BoardsModule, IntegrationsModule, NotificationsModule, MeetingsModule, DashboardModule, FacultiesModule, DocumentsModule, EnrollmentModule],
+
 })
 export class AppModule {}
