@@ -1,0 +1,54 @@
+# Contexto de build: la raíz del monorepo (docker build -f apps/backend/Dockerfile .).
+# Se excluye todo lo que no hace falta para instalar, compilar o ejecutar.
+
+# Dependencias y artefactos de compilación (se reinstalan y compilan dentro de la imagen)
+**/node_modules
+**/dist
+**/build
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+
+# Cliente de Prisma generado: se regenera en la imagen (ver .gitignore)
+apps/backend/src/generated
+
+# Control de versiones y editores
+.git
+.gitignore
+.dockerignore
+.vscode
+.idea
+**/.DS_Store
+
+# Entorno y secretos: nunca dentro de la imagen
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Sesión y QR de WhatsApp (credenciales de la cuenta vinculada)
+**/*_sessions
+**/*.qr.png
+
+# Logs y resultados de pruebas
+**/*.log
+**/test-results
+**/playwright-report
+**/coverage
+
+# Herramientas locales de agentes (no forman parte de la aplicación)
+.agents
+.claude
+.opencode
+.nvmrc
+opencode.json
+skill
+scripts
+odd
+docs
+**/*.md
+
+# Docker de desarrollo (la base local no entra en la imagen del backend)
+docker

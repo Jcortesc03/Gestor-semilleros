@@ -1,6 +1,6 @@
 # Estructura del proyecto
 
-> **Estado:** estructura inicial de carpetas, sin código fuente. Los archivos `.gitkeep` solo preservan los directorios vacíos en Git.
+> **Estado:** backend con autenticación, usuarios, proyectos, tableros, actividades y notificaciones incorporados desde Tableros; integración en verificación. La primera aplicación web tiene login/panel y se amplía por roles. Móvil sigue pendiente; los `.gitkeep` conservan las carpetas aún vacías.
 
 El backend se organiza como un **monolito modularizado**: un único despliegue, dividido en módulos por dominio que pueden evolucionar o extraerse a un servicio independiente si la escala lo exige.
 
@@ -17,34 +17,52 @@ El backend se organiza como un **monolito modularizado**: un único despliegue, 
 .
 ├── apps/
 │   ├── backend/                    # NestJS + Prisma
+│   │   ├── .env.example            # Plantilla de variables de entorno
+│   │   ├── package.json            # Scripts db:*, admin:create, test, test:e2e
+│   │   ├── prisma.config.ts        # Configuración de Prisma CLI
 │   │   ├── prisma/
+│   │   │   ├── schema.prisma       # Esquema de datos
 │   │   │   └── migrations/         # Migraciones de Prisma
 │   │   └── src/
+│   │       ├── main.ts             # Arranque de NestJS
+│   │       ├── app.module.ts
+│   │       ├── app.setup.ts        # Prefijo /api y montaje de Auth.js (compartido con pruebas)
+│   │       ├── generated/prisma/   # Cliente de Prisma generado (no versionado)
+│   │       ├── types/              # Declaraciones de tipos (Auth.js)
+│   │       ├── cli/                # Comandos de terminal: create-admin.ts (y seed.ts, seed de desarrollo)
 │   │       ├── common/             # Código transversal
-│   │       │   ├── decorators/
+│   │       │   ├── decorators/     # current-user, roles
 │   │       │   ├── filters/
-│   │       │   ├── guards/
+│   │       │   ├── guards/         # session.guard, roles.guard
 │   │       │   ├── interceptors/
 │   │       │   ├── pipes/
 │   │       │   └── utils/
 │   │       ├── config/             # Configuración y validación de entorno
 │   │       ├── database/           # PrismaService y utilidades de datos
-│   │       └── modules/            # Módulos de dominio
-│   │           ├── auth/           # Autenticación y autorización (Auth.js)
-│   │           ├── users/          # Integrantes, tutores y decanos
-│   │           ├── faculties/      # Facultades
-│   │           ├── semilleros/     # Semilleros de investigación
-│   │           ├── meetings/       # Reuniones
-│   │           ├── documents/      # Gestión documental (S3)
-│   │           ├── tasks/          # Tareas, Kanban y estados
-│   │           ├── reminders/      # Recordatorios
-│   │           ├── notifications/  # WhatsApp y correo electrónico
-│   │           ├── tracking/       # Seguimiento y progreso
-│   │           ├── reports/        # Reportes
-│   │           ├── dashboard/      # Indicadores y panel de control
-│   │           ├── integrations/   # Microsoft Teams y otros servicios
-│   │           └── ai/             # Análisis y seguimiento con IA
-│   ├── web/                        # React
+│   │       ├── modules/            # Módulos de dominio; se indica lo implementado
+│   │       │   ├── auth/           # Implementado: Auth.js, GET /api/me (index.ts expone su API pública)
+│   │       │   ├── users/          # Implementado: POST /api/users (index.ts expone su API pública)
+│   │       │   ├── projects/       # Implementado: proyectos, participantes y permisos
+│   │       │   ├── boards/         # Implementado: tableros, actividades y aprobación
+│   │       │   ├── faculties/      # Facultades
+│   │       │   ├── semilleros/     # Semilleros de investigación
+│   │       │   ├── meetings/       # Reuniones
+│   │       │   ├── documents/      # Gestión documental (S3)
+│   │       │   ├── tasks/          # Tareas, Kanban y estados
+│   │       │   ├── reminders/      # Recordatorios
+│   │       │   ├── notifications/  # Implementado: novedades, audiencias y copias
+│   │       │   ├── tracking/       # Seguimiento y progreso
+│   │       │   ├── reports/        # Reportes
+│   │       │   ├── dashboard/      # Indicadores y panel de control
+│   │       │   ├── integrations/   # Implementado: preferencias y transportes de notificación
+│   │       │   └── ai/             # Análisis y seguimiento con IA
+│   │       └── **/*.spec.ts        # Pruebas unitarias junto al código
+│   │   └── test/                   # Pruebas de la API (e2e): *.e2e-spec.ts, jest-e2e.config.js, global-setup y helpers
+│   ├── web/                        # React + Vite + Tailwind (ADR 0008)
+│   │   ├── package.json            # dev, build, typecheck y test
+│   │   ├── index.html              # Entrada HTML
+│   │   ├── vite.config.ts          # Proxy local /api al backend
+│   │   ├── test/                   # Transporte HTTP y fixture de navegador
 │   │   ├── public/
 │   │   └── src/
 │   │       ├── assets/
@@ -53,9 +71,9 @@ El backend se organiza como un **monolito modularizado**: un único despliegue, 
 │   │       ├── hooks/
 │   │       ├── layouts/
 │   │       ├── lib/                # Cliente API y utilidades
-│   │       ├── pages/
+│   │       ├── pages/              # Inicio de sesión y panel personal
 │   │       ├── routes/
-│   │       ├── services/
+│   │       ├── services/           # Cliente de Auth.js y /api/me
 │   │       ├── store/              # Estado global
 │   │       ├── styles/
 │   │       └── types/
@@ -76,9 +94,22 @@ El backend se organiza como un **monolito modularizado**: un único despliegue, 
 │   ├── validation/                 # Esquemas de validación
 │   └── utils/                      # Utilidades compartidas
 ├── docker/                         # Configuración de contenedores
+│   ├── compose.yaml                # PostgreSQL local
+│   └── .env.example
 ├── docs/
 │   ├── architecture/               # Arquitectura y esta guía
-│   ├── api/                        # Documentación de la API
+│   ├── domain/                     # Dominio del negocio (independiente de la tecnología)
+│   │   ├── README.md
+│   │   ├── glossary.md
+│   │   ├── entities.md
+│   │   ├── business-rules.md
+│   │   ├── roles-permissions.md
+│   │   └── workflows.md
+│   ├── database/                   # Modelo de datos y base de datos local
+│   │   ├── data-model.md
+│   │   ├── database-decisions.md
+│   │   └── local-setup.md
+│   ├── api/                        # Documentación de la API (auth.md, users.md)
 │   └── decisions/                  # ADRs
 ├── scripts/                        # Automatizaciones del monorepo
 ├── package.json                    # Scripts raíz (delegan en Turborepo)
@@ -127,12 +158,12 @@ apps/mobile ┘             └──> AWS S3
 El monorepo se gestiona con **pnpm** y **Turborepo**:
 
 - `pnpm-workspace.yaml` define los paquetes en `apps/*` y `packages/*`.
-- `turbo.json` declara las tareas `build`, `dev`, `lint`, `test`, `typecheck` y `clean`.
+- `turbo.json` declara las tareas `build`, `dev`, `lint`, `test`, `test:e2e`, `typecheck` y `clean`.
 - Los scripts de la raíz (`package.json`) delegan en `turbo run`.
-- Cada aplicación o paquete tendrá su propio `package.json` con sus scripts.
+- Cada aplicación o paquete tiene su propio `package.json` con sus scripts (hoy solo existe el del backend).
 - Las dependencias internas se referencian con `workspace:*`.
 
-Comandos previstos desde la raíz:
+Comandos desde la raíz (hoy solo el backend los implementa; `lint` aún no tiene herramienta):
 
 ```bash
 pnpm install
@@ -145,6 +176,6 @@ pnpm typecheck
 
 ## Pendiente de definición
 
-- Versiones de Node.js, pnpm, Turborepo, PostgreSQL y Prisma.
-- Contenido de los Dockerfiles y archivos Compose.
-- Framework de pruebas y pipeline de CI/CD.
+- Versión de Turborepo (el resto está en el ADR 0001).
+- Dockerfiles y Compose de despliegue (el Compose local ya existe).
+- Pipeline de CI/CD y herramientas de linting y formato (las pruebas usan Jest + Supertest, ADR 0002).

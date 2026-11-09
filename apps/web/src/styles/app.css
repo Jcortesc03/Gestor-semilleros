@@ -1,0 +1,102 @@
+@import "tailwindcss";
+@import "./tokens.css";
+@import "@fontsource/montserrat/latin-400.css";
+@import "@fontsource/montserrat/latin-600.css";
+@import "@fontsource/montserrat/latin-700.css";
+@import "@fontsource/montserrat/latin-800.css";
+
+/**
+ * Tema de Tailwind 4: Montserrat como única familia y los seis
+ * colores exactos de la guía del proyecto. Sin otras familias ni
+ * paletas. Las utilidades `bg-canvas`, `text-navy`, `bg-gold`,
+ * etc. resuelven contra estos valores.
+ */
+@theme {
+  --font-sans: "Montserrat", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-navy: #151b40;
+  --color-navy-soft: #2a2c41;
+  --color-gold: #f3b92f;
+  --color-alert: #c1272d;
+  --color-canvas: #f5f2eb;
+  --color-paper: #ffffff;
+
+  --radius-xl: 12px;
+
+  --shadow-card: 0 1px 2px rgb(21 27 64 / 0.05), 0 10px 28px rgb(21 27 64 / 0.07);
+  --shadow-raised: 0 2px 4px rgb(21 27 64 / 0.06), 0 16px 36px rgb(21 27 64 / 0.10);
+}
+
+@layer base {
+  html {
+    scroll-behavior: auto;
+    overflow-x: clip;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-navy antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: clip;
+  }
+
+  code, kbd, pre, samp {
+    font-family: var(--font-sans);
+  }
+
+  /* Foco de teclado siempre visible: anillo azul sobre fondos claros. */
+  :focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  /* Sobre fondos oscuros el anillo pasa a dorado (contraste AA sobre navy). */
+  .on-dark :focus-visible {
+    outline: var(--focus-ring-dark);
+  }
+
+  /* Los campos usan su propio anillo dorado y no heredan el outline doble. */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+  }
+
+  ::selection {
+    background: var(--color-gold);
+    color: var(--color-navy);
+  }
+}
+
+@layer components {
+  /**
+   * Textura sutil de puntos dorados para áreas de marca sobre azul marino.
+   * Decorativa (`aria-hidden` en el marcado): nunca lleva contenido
+   * ni se aplica sobre formularios o texto.
+   */
+  .texture-dots {
+    background-image: radial-gradient(rgb(243 185 47 / 0.22) 1.5px, transparent 1.5px);
+    background-size: 22px 22px;
+  }
+
+  .texture-dots-light {
+    background-image: radial-gradient(rgb(21 27 64 / 0.10) 1.5px, transparent 1.5px);
+    background-size: 22px 22px;
+  }
+
+  /** Filete fino dorado para separar el encabezado editorial del sistema. */
+  .hairline-gold {
+    background: linear-gradient(to right, var(--color-gold) 0 3rem, rgb(243 185 47 / 0.25) 3rem 100%);
+    height: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

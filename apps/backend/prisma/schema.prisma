@@ -1,0 +1,787 @@
+// Esquema de datos del Gestor de Semilleros Universitarios.
+//
+// Fuente: docs/domain/ y docs/database/ (decisiones DB-xx, preguntas P-xx).
+// Las restricciones que Prisma no puede expresar (CHECK e índices únicos
+// parciales) se añaden con SQL en la migración inicial. Ver docs/database/data-model.md §6.
+//
+// Puntos provisionales (no confirmados todavía):
+//   - AreaManager: alcance del encargado de área (P-08).
+//   - Reminder: modelo mínimo (P-19).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────
+// Enumeraciones
+// ─────────────────────────────────────────────────────────────
+
+/// Roles globales del sistema (P-02: un usuario puede tener varios).
+enum Role {
+  ADMIN
+  AREA_MANAGER
+  DEAN
+  TUTOR
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+/// P-26
+enum ProjectStatus {
+  ACTIVE
+  FINISHED
+  CANCELLED
+}
+
+/// Rol dentro de un proyecto (P-03: el líder es un rol de proyecto, máximo uno).
+enum ProjectRole {
+  TUTOR
+  STUDENT
+  STUDENT_LEADER
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INACTIVE
+}
+
+/// Progreso de tableros y actividades (RN-03, P-11).
+enum ProgressStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+/// Resultado, independiente del progreso (RN-04, P-11).
+enum WorkResult {
+  SUCCESS
+  FAILURE
+}
+
+/// Aprobación del tutor, solo el estado actual (P-12).
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AttachmentKind {
+  LINK
+  DOCUMENT
+}
+
+/// Formatos admitidos (RN-60).
+enum DocumentFormat {
+  PDF
+  WORD
+  EXCEL
+  IMAGE
+}
+
+/// Una notificación es un tipo de novedad (P-16).
+enum AnnouncementKind {
+  NEWS
+  COMMUNICATION
+  CHANGE
+  NOTIFICATION
+}
+
+enum AudienceType {
+  ALL
+  ROLE
+  FACULTY
+  AREA
+  PROJECT
+}
+
+/// Tipo de aviso para las preferencias y la bandeja de salida: los cuatro tipos de novedad
+/// más los avisos de reuniones (ADR 0007).
+enum NotificationKind {
+  NEWS
+  COMMUNICATION
+  CHANGE
+  NOTIFICATION
+  MEETING
+}
+
+/// Para qué se envía una copia de la bandeja de salida.
+enum DispatchPurpose {
+  ANNOUNCEMENT
+  MEETING_INVITATION
+  MEETING_REMINDER
+  MEETING_CANCELLATION
+}
+
+/// ADR 0007. EN_PROCESO y FINALIZADA se alcanzan solas por horario o a mano.
+enum MeetingStatus {
+  SCHEDULED
+  IN_PROGRESS
+  FINISHED
+  CANCELLED
+}
+
+/// Canales externos para las copias de las novedades (ADR 0005).
+enum NotificationChannel {
+  EMAIL
+  WHATSAPP
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+// ─────────────────────────────────────────────────────────────
+// Usuarios y roles
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id                 String     @id @default(uuid()) @db.Uuid
+  fullName           String     @map("full_name")
+  email              String     @unique
+  /// Hash Argon2id. Nulo si el usuario solo inicia sesión con Google.
+  passwordHash       String?    @map("password_hash")
+  /// Teléfono en formato E.164 para las copias por WhatsApp (CHECK en SQL). Opcional.
+  phone              String?
+  status             UserStatus @default(ACTIVE)
+  /// Contraseña temporal fijada por un administrador: el usuario debe cambiarla antes de continuar (ADR 0011).
+  mustChangePassword Boolean    @default(false) @map("must_change_password")
+  passwordResetAt    DateTime?  @map("password_reset_at")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+
+  roles                 UserRole[]
+  managedAreas          AreaManager[]
+  deanships             FacultyDean[]
+  memberships           ProjectMember[]
+  createdProjects       Project[]                @relation("ProjectCreator")
+  tutoredBoards         Board[]                  @relation("BoardResponsibleTutor")
+  assignedBoards        Board[]                  @relation("BoardResponsibleStudent")
+  authoredActivities    Activity[]               @relation("ActivityAuthor")
+  approvedActivities    Activity[]               @relation("ActivityApprover")
+  activityAssignments   ActivityAssignee[]       @relation("ActivityAssignee")
+  assignmentsGiven      ActivityAssignee[]       @relation("ActivityAssigner")
+  attachments           ActivityAttachment[]
+  documents             Document[]
+  announcements         Announcement[]
+  organizedMeetings     Meeting[]
+  meetings              MeetingParticipant[]
+  reminders             Reminder[]
+  notificationPrefs     NotificationPreference[]
+  deliveries            NotificationDelivery[]
+  microsoftAccount      MicrosoftAccount?
+  passwordRecovery      PasswordRecovery?
+  enrollmentAuditEvents EnrollmentAuditEvent[]
+
+  @@map("users")
+}
+
+/// DB-01
+model PasswordRecovery {
+  userId         String    @id @map("user_id") @db.Uuid
+  codeHash       String    @map("code_hash")
+  resetTokenHash String?   @unique @map("reset_token_hash")
+  requestedAt    DateTime  @map("requested_at")
+  expiresAt      DateTime  @map("expires_at")
+  attempts       Int       @default(0)
+  verifiedAt     DateTime? @map("verified_at")
+  consumedAt     DateTime? @map("consumed_at")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_recoveries")
+}
+
+model UserRole {
+  userId     String   @map("user_id") @db.Uuid
+  role       Role
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, role])
+  @@map("user_roles")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Estructura institucional
+// ─────────────────────────────────────────────────────────────
+
+model Area {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  managers                   AreaManager[]
+  projects                   Project[]
+  audiences                  AnnouncementAudience[]
+  enrollmentSources          EnrollmentSource[]
+  enrollmentApplications     EnrollmentApplication[]
+  enrollmentImportTombstones EnrollmentImportTombstone[]
+  enrollmentAuditEvents      EnrollmentAuditEvent[]
+
+  @@map("areas")
+}
+
+/// Provisional (P-08).
+model AreaManager {
+  areaId     String   @map("area_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  area Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([areaId, userId])
+  @@index([userId])
+  @@map("area_managers")
+}
+
+model Faculty {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  deans     FacultyDean[]
+  projects  ProjectFaculty[]
+  audiences AnnouncementAudience[]
+
+  @@map("faculties")
+}
+
+/// DB-03 (P-06). Un decano vigente por facultad: índice parcial en SQL.
+model FacultyDean {
+  id        String    @id @default(uuid()) @db.Uuid
+  facultyId String    @map("faculty_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  startsAt  DateTime  @default(now()) @map("starts_at")
+  endsAt    DateTime? @map("ends_at")
+
+  faculty Faculty @relation(fields: [facultyId], references: [id], onDelete: Restrict)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([facultyId])
+  @@index([userId])
+  @@map("faculty_deans")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Proyectos
+// ─────────────────────────────────────────────────────────────
+
+model Project {
+  id          String        @id @default(uuid()) @db.Uuid
+  title       String
+  description String?
+  areaId      String        @map("area_id") @db.Uuid
+  status      ProjectStatus @default(ACTIVE)
+  startsOn    DateTime?     @map("starts_on") @db.Date
+  endsOn      DateTime?     @map("ends_on") @db.Date
+  createdById String        @map("created_by_id") @db.Uuid
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  deletedAt   DateTime?     @map("deleted_at")
+
+  area      Area                   @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  createdBy User                   @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  faculties ProjectFaculty[]
+  members   ProjectMember[]
+  boards    Board[]
+  documents Document[]
+  meetings  Meeting[]
+  reminders Reminder[]
+  audiences AnnouncementAudience[]
+
+  @@index([areaId])
+  @@index([deletedAt])
+  @@map("projects")
+}
+
+/// P-04: un proyecto pertenece a una o varias facultades (mínimo una, se valida en el servicio).
+model ProjectFaculty {
+  projectId String @map("project_id") @db.Uuid
+  facultyId String @map("faculty_id") @db.Uuid
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  faculty Faculty @relation(fields: [facultyId], references: [id], onDelete: Restrict)
+
+  @@id([projectId, facultyId])
+  @@index([facultyId])
+  @@map("project_faculties")
+}
+
+/// DB-02. Con historial (P-25). Índices parciales en SQL:
+///   - un registro activo por (proyecto, usuario);
+///   - un único proyecto activo por estudiante (P-25);
+///   - un único líder activo por proyecto (P-03);
+///   - un único tutor principal activo por proyecto (P-05).
+model ProjectMember {
+  id          String           @id @default(uuid()) @db.Uuid
+  projectId   String           @map("project_id") @db.Uuid
+  userId      String           @map("user_id") @db.Uuid
+  projectRole ProjectRole      @map("project_role")
+  isPrimary   Boolean          @default(false) @map("is_primary")
+  status      MembershipStatus @default(ACTIVE)
+  joinedAt    DateTime         @default(now()) @map("joined_at")
+  leftAt      DateTime?        @map("left_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([projectId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Tableros y actividades
+// ─────────────────────────────────────────────────────────────
+
+/// Los responsables deben ser participantes activos del proyecto (DB-05, validación en servicio).
+model Board {
+  id                   String         @id @default(uuid()) @db.Uuid
+  projectId            String         @map("project_id") @db.Uuid
+  title                String
+  dueDate              DateTime       @map("due_date") @db.Date
+  progressStatus       ProgressStatus @default(PENDING) @map("progress_status")
+  result               WorkResult?
+  responsibleTutorId   String         @map("responsible_tutor_id") @db.Uuid
+  responsibleStudentId String         @map("responsible_student_id") @db.Uuid
+  /// Momento en que el progreso pasó a DONE; nulo si no está terminado (ADR 0016).
+  completedAt          DateTime?      @map("completed_at")
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
+  deletedAt            DateTime?      @map("deleted_at")
+
+  project            Project    @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  responsibleTutor   User       @relation("BoardResponsibleTutor", fields: [responsibleTutorId], references: [id], onDelete: Restrict)
+  responsibleStudent User       @relation("BoardResponsibleStudent", fields: [responsibleStudentId], references: [id], onDelete: Restrict)
+  activities         Activity[]
+
+  @@index([projectId])
+  @@index([deletedAt])
+  @@index([completedAt])
+  @@map("boards")
+}
+
+model Activity {
+  id             String         @id @default(uuid()) @db.Uuid
+  boardId        String         @map("board_id") @db.Uuid
+  authorId       String         @map("author_id") @db.Uuid
+  title          String
+  description    String?
+  progressStatus ProgressStatus @default(PENDING) @map("progress_status")
+  result         WorkResult?
+  approvalStatus ApprovalStatus @default(PENDING) @map("approval_status")
+  approvedById   String?        @map("approved_by_id") @db.Uuid
+  approvedAt     DateTime?      @map("approved_at")
+  /// Momento en que el progreso pasó a DONE; nulo si no está terminado (ADR 0016).
+  completedAt    DateTime?      @map("completed_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  deletedAt      DateTime?      @map("deleted_at")
+
+  board       Board                @relation(fields: [boardId], references: [id], onDelete: Restrict)
+  author      User                 @relation("ActivityAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  approvedBy  User?                @relation("ActivityApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  assignees   ActivityAssignee[]
+  attachments ActivityAttachment[]
+
+  @@index([boardId])
+  @@index([deletedAt])
+  @@index([completedAt])
+  @@map("activities")
+}
+
+/// P-10: varios encargados por actividad.
+model ActivityAssignee {
+  activityId   String   @map("activity_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  assignedById String   @map("assigned_by_id") @db.Uuid
+  assignedAt   DateTime @default(now()) @map("assigned_at")
+
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user       User     @relation("ActivityAssignee", fields: [userId], references: [id], onDelete: Restrict)
+  assignedBy User     @relation("ActivityAssigner", fields: [assignedById], references: [id], onDelete: Restrict)
+
+  @@id([activityId, userId])
+  @@index([userId])
+  @@map("activity_assignees")
+}
+
+/// P-14: varios adjuntos; cada uno es un enlace o un documento (CHECK en SQL).
+model ActivityAttachment {
+  id          String         @id @default(uuid()) @db.Uuid
+  activityId  String         @map("activity_id") @db.Uuid
+  kind        AttachmentKind
+  url         String?
+  documentId  String?        @map("document_id") @db.Uuid
+  createdById String         @map("created_by_id") @db.Uuid
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  activity  Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  document  Document? @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  createdBy User      @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([activityId])
+  @@index([documentId])
+  @@map("activity_attachments")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Documentos
+// ─────────────────────────────────────────────────────────────
+
+/// DB-08 (P-15): pertenece a un proyecto; se guarda la clave del objeto en S3.
+model Document {
+  id           String         @id @default(uuid()) @db.Uuid
+  projectId    String         @map("project_id") @db.Uuid
+  uploadedById String         @map("uploaded_by_id") @db.Uuid
+  fileName     String         @map("file_name")
+  format       DocumentFormat
+  mimeType     String         @map("mime_type")
+  sizeBytes    BigInt         @map("size_bytes")
+  storageKey   String         @unique @map("storage_key")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  deletedAt    DateTime?      @map("deleted_at")
+
+  project     Project              @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  uploadedBy  User                 @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  attachments ActivityAttachment[]
+
+  @@index([projectId])
+  @@index([deletedAt])
+  @@map("documents")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Novedades
+// ─────────────────────────────────────────────────────────────
+
+/// P-16: sin registro de lectura; la audiencia se calcula al consultar (DB-06).
+model Announcement {
+  id          String           @id @default(uuid()) @db.Uuid
+  authorId    String           @map("author_id") @db.Uuid
+  kind        AnnouncementKind @default(NEWS)
+  title       String
+  content     String
+  publishedAt DateTime         @default(now()) @map("published_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  deletedAt   DateTime?        @map("deleted_at")
+
+  author      User                     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  audiences   AnnouncementAudience[]
+  dispatch    NotificationDispatch?
+  attachments AnnouncementAttachment[]
+
+  @@index([publishedAt])
+  @@map("announcements")
+}
+
+/// ADR 0015: archivos adjuntos de las noticias (NEWS). Mismos metadatos que `documents`;
+/// la novedad se elimina de forma lógica, así que la FK es Restrict (no se pierden objetos de S3).
+model AnnouncementAttachment {
+  id             String         @id @default(uuid()) @db.Uuid
+  announcementId String         @map("announcement_id") @db.Uuid
+  fileName       String         @map("file_name")
+  format         DocumentFormat
+  mimeType       String         @map("mime_type")
+  sizeBytes      BigInt         @map("size_bytes")
+  storageKey     String         @unique @map("storage_key")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Restrict)
+
+  @@index([announcementId])
+  @@map("announcement_attachments")
+}
+
+/// DB-06: el destino depende de audienceType (CHECK en SQL).
+model AnnouncementAudience {
+  id             String       @id @default(uuid()) @db.Uuid
+  announcementId String       @map("announcement_id") @db.Uuid
+  audienceType   AudienceType @map("audience_type")
+  role           Role?
+  facultyId      String?      @map("faculty_id") @db.Uuid
+  areaId         String?      @map("area_id") @db.Uuid
+  projectId      String?      @map("project_id") @db.Uuid
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  faculty      Faculty?     @relation(fields: [facultyId], references: [id], onDelete: Restrict)
+  area         Area?        @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  project      Project?     @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@index([announcementId])
+  @@index([facultyId])
+  @@index([areaId])
+  @@index([projectId])
+  @@map("announcement_audiences")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Copias de novedades por canales externos (ADR 0005)
+// ─────────────────────────────────────────────────────────────
+
+/// Preferencia de un usuario por tipo de novedad y canal. Sin fila se aplica el valor
+/// por defecto: correo activado, WhatsApp desactivado (exige teléfono y consentimiento).
+model NotificationPreference {
+  userId    String              @map("user_id") @db.Uuid
+  kind      NotificationKind
+  channel   NotificationChannel
+  enabled   Boolean
+  updatedAt DateTime            @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, kind, channel])
+  @@map("notification_preferences")
+}
+
+/// Bandeja de salida: copia del mensaje (de una novedad o de una reunión) tal como se envía.
+/// CHECK en SQL: exactamente uno de announcement_id / meeting_id.
+model NotificationDispatch {
+  id             String           @id @default(uuid()) @db.Uuid
+  announcementId String?          @unique @map("announcement_id") @db.Uuid
+  meetingId      String?          @map("meeting_id") @db.Uuid
+  purpose        DispatchPurpose  @default(ANNOUNCEMENT)
+  kind           NotificationKind
+  subject        String
+  body           String
+  /// Momento a partir del cual se envía (los recordatorios se programan a futuro).
+  scheduledFor   DateTime         @default(now()) @map("scheduled_for")
+  /// Si se define, la copia se descarta después de este momento (p. ej. un recordatorio tras empezar la reunión).
+  expiresAt      DateTime?        @map("expires_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  announcement Announcement?          @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  meeting      Meeting?               @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  deliveries   NotificationDelivery[]
+
+  @@index([meetingId])
+  @@map("notification_dispatches")
+}
+
+/// Un envío por destinatario y canal, con reintentos.
+model NotificationDelivery {
+  id            String              @id @default(uuid()) @db.Uuid
+  dispatchId    String              @map("dispatch_id") @db.Uuid
+  userId        String              @map("user_id") @db.Uuid
+  channel       NotificationChannel
+  status        DeliveryStatus      @default(PENDING)
+  attempts      Int                 @default(0)
+  lastError     String?             @map("last_error")
+  nextAttemptAt DateTime            @default(now()) @map("next_attempt_at")
+  sentAt        DateTime?           @map("sent_at")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  dispatch NotificationDispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([dispatchId, userId, channel])
+  @@index([status, nextAttemptAt])
+  @@index([userId])
+  @@map("notification_deliveries")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Reuniones y recordatorios
+// ─────────────────────────────────────────────────────────────
+
+/// P-18: el proyecto es opcional. DB-12: duración sin hora de fin.
+model Meeting {
+  id              String        @id @default(uuid()) @db.Uuid
+  projectId       String?       @map("project_id") @db.Uuid
+  organizerId     String        @map("organizer_id") @db.Uuid
+  externalId      String?       @unique @map("external_id")
+  reason          String
+  startsAt        DateTime      @map("starts_at")
+  durationMinutes Int           @map("duration_minutes")
+  joinUrl         String?       @map("join_url")
+  /// Enlace de evidencia de la grabación; opcional (puede fallar la grabación).
+  recordingUrl    String?       @map("recording_url")
+  status          MeetingStatus @default(SCHEDULED)
+  cancelledAt     DateTime?     @map("cancelled_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  deletedAt       DateTime?     @map("deleted_at")
+
+  project      Project?               @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  organizer    User                   @relation(fields: [organizerId], references: [id], onDelete: Restrict)
+  participants MeetingParticipant[]
+  dispatches   NotificationDispatch[]
+
+  @@index([projectId])
+  @@index([startsAt])
+  @@index([status])
+  @@map("meetings")
+}
+
+model MeetingParticipant {
+  meetingId String @map("meeting_id") @db.Uuid
+  userId    String @map("user_id") @db.Uuid
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([meetingId, userId])
+  @@index([userId])
+  @@map("meeting_participants")
+}
+
+/// Tipo de cuenta de Microsoft vinculada (ADR 0014).
+enum MicrosoftAccountType {
+  WORK_OR_SCHOOL
+  PERSONAL
+}
+
+/// Cuenta de Microsoft vinculada (OAuth delegado con Microsoft Graph, ADR 0007). Los tokens se
+/// guardan cifrados con AES-256-GCM (MICROSOFT_TOKEN_ENCRYPTION_KEY); nunca en claro.
+model MicrosoftAccount {
+  userId                String               @id @map("user_id") @db.Uuid
+  /// Id del usuario en Entra ID (`oid`).
+  microsoftUserId       String               @unique @map("microsoft_user_id")
+  email                 String
+  accessTokenEncrypted  String               @map("access_token_encrypted")
+  refreshTokenEncrypted String               @map("refresh_token_encrypted")
+  accessTokenExpiresAt  DateTime             @map("access_token_expires_at")
+  scopes                String
+  /// Tipo de cuenta según el `tid` del token de identidad (ADR 0014).
+  accountType           MicrosoftAccountType @default(WORK_OR_SCHOOL) @map("account_type")
+  linkedAt              DateTime             @default(now()) @map("linked_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("microsoft_accounts")
+}
+
+/// Provisional (P-19): modelo mínimo.
+model Reminder {
+  id          String   @id @default(uuid()) @db.Uuid
+  createdById String   @map("created_by_id") @db.Uuid
+  projectId   String?  @map("project_id") @db.Uuid
+  title       String
+  remindAt    DateTime @map("remind_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  createdBy User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@index([createdById])
+  @@index([remindAt])
+  @@map("reminders")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Inscripciones (demo de importación desde Google Sheets)
+// ─────────────────────────────────────────────────────────────
+
+enum EnrollmentStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum EnrollmentDocumentType {
+  CC
+  TI
+}
+
+enum EnrollmentAreaType {
+  SEEDLING
+  DEGREE_PROJECT
+}
+
+enum EnrollmentFaculty {
+  SYSTEMS_ENGINEERING
+  SOFTWARE_ENGINEERING
+}
+
+model EnrollmentSource {
+  areaId        String             @id @map("area_id") @db.Uuid
+  spreadsheetId String             @map("spreadsheet_id")
+  range         String
+  areaType      EnrollmentAreaType @map("area_type")
+  revision      Int                @default(0)
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  area Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@map("enrollment_sources")
+}
+
+model EnrollmentApplication {
+  id                  String                 @id @default(uuid()) @db.Uuid
+  areaId              String                 @map("area_id") @db.Uuid
+  firstNames          String                 @map("first_names")
+  lastNames           String                 @map("last_names")
+  email               String
+  documentType        EnrollmentDocumentType @map("document_type")
+  documentNumber      String                 @map("document_number")
+  faculty             EnrollmentFaculty
+  areaType            EnrollmentAreaType     @map("area_type")
+  period              String
+  consent             Boolean
+  status              EnrollmentStatus       @default(PENDING)
+  sourceRow           Int?                   @map("source_row")
+  sourceSpreadsheetId String?                @map("source_spreadsheet_id")
+  sourceReceiptHash   String?                @map("source_receipt_hash")
+  rejectedAt          DateTime?              @map("rejected_at")
+  createdAt           DateTime               @default(now()) @map("created_at")
+  updatedAt           DateTime               @updatedAt @map("updated_at")
+
+  area Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@unique([areaId, period, documentType, documentNumber])
+  @@unique([areaId, period, email])
+  @@index([areaId, status])
+  @@index([areaId, period])
+  @@map("enrollment_applications")
+}
+
+model EnrollmentImportTombstone {
+  id          String   @id @default(uuid()) @db.Uuid
+  areaId      String   @map("area_id") @db.Uuid
+  receiptHash String   @map("receipt_hash")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  area Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@unique([areaId, receiptHash])
+  @@map("enrollment_import_tombstones")
+}
+
+model EnrollmentAuditEvent {
+  id            String   @id @default(uuid()) @db.Uuid
+  actorId       String?  @map("actor_id") @db.Uuid
+  areaId        String?  @map("area_id") @db.Uuid
+  action        String
+  affectedCount Int      @map("affected_count")
+  details       Json
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  area  Area? @relation(fields: [areaId], references: [id], onDelete: SetNull)
+
+  @@index([areaId, createdAt])
+  @@map("enrollment_audit_events")
+}

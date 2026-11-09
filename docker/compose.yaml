@@ -1,0 +1,41 @@
+# Base de datos y almacenamiento S3 locales para desarrollo.
+# Uso desde la raíz: pnpm db:up / pnpm db:down
+name: gestor-semilleros
+
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-semilleros}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-semilleros}
+      POSTGRES_DB: ${POSTGRES_DB:-semilleros}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # PostgreSQL 18+ guarda los datos en /var/lib/postgresql/<versión>.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Almacenamiento compatible con S3 para documentos (ADR 0013). En producción se usa AWS S3.
+  # API S3 en http://localhost:9000 · consola web en http://localhost:9001
+  s3:
+    image: rustfs/rustfs:1.0.4
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-semilleros}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-semilleros-local}
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "${S3_PORT:-9000}:9000"
+      - "${S3_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - s3-data:/data
+
+volumes:
+  postgres-data:
+  s3-data:

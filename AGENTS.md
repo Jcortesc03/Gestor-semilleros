@@ -1,316 +1,290 @@
 # AGENTS.md
 
-Guía de trabajo para agentes de IA (y colaboradores) en el **Gestor de Semilleros Universitarios**.
+Guía operativa para agentes de IA que trabajen en el **Gestor de Semilleros Universitarios**. Define cómo trabajar y qué restricciones respetar; el alcance funcional está en [`README.md`](README.md) y los detalles técnicos en [`docs/`](docs/).
 
-> Este archivo describe **cómo trabajar en el repositorio**, no qué construir. El alcance funcional vive en [`README.md`](README.md).
+## 1. Propósito y contexto
 
----
+Plataforma para centralizar la gestión académica, administrativa y organizativa de los semilleros de investigación de una universidad.
 
-## 1. Contexto del proyecto
+Monorepo TypeScript con tres entregables:
 
-Plataforma integral para gestionar los semilleros de investigación de una universidad: reuniones, documentación, seguimiento, tareas, recordatorios, notificaciones, integración con Microsoft Teams, inteligencia artificial y panel de control.
+- `apps/web` — aplicación web (React).
+- `apps/mobile` — aplicación móvil (React Native).
+- `apps/backend` — API y lógica de negocio (NestJS).
 
-Se compone de tres entregables:
+El alcance, los módulos y el estado se documentan en `README.md`; no los repitas aquí.
 
-| Entregable | Ruta | Responsabilidad |
-| --- | --- | --- |
-| Aplicación web | `apps/web` | Administración, gestión y consulta |
-| Backend | `apps/backend` | Lógica de negocio, API, integraciones |
-| Aplicación móvil | `apps/mobile` | Acceso desde dispositivos móviles |
+## 2. Estado actual del proyecto
 
-Stack definido: **React** (web), **React Native** (móvil), **NestJS** (backend), **PostgreSQL** como base de datos, **Prisma** como ORM, **AWS S3** para documentos e imágenes, **Auth.js** para autenticación y autorización, **Docker** para despliegue, **pnpm + Turborepo** para el monorepo y **MVC** como patrón de arquitectura.
+- **Fase inicial de implementación:** el backend NestJS incluye autenticación, usuarios y los módulos incorporados desde `Tableros`; la integración está en verificación. La web React tiene inicio de sesión (correo y Google) y vistas de los módulos existentes; los paneles distintos por rol siguen pendientes. Móvil sigue pendiente.
+- **Definido:** stack, versiones base, estructura del monorepo, workspace (pnpm + Turborepo) y scripts raíz.
+- **Implementado:** esquema de datos y migraciones, PostgreSQL local con Docker Compose ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)), y en el backend `PrismaService`, inicio de sesión con Auth.js (correo + contraseña y Google), `SessionGuard`, `GET /api/me` y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)); alta de usuarios `POST /api/users` con `RolesGuard` ([ADR 0003](docs/decisions/0003-alta-de-usuarios.md)); el script `admin:create` y la seed de desarrollo (`db:seed`).
+- **Instalado:** dependencias de Turborepo y del backend (`pnpm-lock.yaml` versionado).
+- **Implementado también:** proyectos y participantes, tableros y actividades (encargados, aprobación, enlaces adjuntos) con permisos por proyecto ([ADR 0004](docs/decisions/0004-proyectos-tableros-actividades.md); API en `docs/api/projects.md` y `docs/api/boards.md`); novedades y notificaciones con copias por correo (SMTP) y WhatsApp (BuilderBot + Baileys, [ADR 0006](docs/decisions/0006-whatsapp-con-builderbot.md)) según las preferencias de cada usuario ([ADR 0005](docs/decisions/0005-notificaciones-y-copias-externas.md)); reuniones con Microsoft Teams (vinculación de cuentas con OAuth + PKCE, agenda en el calendario, estados y avisos programados; [ADR 0007](docs/decisions/0007-reuniones-con-microsoft-teams.md)).
+- **Web ([ADR 0008](docs/decisions/0008-aplicacion-web-y-sistema-visual.md)):** React + Vite + Tailwind y Montserrat local. Login (correo y Google), paneles por rol, proyectos, tableros, reuniones, novedades y preferencias contra la API real; ver [`apps/web/README.md`](apps/web/README.md) y [el relevo](docs/handoffs/2026-11-07-frontend.md). Sin datos simulados ni permisos inventados.
+- **Directorio, catálogos y panel ([ADR 0009](docs/decisions/0009-directorio-catalogos-y-paneles.md)):** `GET /api/users` (Admin, Decano, Tutor), `GET /api/areas`, `GET /api/faculties` y `GET /api/dashboard` (una sección por rol; el encargado de área ve sus áreas asignadas).
+- **Reglas de dominio resueltas ([ADR 0010](docs/decisions/0010-reglas-pendientes-resueltas.md)):** administración de áreas, facultades, encargados y decanos; encargado de área con los permisos del decano en sus áreas; aprobación solo en `DONE`; límites del tutor; responsables de tablero; publicación de novedades por rol.
+- **Gestión de usuarios ([ADR 0011](docs/decisions/0011-gestion-de-usuarios.md)):** editar, desactivar y reactivar usuarios, contraseña temporal con cambio obligatorio, cambio de la contraseña propia y política de contraseñas (10–256, letra y número, distinta del correo). Migración `users_must_change_password`.
+- **Despliegue con contenedores ([ADR 0012](docs/decisions/0012-despliegue-con-contenedores.md)):** `apps/backend/Dockerfile` (node:24-alpine, migra al arrancar), `apps/web/Dockerfile` (nginx:1.29-alpine con proxy de `/api`) y `docker/compose.prod.yaml`. Guías por modo en `apps/backend/README.md` y `apps/web/README.md`.
+- **Documentos en S3 ([ADR 0013](docs/decisions/0013-documentos-en-s3.md)):** subida y descarga mediadas por el backend, 25 MB con validación de firma, adjuntos de documentos en actividades; RustFS como S3 local.
+- **Cuentas personales de Microsoft ([ADR 0014](docs/decisions/0014-cuentas-personales-de-microsoft.md)):** `MICROSOFT_TENANT_ID=common` por defecto; con cuenta personal el organizador indica el enlace de la reunión (`joinUrl`). Migración `microsoft_account_type`.
+- **Adjuntos en noticias ([ADR 0015](docs/decisions/0015-adjuntos-en-noticias.md)):** hasta 5 archivos por noticia (`NEWS`) en S3, tabla `announcement_attachments`; publicación multipart en una sola petición.
 
-Idioma del proyecto: **español** para documentación, interfaz y nombres de dominio; **inglés** para identificadores de código (variables, funciones, tipos) salvo términos del dominio que se acuerden conservar.
+- **Analítica ([ADR 0016](docs/decisions/0016-modulo-de-analitica.md)):** `GET /api/analytics` y `/filters` (ADMIN global; encargado de área y decano por alcance) con filtros de periodo, área, facultad, proyecto, tutor y estado; `completed_at` en tableros y actividades para medir entregas a tiempo (migración `completed_at`); vista web con gráficas SVG propias. Sin entidad carrera.
+- **Paginación ([ADR 0017](docs/decisions/0017-paginacion-de-listas.md)):** híbrida. En el servidor (`page`, `pageSize` 1–100, respuesta `{ items, total, page, pageSize }`): proyectos (con `search`), usuarios, reuniones, novedades y documentos del proyecto. En el cliente (`useClientPagination` + `Pagination`): miembros, tableros, actividades, entregas y tablas de la analítica. En la analítica el decano solo ve su facultad en proyectos compartidos.
+- **Recuperación de contraseña ([ADR 0016](docs/decisions/0016-recuperacion-de-contrasena.md)):** código por correo SMTP de 6 dígitos, 10 minutos, 5 intentos y uso único; invalida sesiones previas. Requiere la migración `password_recovery`. No depende del despachador de novedades.
+- **No implementado:** recordatorios, límite de intentos de inicio de sesión, autenticación móvil, HTTPS/infraestructura de producción concreta ni CI/CD.
 
----
 
-## 2. Estado actual — leer antes de actuar
+Por lo tanto:
 
-- El proyecto está en **fase de planificación**.
-- **El stack, la estructura base y el workspace están definidos**, pero **no existe código de aplicación ni dependencias instaladas.**
-- El repositorio contiene documentación, la estructura de carpetas y la configuración del monorepo (`package.json`, `pnpm-workspace.yaml`, `turbo.json`).
-- Los scripts raíz ya existen, pero delegan en paquetes que todavía no se han creado.
+- No asumas dependencias, versiones, comandos ni configuraciones no confirmadas.
+- No presentes funcionalidades planificadas como disponibles.
+- No ejecutes scaffolding, instalaciones ni inicializaciones sin autorización explícita.
+- Ante una decisión pendiente, detente y pregunta (§12).
 
-En consecuencia:
-
-- ❌ No inventes versiones, dependencias, comandos, rutas ni credenciales.
-- ❌ No presentes funcionalidades planificadas como si estuvieran disponibles.
-- ❌ No cambies el stack definido en §5 sin aprobación explícita.
-- ❌ No ejecutes scaffolding, instalaciones ni inicializaciones de proyecto sin autorización explícita.
-- ✅ Si una tarea requiere una decisión técnica no tomada, **detente y pregunta** antes de escribir código.
-
----
-
-## 3. Fuente de verdad
+## 3. Fuentes de verdad
 
 | Documento | Propósito |
 | --- | --- |
-| `README.md` | Alcance, módulos, estado y guía para personas |
-| `AGENTS.md` | Reglas de trabajo para agentes |
-| `docs/` *(a crear)* | Documentación técnica y decisiones |
+| `README.md` | Alcance funcional, estado y visión para personas |
+| `AGENTS.md` | Reglas operativas para agentes |
+| `docs/architecture/` | Arquitectura y estructura del monorepo |
+| `docs/domain/` | Dominio del negocio: entidades, glosario, reglas, permisos y flujos |
+| `docs/database/` | Modelo de datos, decisiones de diseño y guía de base de datos local |
+| `apps/backend/prisma/schema.prisma` | Fuente de verdad técnica del esquema de datos |
+| `docs/api/` | Contratos de API (por ahora, autenticación) |
+| `docs/decisions/` | Decisiones técnicas (ADR) |
 
-Si el README y el código llegaran a contradecirse, **detente y reporta la inconsistencia**; no elijas una versión por tu cuenta.
+Si dos fuentes se contradicen, **detente y reporta**; no elijas una por tu cuenta.
 
----
-
-## 4. Reglas de oro
-
-1. **No inventar.** Sin versiones, dependencias, comandos ni estructura que no estén confirmados en el repositorio.
-2. **No adelantar implementación.** Planificación ≠ código. No crear archivos de aplicación sin pedido explícito.
-3. **Una decisión, un registro.** Toda elección técnica relevante debe quedar documentada (ver §5).
-4. **Cambios mínimos y enfocados.** No refactorizar ni reorganizar lo que no forma parte de la tarea.
-5. **No secretos en el repositorio.** Nunca credenciales, tokens, cadenas de conexión ni `.env` reales.
-6. **Documentación sincronizada.** Si cambia el alcance, el estado o los comandos, actualiza `README.md` y este archivo.
-7. **Preguntar antes de asumir.** Ante ambigüedad de alcance o de tecnología, pregunta; no improvises.
-
----
-
-## 5. Stack y decisiones técnicas
-
-### Definido
+## 4. Stack y decisiones aprobadas
 
 | Área | Decisión |
 | --- | --- |
 | Lenguaje | TypeScript |
 | Organización | Monorepo |
 | Gestor de paquetes | pnpm |
-| Orquestador del monorepo | Turborepo |
-| Aplicación web | React |
-| Aplicación móvil | React Native |
+| Orquestador | Turborepo |
+| Web | React |
+| Móvil | React Native |
 | Backend | NestJS |
 | Base de datos | PostgreSQL |
 | ORM | Prisma |
 | Documentos e imágenes | AWS S3 |
 | Autenticación y autorización | Auth.js |
-| Arquitectura | MVC |
-| Despliegue | Docker |
+| Contenedores | Docker |
+| Arquitectura | MVC + monolito modular |
 
-### Pendiente de definición
+**Versiones fijadas** ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)): Node.js 24 LTS (`.nvmrc`), pnpm 12.18.0 (`packageManager`, vía Corepack), Prisma 7.10.1 (con `@prisma/adapter-pg`) y PostgreSQL 18.6 (`postgres:18.6-alpine`). Backend y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)): NestJS 12.3.3, TypeScript 6.0.3, `@auth/express` 0.12.3, Argon2id (`@node-rs/argon2`), Jest 30 + ts-jest + Supertest. Correo ([ADR 0005](docs/decisions/0005-notificaciones-y-copias-externas.md)): nodemailer 10.3.1 (SMTP); WhatsApp con BuilderBot 1.4.4 (`@builderbot/bot`, `@builderbot/provider-baileys`) y provider intercambiable, inicialmente Baileys ([ADR 0006](docs/decisions/0006-whatsapp-con-builderbot.md)).
 
-Versiones de Node.js, pnpm, Turborepo, PostgreSQL y Prisma · pruebas y CI/CD · infraestructura de despliegue · flujo de sesiones y roles con Auth.js (incluido el cliente móvil) · contratos de API.
+**Web aprobada** ([ADR 0008](docs/decisions/0008-aplicacion-web-y-sistema-visual.md)): React/React DOM 19.3.1, Vite 8.3.6, Tailwind CSS y `@tailwindcss/vite` 4.3.4, `@vitejs/plugin-react` 6.2.1, Montserrat local (`@fontsource/montserrat` 5.3.0) e iconos `lucide-react` 1.68.0. Sin biblioteca de componentes, router ni estado global adicional. Pruebas: runner de Node 24 (adaptadores), Vitest 5.1.0 + Testing Library (componentes) y Playwright 1.65.0 (E2E). Frontlipe implementa las vistas y la guía específica del proyecto prevalece sobre preferencias visuales genéricas.
 
-### Reglas de arquitectura
+**Contenedores** ([ADR 0012](docs/decisions/0012-despliegue-con-contenedores.md)): `node:24-alpine` y `nginx:1.29-alpine`.
 
-- **MVC:** el modelo (entidades y reglas de negocio) y la persistencia viven en el backend; las vistas son las aplicaciones React y React Native; los controladores exponen la API desde NestJS.
-- La lógica de negocio **no** vive en las vistas ni en los controladores de transporte.
-- **Prisma** es el ORM y el único punto de acceso a PostgreSQL; el esquema y las migraciones se versionan en el repositorio.
-- Los clientes **no** acceden directamente a la base de datos ni a S3; todo pasa por el backend.
-- Los binarios (documentos e imágenes) se almacenan en **S3**; sus metadatos, en **PostgreSQL**.
-- **Auth.js** es el único mecanismo de autenticación y autorización; no implementar soluciones paralelas.
-- **Docker** es el mecanismo de despliegue; los Dockerfiles se crearán al configurar el proyecto, no antes.
+**Documentos** ([ADR 0013](docs/decisions/0013-documentos-en-s3.md)): `@aws-sdk/client-s3` 3.1164.0 y `@types/multer` 2.3.0; S3 compatible local con RustFS 1.0.4 (`rustfs/rustfs:1.0.4`) en `docker/compose.yaml`.
 
-**Regla:** antes de agregar una tecnología o dependencia:
+**Pendiente de definición:** versión de Turborepo (`latest`, fijada solo por el lockfile), linting y formato, CI/CD, infraestructura de producción concreta (HTTPS, dominio, copias de seguridad), contratos de API de los demás módulos, autenticación móvil, permisos por rol y preguntas abiertas del dominio (`docs/domain/business-rules.md`).
 
-1. Confirma que la decisión está aprobada por el responsable del proyecto.
-2. Registra la decisión en `docs/decisions/` (formato ADR: contexto, decisión, alternativas, consecuencias).
-3. Actualiza las tablas de `README.md` (§ Tecnologías previstas) y de este archivo.
-4. Solo entonces crea la configuración o el código correspondiente.
+No fijes versiones ni agregues herramientas para cubrir estos pendientes sin aprobación.
 
-No agregues una dependencia “porque hace falta” sin pasar por este flujo.
+## 5. Reglas de oro
 
----
+1. **No inventar:** ni versiones, ni dependencias, ni scripts, ni rutas, ni contratos, ni datos.
+2. **No adelantar implementación:** limitar los cambios a las entregas autorizadas; los módulos pendientes no se implementan por inferencia.
+3. **Cambios mínimos:** no refactorices fuera del alcance solicitado.
+4. **Sin secretos:** nunca credenciales, tokens, `.env` reales ni datos personales.
+5. **Preguntar antes de asumir:** ante ambigüedad técnica o funcional, detente.
+6. **Registrar decisiones:** toda elección técnica relevante va a `docs/decisions/` y actualiza el stack.
+7. **Documentación sincronizada:** si cambia el alcance, la estructura o los comandos, actualiza README/AGENTS/docs.
 
-## 6. Estructura del repositorio
+## 6. Arquitectura y estructura del monorepo
 
-La estructura inicial ya existe; consulta el árbol completo en [`docs/architecture/estructura.md`](docs/architecture/estructura.md). El backend es un **monolito modularizado**.
+Backend como **monolito modularizado**: un solo despliegue, dividido en módulos por dominio.
 
 ```text
 .
 ├── apps/
-│   ├── backend/
-│   │   ├── prisma/migrations/
-│   │   └── src/
-│   │       ├── common/
-│   │       ├── config/
-│   │       ├── database/
-│   │       └── modules/<dominio>/{controllers,services,dtos,models}
-│   ├── web/src/
-│   └── mobile/src/
-├── packages/{types,validation,utils}/
-├── docker/
-├── docs/{architecture,api,decisions}/
-├── scripts/
+│   ├── backend/   # NestJS + Prisma, módulos por dominio
+│   ├── web/       # React
+│   └── mobile/    # React Native
+├── packages/      # types, validation, utils
+├── docs/          # arquitectura, dominio, API, ADRs
+├── docker/        # configuración de contenedores
+├── scripts/       # automatizaciones
 ├── package.json
 ├── pnpm-workspace.yaml
-├── turbo.json
-├── README.md
-└── AGENTS.md
+└── turbo.json
 ```
 
-- Cada módulo del backend sigue el patrón `controllers/ · services/ · dtos/ · models/`.
-- Un módulo no importa archivos internos de otro ni accede a su persistencia.
+Detalle completo: [`docs/architecture/estructura.md`](docs/architecture/estructura.md).
+
+**Dependencias**
+
 - `apps/*` puede importar `packages/*`; lo contrario no.
-- Código compartido entre entregables vive en `packages/`, no se duplica.
-- Los `.gitkeep` solo preservan carpetas vacías; no son contenido del proyecto.
-- La configuración de contenedores vive en `docker/`; los Dockerfiles se añadirán al implementar.
+- Cada módulo del backend encapsula `controllers/`, `services/`, `dtos/` y `models/`.
+- Un módulo no importa archivos internos de otro ni accede a su persistencia.
+- El código compartido vive en `packages/`; evita duplicarlo entre web, móvil y backend.
 
----
+**Reglas accionables**
 
-## 7. Comandos
+- La lógica de negocio no vive en componentes de UI ni en controladores de transporte.
+- **Prisma** es el único acceso a PostgreSQL.
+- Web y móvil no acceden directamente a PostgreSQL ni a S3.
+- Binarios en S3; metadatos en PostgreSQL.
+- **Auth.js** es el único mecanismo de autenticación; no crear alternativas.
+- No agregar tecnologías o dependencias sin aprobación.
 
-El workspace está configurado con **pnpm + Turborepo**. Las dependencias aún no se han instalado y no hay aplicaciones.
+## 7. Convenciones de implementación
 
-Desde la raíz:
+### Generales
 
-| Comando | Uso |
+- TypeScript estricto; evitar `any` sin justificación.
+- Documentación, interfaz y mensajes al usuario en español; identificadores en inglés (salvo términos del dominio acordados).
+- Validar datos en los límites del sistema.
+- Commits con **Conventional Commits**.
+- Linting y formato: herramientas **pendientes**; no imponerlas. Las pruebas aprobadas son Jest en backend y, en web, el runner de Node 24, Vitest + Testing Library y Playwright.
+
+### Backend
+
+- Un módulo por dominio, con controladores delgados y lógica en servicios.
+- DTOs para contratos de entrada/salida; no exponer modelos de persistencia.
+- Acceso a datos mediante `PrismaService` (`src/database/`).
+- Esquema y migraciones de Prisma versionados; no modificarlos sin necesidad.
+
+### Web y móvil
+
+- Componentes funcionales y hooks cuando corresponda.
+- Separar la UI de la capa de acceso a la API.
+- Reutilizar tipos y validaciones de `packages/`.
+- Estados de carga, error y vacío explícitos.
+
+### Dependencias
+
+- Usar **pnpm** exclusivamente; no npm ni yarn.
+- Dependencias internas con `workspace:*`.
+- Los scripts raíz delegan en Turborepo; no dupliques lógica.
+- No agregar dependencias, plugins ni herramientas sin aprobación.
+
+## 8. Comandos y ejecución
+
+El workspace contiene `@gestor-semilleros/backend` y la primera entrega de `@gestor-semilleros/web`. Requiere `pnpm` en el PATH (`corepack enable`) para que Turborepo funcione. Guías: [`docs/database/local-setup.md`](docs/database/local-setup.md) y [`apps/web/README.md`](apps/web/README.md).
+
+| Comando | Estado |
 | --- | --- |
-| `pnpm install` | Instala las dependencias del workspace |
-| `pnpm dev` | Ejecuta `dev` en los paquetes (proceso persistente) |
-| `pnpm build` | Compila respetando el orden de dependencias |
-| `pnpm lint` | Ejecuta el análisis estático |
-| `pnpm test` | Ejecuta las pruebas |
-| `pnpm typecheck` | Verifica los tipos |
-| `pnpm turbo run <tarea> --filter=<paquete>` | Ejecuta una tarea en un paquete concreto |
+| `pnpm install` | ✅ Funcional; instala Turborepo y Prisma. |
+| `pnpm db:up` / `db:down` / `db:logs` | ✅ PostgreSQL y S3 local (RustFS, API en 9000 y consola en 9001) con `docker/compose.yaml`. |
+| `pnpm db:migrate` / `db:generate` / `db:studio` | ✅ Delegan en `apps/backend` (Prisma). |
+| `db:validate`, `db:format`, `db:status`, `db:deploy`, `db:reset` | ✅ Scripts de `apps/backend`. `db:reset` borra los datos locales: requiere confirmación. |
+| `pnpm dev`, `pnpm build`, `pnpm typecheck` | Backend y web mediante Turborepo; el backend requiere `apps/backend/.env`. La integración de Tableros se verifica por separado en `odd/tasks/web-application.md`. |
+| `pnpm test` | Pruebas sin base de datos: Jest en backend; Node + Vitest en web. |
+| `pnpm --filter @gestor-semilleros/web test:e2e` | Playwright contra el backend real y la base aislada `semilleros_web_e2e_test` (requiere `pnpm db:up`; usa los puertos 3100/5174, compatibles con `pnpm dev`). |
+| `pnpm --filter @gestor-semilleros/web dev` | Vite en `127.0.0.1:5173`; proxy `/api` al backend local en el puerto 3000. |
+| `pnpm --filter @gestor-semilleros/backend admin:create` | ✅ Crea un administrador (`ADMIN_EMAIL`, `ADMIN_FULL_NAME`, `ADMIN_PASSWORD`). |
+| `pnpm db:seed` | ✅ Siembra datos de **desarrollo** (`src/cli/seed.ts`): un usuario por tipo (`admin@example.test`, `encargado.area@`, `decano@`, `tutor@`, `lider@`, `estudiante@`), área, facultad y un proyecto demo. Requiere `SEED_PASSWORD` (política del ADR 0011: 10–256, letra y número), es idempotente y se niega a correr con `NODE_ENV=production`. Ej.: `SEED_PASSWORD='…' pnpm db:seed` (fish: anteponer `env`). |
+| `pnpm db:seed:bulk` | ✅ Seed masiva de **desarrollo** (`src/cli/seed-bulk.ts`): miles de usuarios, proyectos, actividades, adjuntos y reuniones ficticios (`@semillero.example.test`, sufijo ` · demo`) para la analítica. Requiere `SEED_PASSWORD`; `SEED_BULK_SCALE` (1–10) y `SEED_BULK_RESET=1` (borra solo esos datos). No corre en producción; los documentos no tienen archivo en S3. |
+| `pnpm test:e2e` | ✅ Pruebas de la API contra `TEST_DATABASE_URL` (requiere `pnpm db:up`). |
+| `pnpm lint` | Configurado; ningún paquete lo implementa (herramienta pendiente). |
+| `docker compose -f docker/compose.prod.yaml --env-file docker/.env.prod up -d --build` | ✅ Despliegue completo (PostgreSQL + backend + web nginx) en `WEB_PORT` (8080). Plantilla: `docker/env.prod.example`. |
 
 Reglas:
 
-- Usa **pnpm** exclusivamente; no npm ni yarn.
-- No ejecutes `pnpm install` ni agregues dependencias sin autorización.
-- Los comandos deben existir en `package.json`; no inventes *scripts*.
+- No presentes comandos como funcionales si aún no producen resultados.
+- No ejecutes instalaciones ni agregues dependencias sin autorización.
+- No inventes scripts: deben existir en un `package.json`.
 - No ejecutes comandos destructivos (`rm -rf`, resets, limpiezas de historial) sin confirmación.
 
----
+## 9. Flujo de trabajo para agentes
 
-## 8. Convenciones de código (propuestas, sujetas a aprobación)
+**OpenCode (solo este proyecto):** `opencode.json` mantiene `gentle-orchestrator` con `openai/gpt-6.1-sol` como agente principal y registra diez subagentes `free-*`, uno por modelo gratuito disponible al configurarlos. El orquestador delega tareas acotadas en sesiones hijas cuando corresponde; no es necesario ejecutar todos los modelos en cada solicitud. La gratuidad y disponibilidad de los subagentes dependen del proveedor y no se extienden al modelo del orquestador. No se modifica la configuración global.
 
-- **TypeScript estricto**; evitar `any` sin justificación.
-- Un módulo de dominio por carpeta, con nombres en `kebab-case` y tipos en `PascalCase`.
-- Validar datos en los límites del sistema (API, formularios, integraciones).
-- Errores explícitos y mensajes en español para el usuario final.
-- Sin lógica de negocio en componentes de UI ni en controladores de transporte.
-- Commits en **Conventional Commits** (`feat:`, `fix:`, `docs:`, `chore:`…), en español o inglés, pero consistente.
-- Formateo y linting: herramienta **por definir**; no imponer una sin aprobación.
+1. Leer `AGENTS.md`, `README.md` y la documentación relevante.
+2. Verificar el estado real (`git status`, árbol, archivos existentes).
+3. Clasificar la tarea: documentación, decisión técnica o implementación.
+4. Identificar decisiones pendientes (§4 y §12).
+5. Detenerse y preguntar si corresponde.
+6. Planificar el cambio mínimo y avisarlo si afecta varios archivos.
+7. Implementar únicamente lo solicitado.
+8. Verificar según las herramientas disponibles.
+9. Actualizar la documentación o el ADR afectados.
+10. Reportar cambios, pendientes y supuestos.
 
-### Monorepo (pnpm + Turborepo)
+## 10. Seguridad y privacidad
 
-- Usa **pnpm** para instalar y ejecutar; no npm ni yarn.
-- Cada `app` y `package` declara su propio `package.json` y sus scripts.
-- Los scripts de la raíz solo delegan en `turbo run`; no dupliques lógica en ellos.
-- Las dependencias internas se referencian con `workspace:*`.
-- Ejecuta tareas desde la raíz con `pnpm <tarea>` o `pnpm turbo run <tarea> --filter=<paquete>`.
-- No agregues dependencias globales si pueden vivir en el paquete que las usa.
+- No versionar `.env`, credenciales, tokens ni cadenas de conexión.
+- Configurar secretos por entorno; nunca en el código.
+- No incluir datos personales o académicos reales en ejemplos, pruebas o capturas.
+- El backend es el único que accede a PostgreSQL y S3; no exponer credenciales a los clientes.
+- Claves de WhatsApp, correo, Microsoft Teams, IA y AWS solo en variables de entorno.
+- Tratar la información de estudiantes y docentes como sensible.
 
-### Backend (NestJS)
-
-- Organizar por módulos de dominio; cada módulo con su controlador, servicio y modelos.
-- Controladores delgados: reciben la petición, validan el DTO y delegan en el servicio.
-- La lógica de negocio y las reglas de estado de las tareas viven en servicios.
-- Los contratos de entrada/salida se validan con DTOs; no exponer entidades de persistencia directamente.
-- El acceso a PostgreSQL se realiza exclusivamente mediante **Prisma**; evitar SQL crudo salvo justificación y revisión.
-- El esquema de Prisma y sus migraciones viven en el repositorio; no modificarlos ni regenerar el cliente sin necesidad.
-- El acceso a PostgreSQL y a S3 se encapsula en el backend; los clientes nunca reciben credenciales.
-
-### Frontend (React y React Native)
-
-- Componentes funcionales y *hooks*; evitar lógica de negocio en la UI.
-- Separar la capa de acceso a la API de los componentes de presentación.
-- Reutilizar tipos y validaciones desde `packages/` en lugar de duplicarlos.
-- Los estados de carga, error y vacío deben ser explícitos en las vistas.
-
-### Autenticación y despliegue
-
-- La autenticación y autorización se implementan con **Auth.js**; no crear mecanismos alternativos.
-- El despliegue se realiza con **Docker**; no introducir otras plataformas de despliegue sin aprobación.
-- Las variables sensibles (PostgreSQL, S3, Auth.js, servicios externos) se leen del entorno, nunca del código.
-
----
-
-## 9. Dominio y reglas de negocio
-
-### Glosario
-
-| Término | Significado |
-| --- | --- |
-| Semillero | Grupo de investigación al que pertenecen integrantes y tutores |
-| Integrante | Estudiante vinculado a un semillero |
-| Tutor | Docente que orienta un semillero |
-| Facultad | Unidad académica que agrupa semilleros |
-| Decano | Autoridad con visión agregada de su facultad |
-
-### Reglas que no deben romperse
-
-- El seguimiento debe poder filtrarse por **semillero, integrante, tutor, facultad y decano**.
-- En tareas se distinguen **progreso** (avance) y **resultado** (desenlace). No son lo mismo.
-- Estados de tarea permitidos: `pendiente`, `en progreso`, `finalizado`, `cancelado`, `éxito`, `fracaso`.
-- Un resultado (`éxito`/`fracaso`) no reemplaza al estado de progreso.
-- Recordatorios y notificaciones pertenecen a un usuario/contexto; no son globales.
-- Los permisos por rol (integrante, tutor, decano, administrador) están **pendientes de definición**: no los inventes.
-
----
-
-## 10. Flujo de trabajo para agentes
-
-1. **Leer** `README.md` y este archivo completos antes de tocar nada.
-2. **Verificar** el estado real del repositorio (`git status`, árbol de archivos).
-3. **Clasificar** la tarea: documentación, decisión técnica o implementación.
-4. **Detenerse** ante decisiones no tomadas → preguntar.
-5. **Planificar** el cambio mínimo y anunciarlo si afecta varios archivos.
-6. **Implementar** respetando la estructura aprobada.
-7. **Verificar**: que los enlaces y tablas sigan siendo válidos; que no se hayan introducido datos ficticios.
-8. **Documentar**: actualizar README/AGENTS/ADR cuando corresponda.
-9. **Reportar** qué se cambió, qué quedó pendiente y qué supuestos se usaron.
-
-### Al escribir documentación
-
-- Español claro, sin promesas de funcionalidad no confirmadas.
-- Distinguir siempre **definido**, **propuesto** y **pendiente**.
-- Nada de URLs, capturas o credenciales de ejemplo que parezcan reales.
-- Enlaces internos funcionales; encabezados jerárquicos y tablas cuando aporten claridad.
-
----
-
-## 11. Seguridad y privacidad
-
-- No versionar `.env`, credenciales ni datos personales de estudiantes.
-- Las integraciones (WhatsApp, correo, Teams, IA) requieren claves: deben ir en variables de entorno, nunca en el código.
-- Las credenciales de AWS S3 y de la base de datos se gestionan por entorno; el backend es el único que accede a S3.
-- Al proponer variables de entorno, usa nombres genéricos y documenta su propósito; no inventes valores.
-- Datos académicos y de personas: tratar como información sensible; no incluir datos reales en ejemplos, pruebas ni capturas.
-
----
-
-## 12. Pruebas y calidad (pendiente)
-
-- No hay framework de pruebas definido.
-- Cuando se defina: pruebas para reglas de negocio (estados de tarea, seguimiento, permisos) y para los límites de la API.
-- Priorizar pruebas de servicios en NestJS y de los flujos críticos en React/React Native.
-- No declares una tarea “terminada” sin evidencia de verificación (prueba, revisión manual documentada o validación del enlace).
-- Si no puedes verificar algo, dilo explícitamente.
-
----
-
-## 13. Criterios de finalización
+## 11. Verificación y criterios de finalización
 
 Una tarea está terminada cuando:
 
-- [ ] Cumple exactamente lo pedido, sin alcance extra.
-- [ ] No introduce tecnologías, rutas ni datos no aprobados.
-- [ ] La documentación afectada quedó actualizada.
-- [ ] Los enlaces, tablas y diagramas siguen siendo válidos.
-- [ ] Se indicó qué falta definir o verificar.
+- [ ] Cumple exactamente lo solicitado, sin alcance extra.
+- [ ] No introduce tecnologías, versiones ni decisiones no aprobadas.
+- [ ] La documentación afectada está actualizada.
+- [ ] Se verificó el resultado (comando, prueba, revisión o validación de enlaces).
+- [ ] Se indicó qué falta definir, verificar o probar.
 
----
+Si no puedes verificar algo, dilo explícitamente; no lo declares terminado.
 
-## 14. Cuándo preguntar (y no avanzar)
+## 12. Cuándo detenerse y preguntar
 
-- Versiones de Node.js, pnpm, Turborepo, PostgreSQL y Prisma.
-- Detalles del flujo de autenticación y del modelo de permisos con Auth.js.
-- Cambios en la estructura acordada, instalación de dependencias o scaffolding de React, React Native o NestJS.
-- Creación o modificación del esquema/migraciones de Prisma, Dockerfiles, configuración de S3 o infraestructura de despliegue.
-- Reglas de permisos por rol.
-- Modelo de datos y contratos de API.
-- Cualquier cambio que elimine o reescriba trabajo existente.
-- Cualquier instrucción que contradiga el alcance descrito en `README.md`.
+Detente antes de avanzar si la tarea requiere:
 
----
+- Fijar versiones no definidas.
+- Instalar dependencias o inicializar/scaffolding de aplicaciones.
+- Cambiar la estructura acordada del monorepo.
+- Definir el modelo de datos, migraciones o contratos de API.
+- Resolver el flujo de autenticación o el modelo de permisos.
+- Configurar Docker, S3 o infraestructura de despliegue.
+- Elegir herramientas de pruebas, linting, formato o CI/CD.
+- Ejecutar acciones destructivas o reescribir trabajo existente.
+- Seguir instrucciones que contradigan el README, este archivo o `docs/`.
 
-## 15. Mantenimiento de este archivo
+Si la decisión ya está aprobada y registrada, procede sin volver a preguntar.
+
+## 13. Documentación relacionada
+
+| Documento | Contenido |
+| --- | --- |
+| [`README.md`](README.md) | Alcance, módulos, estado y uso |
+| [`docs/architecture/estructura.md`](docs/architecture/estructura.md) | Árbol y convenciones del monorepo |
+| [`docs/domain/README.md`](docs/domain/README.md) | Punto de entrada del dominio e índice |
+| [`docs/domain/glossary.md`](docs/domain/glossary.md) | Glosario del dominio |
+| [`docs/domain/entities.md`](docs/domain/entities.md) | Entidades, relaciones y cardinalidades |
+| [`docs/domain/business-rules.md`](docs/domain/business-rules.md) | Reglas de negocio y preguntas pendientes (`P-xx`) |
+| [`docs/domain/roles-permissions.md`](docs/domain/roles-permissions.md) | Roles y matriz conceptual de permisos |
+| [`docs/domain/workflows.md`](docs/domain/workflows.md) | Flujos principales |
+| [`docs/database/data-model.md`](docs/database/data-model.md) | Modelo relacional propuesto |
+| [`docs/database/database-decisions.md`](docs/database/database-decisions.md) | Decisiones de datos (`DB-xx`) |
+| [`docs/database/local-setup.md`](docs/database/local-setup.md) | Instalación local de la base de datos |
+| [`docs/api/auth.md`](docs/api/auth.md) | Contrato de la API de autenticación |
+| [`docs/api/users.md`](docs/api/users.md) | Contrato de la API de usuarios |
+| [`docs/api/projects.md`](docs/api/projects.md) | Contrato de la API de proyectos y participantes |
+| [`docs/api/boards.md`](docs/api/boards.md) | Contrato de la API de tableros y actividades |
+| [`docs/api/announcements.md`](docs/api/announcements.md) | Contrato de la API de novedades y notificaciones |
+| [`docs/api/notification-preferences.md`](docs/api/notification-preferences.md) | Preferencias de notificación y envío de copias por correo y WhatsApp |
+| [`docs/api/meetings.md`](docs/api/meetings.md) | Contrato de la API de reuniones con Microsoft Teams |
+| [`docs/api/microsoft.md`](docs/api/microsoft.md) | Contrato de la vinculación de la cuenta de Microsoft |
+| [`docs/api/catalogs.md`](docs/api/catalogs.md) | Catálogos de áreas y facultades |
+| [`docs/api/dashboard.md`](docs/api/dashboard.md) | Panel por rol |
+| [`docs/api/documents.md`](docs/api/documents.md) | Documentos en S3 |
+| [`docs/api/analytics.md`](docs/api/analytics.md) | Analítica con filtros |
+| [`docs/decisions/0017-paginacion-de-listas.md`](docs/decisions/0017-paginacion-de-listas.md) | Contrato común de paginación |
+| `docs/decisions/` | ADRs |
+
+Antes de implementar cualquier funcionalidad del dominio (entidades, permisos, flujos o esquema de datos), consulta `docs/domain/` empezando por su `README.md`, y `docs/database/` si afecta a la persistencia. Lo marcado como 🟡 hipótesis o ❓ pendiente **no** se implementa sin confirmación. **No inventes reglas de negocio ni permisos** que sigan pendientes.
+
+## 14. Mantenimiento de este archivo
 
 Actualiza `AGENTS.md` cuando:
 
-- Se apruebe una tecnología, se fije una versión o cambie la estructura del workspace.
-- Existan comandos reales de instalación, ejecución o prueba.
-- Cambien las convenciones de código o el flujo de trabajo.
-- Se definan reglas de negocio o permisos nuevos.
+- Se apruebe una tecnología, se fije una versión o cambie la estructura.
+- Existan comandos reales o cambien los existentes.
+- Cambien las convenciones o el flujo de trabajo.
+- Se definan reglas de negocio, permisos o contratos.
 
-Mantén este documento breve y accionable: es una guía operativa, no una especificación de requisitos.
+Mantén este documento operativo y compacto; mueve el detalle a `docs/`.
