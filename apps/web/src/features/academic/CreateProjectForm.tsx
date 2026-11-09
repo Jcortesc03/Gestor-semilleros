@@ -27,7 +27,7 @@ export function CreateProjectForm({ request, user, busy, onCreate }: CreateProje
       action={<Plus aria-hidden="true" className="size-5 text-gold" />}
       help={{
         title: 'Nuevo proyecto',
-        description: 'Crea un proyecto académico con título, descripción, área y facultades.',
+        description: 'Formulario para crear un proyecto: escribes su título y descripción y eliges su área y facultades; al enviarlo queda creado y visible para sus participantes.',
         roles: {
           ADMIN: 'Como administrador, puedes crear proyectos en cualquier área y facultad.',
           AREA_MANAGER: 'Como encargado de área, puedes crear proyectos dentro de tus áreas asignadas.',

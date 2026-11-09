@@ -79,13 +79,13 @@ export function BoardPanel({ boards, selectedId, tutors, students, canManage, bu
       action={<ClipboardList aria-hidden="true" className="size-5 text-gold" />}
       help={{
         title: 'Tableros',
-        description: 'Cada tablero organiza las actividades de una etapa del proyecto.',
+        description: 'Cada tablero organiza las actividades de una etapa del proyecto: el formulario crea uno nuevo con título, fechas y responsables; al editarlo cambias esos datos; al archivarlo desaparece de la lista sin borrar sus actividades.',
         roles: {
-          ADMIN: 'Como administrador, puedes crear tableros, asignar responsables y archivarlos en cualquier proyecto.',
+          ADMIN: 'Como administrador, puedes crear tableros, asignar responsables, editarlos y archivarlos en cualquier proyecto.',
           AREA_MANAGER: 'Como encargado de área, ves los tableros de los proyectos de tus áreas, pero crearlos, asignar responsables o archivarlos requiere ser tutor del proyecto o administrador.',
           DEAN: 'Como decano, ves los tableros de los proyectos de tus facultades, pero crearlos o editarlos requiere ser tutor del proyecto o administrador.',
-          TUTOR: 'Como tutor, puedes crear tableros, asignar responsables y archivarlos en el proyecto que tutorizas.',
-          STUDENT: 'Como estudiante, ves los tableros del proyecto en el que participas, pero no puedes crearlos ni editarlos.',
+          TUTOR: 'Como tutor del proyecto, puedes crear tableros, asignar responsables, editarlos y archivarlos.',
+          STUDENT: 'Como estudiante, ves los tableros del proyecto en el que participas y sus actividades, pero no puedes crearlos ni editarlos.',
         },
       }}
     >

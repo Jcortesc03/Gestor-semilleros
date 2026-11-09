@@ -120,6 +120,17 @@ export function AnnouncementsSection({ user, request }: { user: CurrentUser; req
     <div className="space-y-6">
       <PanelCard
         title="Novedades visibles"
+        help={{
+          title: 'Novedades visibles',
+          description: 'Son los comunicados que tu audiencia puede ver. Las pestañas filtran por tipo (Noticias, Comunicados, Cambios, Notificaciones); «Actualizar» recarga la lista y «Cargar más» trae las siguientes. Cada novedad muestra autor, fecha y audiencia.',
+          roles: {
+            ADMIN: 'Como administrador, ves todas las novedades y puedes publicar nuevas con «Nueva novedad», eligiendo su tipo, audiencia y adjuntos. Sin publicar, nadie las ve.',
+            AREA_MANAGER: 'Como encargado de área, ves las novedades de tu audiencia y puedes publicar nuevas dirigidas a tus áreas o roles permitidos.',
+            DEAN: 'Como decano, ves las novedades de tu audiencia y puedes publicar nuevas dirigidas a tus facultades o roles permitidos.',
+            TUTOR: 'Como tutor, ves las novedades de tu audiencia y puedes publicar nuevas dirigidas a tus proyectos o roles permitidos.',
+            STUDENT: 'Como estudiante, solo ves las novedades dirigidas a tu audiencia; no puedes publicar nuevas.',
+          },
+        }}
         action={
           <div className="flex flex-wrap gap-3">
             {canPublish && (

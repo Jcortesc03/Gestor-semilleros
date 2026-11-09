@@ -24,7 +24,16 @@ export function FacultiesPanel({ request }: { request: ApiRequest }) {
   }
 
   return (
-    <PanelCard title="Facultades">
+    <PanelCard
+      title="Facultades"
+      help={{
+        title: 'Facultades',
+        description: 'Catálogo de facultades. Permite crear, renombrar y eliminar facultades, y asignarles sus decanos. Eliminar una facultad con proyectos o novedades asociadas no es posible.',
+        roles: {
+          ADMIN: 'Como administrador, creas, renombras y eliminas facultades, y asignas o quitas sus decanos.',
+        },
+      }}
+    >
       <section aria-labelledby="faculties-create-title" className="mb-8 min-w-0">
         <h3 id="faculties-create-title" className="mb-4 text-base font-bold text-navy">Crear facultad</h3>
         <NameForm

@@ -28,7 +28,16 @@ function UserManagement({ user, request }: { user: CurrentUser; request: ApiRequ
         {selectedId ? (
           <UserDetailPanel key={selectedId} userId={selectedId} currentUserId={user.id} request={request} onChanged={refresh} />
         ) : (
-          <PanelCard title="Detalle del usuario">
+          <PanelCard
+            title="Detalle del usuario"
+            help={{
+              title: 'Detalle del usuario',
+              description: 'Muestra el usuario elegido con su correo, estado y roles. Desde aquí se edita su nombre y roles, se desactiva o reactiva y se le fija una contraseña temporal.',
+              roles: {
+                ADMIN: 'Como administrador, gestionas la cuenta elegida: nombre, roles, estado y contraseña temporal. Desactivar le quita el acceso al instante sin borrar su historial.',
+              },
+            }}
+          >
             <EmptyState title="Ningún usuario seleccionado" description="Elige una persona de la lista para editar su nombre, roles, estado o contraseña." />
           </PanelCard>
         )}

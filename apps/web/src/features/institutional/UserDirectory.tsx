@@ -66,7 +66,16 @@ export function UserDirectory({ request, selectedId, refreshToken, onSelect }: U
   const shortSearch = searchText.trim().length === 1;
 
   return (
-    <PanelCard title="Usuarios">
+    <PanelCard
+      title="Usuarios"
+      help={{
+        title: 'Usuarios',
+        description: 'Directorio de cuentas de la plataforma: busca y filtra por nombre, correo, rol y estado. Al elegir un usuario se abre su detalle para ver sus datos y gestionarlo.',
+        roles: {
+          ADMIN: 'Como administrador, ves y gestionas todas las cuentas: editar nombre y roles, desactivar/reactivar y fijar contraseñas temporales.',
+        },
+      }}
+    >
       <div className="grid gap-4 sm:grid-cols-3">
         <Field
           type="search"

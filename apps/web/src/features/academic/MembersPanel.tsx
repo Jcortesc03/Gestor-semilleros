@@ -35,13 +35,13 @@ export function MembersPanel({ request, members, canManageTutors, canManageStude
       action={<Users aria-hidden="true" className="size-5 text-gold" />}
       help={{
         title: 'Participantes',
-        description: 'Aquí se gestionan las personas del proyecto. “Quitar liderazgo” deja a la persona como estudiante normal; “Retirar a …” la saca del proyecto.',
+        description: 'Busca una persona, elige su rol en el proyecto y pulsa «Añadir participante» para incorporarla. En cada participante: «Hacer líder» lo convierte en líder estudiante; «Quitar liderazgo» lo deja como estudiante normal sin sacarlo del proyecto; «Retirar a …» lo elimina por completo del proyecto (deja de participar y de verlo). Si es tutor, «Marcar principal» lo designa tutor principal y «Quitar principal» le quita esa marca.',
         roles: {
-          ADMIN: 'Como administrador, puedes añadir y gestionar participantes de cualquier proyecto, incluidos tutores y estudiantes.',
-          AREA_MANAGER: 'Como encargado de área, puedes añadir y gestionar participantes de los proyectos de tus áreas. “Quitar liderazgo” deja a la persona como estudiante normal; “Retirar a …” la saca del proyecto.',
-          DEAN: 'Como decano, puedes añadir y gestionar participantes de los proyectos de tus facultades.',
-          TUTOR: 'Como tutor, puedes añadir y retirar estudiantes del proyecto que tutorizas, pero no gestionar tutores.',
-          STUDENT: 'Como estudiante, solo ves quiénes participan; no puedes añadir ni retirar a nadie. Si eres líder, puedes ver el rol de cada participante.',
+          ADMIN: 'Como administrador, gestionas todos los participantes de cualquier proyecto, tutores y estudiantes. Busca una persona, elige su rol (Estudiante, Líder estudiante o Tutor) y pulsa «Añadir participante» para incorporarla. En cada participante: «Hacer líder» lo convierte en líder; «Quitar liderazgo» lo deja como estudiante normal sin sacarlo; «Retirar a …» lo saca por completo del proyecto. No hay nada que no puedas hacer aquí.',
+          AREA_MANAGER: 'Como encargado de área, gestionas los participantes de los proyectos de tus áreas. Igual que el administrador: buscas, eliges rol y añades; «Quitar liderazgo» deja a la persona como estudiante normal y «Retirar a …» la saca del proyecto. No puedes crear tableros ni actividades en estos proyectos (eso requiere ser tutor o administrador).',
+          DEAN: 'Como decano, gestionas los participantes de los proyectos de tus facultades, igual que el encargado de área en sus áreas. «Quitar liderazgo» deja a la persona como estudiante normal; «Retirar a …» la saca del proyecto. No creas tableros ni actividades sin ser tutor o administrador.',
+          TUTOR: 'Como tutor, solo puedes añadir y retirar estudiantes del proyecto que tutorizas; no puedes gestionar tutores ni cambiar su tutor principal. «Quitar liderazgo» deja a un estudiante como normal y «Retirar a …» lo saca de tu proyecto.',
+          STUDENT: 'Como estudiante solo ves la lista de participantes y sus roles; no puedes añadir ni retirar a nadie, aunque seas líder. Los botones de gestión no aparecen para tu rol.',
         },
       }}
     >

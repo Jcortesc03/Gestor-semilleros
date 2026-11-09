@@ -105,13 +105,13 @@ export function ProjectDocuments({ user, request, projectId, canDeleteAny, onCha
       action={count ? <span className="text-sm text-navy/70">{count}</span> : undefined}
       help={{
         title: 'Documentos',
-        description: 'Archivos del proyecto, hasta 25 MB por archivo, guardados en el almacenamiento del proyecto.',
+        description: 'Archivos del proyecto, hasta 25 MB cada uno. «Subir» guarda un archivo nuevo; «Descargar» lo baja a tu equipo; «Eliminar» lo borra del proyecto.',
         roles: {
-          ADMIN: 'Como administrador, puedes subir y eliminar documentos de cualquier proyecto.',
-          AREA_MANAGER: 'Como encargado de área, puedes subir y eliminar documentos de los proyectos de tus áreas.',
-          DEAN: 'Como decano, puedes subir y eliminar documentos de los proyectos de tus facultades.',
-          TUTOR: 'Como tutor, puedes subir y eliminar documentos del proyecto que tutorizas.',
-          STUDENT: 'Como estudiante, puedes subir documentos al proyecto en el que participas y descargar los existentes; eliminar documentos de otros requiere ser tutor o tener el permiso.',
+          ADMIN: 'Como administrador, puedes subir, descargar y eliminar documentos de cualquier proyecto.',
+          AREA_MANAGER: 'Como encargado de área, puedes subir, descargar y eliminar documentos de los proyectos de tus áreas.',
+          DEAN: 'Como decano, puedes subir, descargar y eliminar documentos de los proyectos de tus facultades.',
+          TUTOR: 'Como tutor, puedes subir, descargar y eliminar documentos del proyecto que tutorizas.',
+          STUDENT: 'Como estudiante, puedes subir documentos al proyecto en el que participas y descargar los existentes; eliminar los documentos de otros requiere ser tutor o tener el permiso.',
         },
       }}
     >

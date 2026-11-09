@@ -51,7 +51,13 @@ export const textAreaClassName = 'min-h-32 w-full rounded-lg border border-navy/
 
 export function Unavailable({ title, description }: { title: string; description: string }) {
   return (
-    <PanelCard title={title}>
+    <PanelCard
+      title={title}
+      help={{
+        title,
+        description: `${description} Esta sección requiere un rol con permiso; si crees que deberías verla, contacta con la administración.`,
+      }}
+    >
       <EmptyState title="Función no disponible para este rol" description={description} />
     </PanelCard>
   );

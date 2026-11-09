@@ -57,13 +57,13 @@ export function ProjectDetail({ request, user, project, canManage, canDeleteAnyD
         title={project.title}
         help={{
           title: 'Detalle del proyecto',
-          description: 'Muestra la información general del proyecto.',
+          description: 'Muestra los datos generales del proyecto. «Editar proyecto» permite cambiar título, descripción, estado, área y facultades; «Archivar proyecto» lo quita de los listados sin borrar participantes ni documentos; «Nueva reunión» crea una reunión de Teams para este proyecto.',
           roles: {
-            ADMIN: 'Como administrador, puedes editar los datos de cualquier proyecto y archivarlo. Archivar lo quita de los listados sin borrar sus participantes ni documentos.',
-            AREA_MANAGER: 'Como encargado de área, puedes editar los datos de los proyectos de tus áreas y archivarlos. Archivar lo quita de los listados sin borrar sus participantes ni documentos.',
-            DEAN: 'Como decano, puedes editar los datos de los proyectos de tus facultades y archivarlos. Archivar lo quita de los listados sin borrar sus participantes ni documentos.',
-            TUTOR: 'Como tutor, ves el detalle del proyecto; no puedes editar sus datos generales ni archivarlo.',
-            STUDENT: 'Como estudiante, ves el detalle del proyecto en el que participas; no puedes editarlo ni archivarlo.',
+            ADMIN: 'Como administrador, puedes editar los datos de cualquier proyecto, crear sus reuniones y archivarlo. Archivar lo quita de los listados sin borrar sus participantes ni documentos.',
+            AREA_MANAGER: 'Como encargado de área, puedes editar los datos de los proyectos de tus áreas, crear sus reuniones y archivarlos. Archivar lo quita de los listados sin borrar sus participantes ni documentos.',
+            DEAN: 'Como decano, puedes editar los datos de los proyectos de tus facultades, crear sus reuniones y archivarlos. Archivar lo quita de los listados sin borrar sus participantes ni documentos.',
+            TUTOR: 'Como tutor, puedes crear reuniones del proyecto que tutorizas, pero no editar sus datos generales ni archivarlo.',
+            STUDENT: 'Como estudiante, ves el detalle del proyecto en el que participas; no puedes editarlo, crear reuniones ni archivarlo.',
           },
         }}
         action={(

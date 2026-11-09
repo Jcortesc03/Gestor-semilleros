@@ -18,7 +18,7 @@ export function ProjectList({ projects, selectedId, status, error, onSelect, onR
       action={status === 'ready' ? <span className="text-sm text-navy/70">{projects.length} en total</span> : undefined}
       help={{
         title: 'Proyectos visibles',
-        description: 'Aquí ves los proyectos según tu rol. Al elegir uno se cargan su detalle, participantes, tableros y documentos.',
+        description: 'Lista de proyectos según tu rol. Al pulsar uno se cargan abajo su detalle, participantes, tableros, actividades y documentos; no se crea ni se borra nada desde aquí.',
         roles: {
           ADMIN: 'Como administrador, ves todos los proyectos de la plataforma. Al elegir uno se cargan su detalle, participantes, tableros y documentos para gestionarlos.',
           AREA_MANAGER: 'Como encargado de área, ves los proyectos de tus áreas asignadas. Al elegir uno se cargan su detalle, participantes, tableros y documentos para gestionarlos.',
