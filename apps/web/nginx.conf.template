@@ -51,8 +51,14 @@ server {
 
     # IA (ADR 0018): el análisis con Claude puede superar los 60 s por defecto de nginx.
     # El backend corta antes (ANTHROPIC_TIMEOUT_MS por intento, 120 s y 1 reintento por defecto).
+    # IMPORTANTE: proxy_pass SIEMPRE por variable. Un proxy_pass literal con el nombre del backend hace que
+    # nginx lo resuelva una sola vez al arrancar y cree un grupo de servidores con esas IPs; el proxy_pass por
+    # variable de /api/ usa ese grupo en lugar del resolver, y tras un redespliegue del backend toda la API
+    # queda apuntando a IPs viejas (504 "upstream timed out while connecting").
     location /api/ai/ {
-        proxy_pass ${BACKEND_URL};
+        set $backend_upstream "${BACKEND_URL}";
+        proxy_pass $backend_upstream;
+        proxy_connect_timeout 10s;
         proxy_http_version 1.1;
         proxy_read_timeout 320s;
         proxy_set_header Host $http_host;
