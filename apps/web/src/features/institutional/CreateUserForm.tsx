@@ -64,7 +64,17 @@ export function CreateUserForm({ request, onCreated }: { request: ApiRequest; on
   }
 
   return (
-    <PanelCard title="Crear cuenta institucional" action={<UserPlus aria-hidden="true" className="size-5 text-gold" />}>
+    <PanelCard
+      title="Crear cuenta institucional"
+      action={<UserPlus aria-hidden="true" className="size-5 text-gold" />}
+      help={{
+        title: 'Crear cuenta institucional',
+        description: 'Crea una cuenta con nombre, correo, roles y contraseña opcional. Si omites la contraseña, la cuenta queda disponible solo con Google cuando ese proveedor esté configurado.',
+        roles: {
+          ADMIN: 'Como administrador, creas cuentas con los roles que necesiten; la persona deberá cambiar la contraseña temporal en su primer acceso.',
+        },
+      }}
+    >
       <p className="mb-6 max-w-2xl text-sm leading-relaxed text-navy/75">
         El primer administrador se autoriza por separado desde la terminal. Si omites la contraseña, la cuenta queda disponible
         únicamente con Google cuando ese proveedor esté configurado.

@@ -127,7 +127,7 @@ export function LoginPage({ onSubmit, onGoogle, onForgotPassword, pending, error
           aria-labelledby="login-heading"
           className="w-full max-w-md rounded-xl border border-navy/10 bg-white p-6 shadow-card sm:p-10"
         >
-          <div className="mb-8">
+          <div className="mb-8 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-navy/60">
               Acceso institucional
             </p>
@@ -144,10 +144,6 @@ export function LoginPage({ onSubmit, onGoogle, onForgotPassword, pending, error
 
           {error ? <div className="mb-6"><AlertMessage id={ERROR_ID} message={error} /></div> : null}
 
-          {onForgotPassword && <button type="button" onClick={onForgotPassword} disabled={pending}
-            className="mb-5 min-h-11 text-sm font-semibold text-navy underline decoration-gold underline-offset-4 disabled:opacity-50">
-            Olvidé mi contraseña
-          </button>}
           <form onSubmit={handleSubmit} noValidate={false} className="space-y-5">
             <div>
               <label
@@ -242,6 +238,15 @@ export function LoginPage({ onSubmit, onGoogle, onForgotPassword, pending, error
             </button>
           </form>
 
+          {onForgotPassword && (
+            <div className="mt-1 text-center">
+              <button type="button" onClick={onForgotPassword} disabled={pending}
+                className="min-h-11 text-sm font-semibold text-navy underline decoration-gold underline-offset-4 disabled:opacity-50">
+                Olvidé mi contraseña
+              </button>
+            </div>
+          )}
+
           {onGoogle ? (
             <>
               <div className="my-6 flex items-center gap-4 text-xs font-semibold uppercase tracking-[0.18em] text-navy/60">
@@ -261,7 +266,7 @@ export function LoginPage({ onSubmit, onGoogle, onForgotPassword, pending, error
             </>
           ) : null}
 
-          <p className="mt-6 text-sm leading-relaxed text-navy/70">
+          <p className="mt-6 text-center text-sm leading-relaxed text-navy/70" style={{ textAlign: 'center' }}>
             Si no puedes acceder, contacta con la administración de tu
             institución.
           </p>

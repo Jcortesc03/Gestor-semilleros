@@ -94,7 +94,20 @@ export function MeetingsWorkspace({ user, request, initialProjectId }: MeetingsW
           onCreated={(meeting) => { reloadMeetings(); setSelectedId(meeting.id); }}
         />
       )}
-      <PanelCard title="Reuniones">
+      <PanelCard
+        title="Reuniones"
+        help={{
+          title: 'Reuniones',
+          description: 'Lista de reuniones que organizas o a las que te invitaron. Al pulsar una se abre su detalle con hora, duración, participantes y enlace de Teams.',
+          roles: {
+            ADMIN: 'Como administrador, ves tus reuniones organizadas e invitaciones.',
+            AREA_MANAGER: 'Como encargado de área, ves las reuniones de tus proyectos que organizas o a las que te invitaron.',
+            DEAN: 'Como decano, ves las reuniones de tus facultades que organizas o a las que te invitaron.',
+            TUTOR: 'Como tutor, ves las reuniones del proyecto que tutorizas y las que te invitan.',
+            STUDENT: 'Como estudiante, ves las reuniones a las que te invitaron.',
+          },
+        }}
+      >
         {meetings.phase === 'loading' && <LoadingState label="Cargando reuniones…" />}
         {meetings.phase === 'error' && <div className="space-y-4"><ErrorNotice error={meetings.error} /><Button variant="secondary" onClick={reloadMeetings}>Reintentar</Button></div>}
         {meetings.phase === 'ready' && meetings.data.total === 0 && (
@@ -164,7 +177,20 @@ function MicrosoftPanel({ request, state, reload }: { request: ApiRequest; state
   }
 
   return (
-    <PanelCard title="Cuenta de Microsoft">
+    <PanelCard
+      title="Cuenta de Microsoft"
+      help={{
+        title: 'Cuenta de Microsoft',
+        description: 'Vincula tu cuenta de Microsoft para poder crear reuniones en Teams. «Vincular» te lleva a Microsoft para dar el permiso de calendario; «Desvincular» quita el permiso y ya no podrás crear reuniones hasta volver a vincular. No cambia cómo inicias sesión en la plataforma.',
+        roles: {
+          ADMIN: 'Como administrador, vinculas tu propia cuenta para crear reuniones; no puedes vincular la de otros usuarios.',
+          AREA_MANAGER: 'Como encargado de área, vinculas tu propia cuenta para crear reuniones de tus proyectos.',
+          DEAN: 'Como decano, vinculas tu propia cuenta para crear reuniones de los proyectos de tus facultades.',
+          TUTOR: 'Como tutor, vinculas tu propia cuenta para crear reuniones del proyecto que tutorizas.',
+          STUDENT: 'Como estudiante, vinculas tu propia cuenta solo si vas a organizar reuniones; normalmente solo asistes a las que te invitan.',
+        },
+      }}
+    >
       {state.phase === 'loading' && <LoadingState label="Consultando la vinculación…" />}
       {state.phase === 'error' && <div className="space-y-4"><ErrorNotice error={state.error} /><Button variant="secondary" onClick={reload}>Reintentar</Button></div>}
       {state.phase === 'ready' && !state.data.configured && (
@@ -278,7 +304,20 @@ function CreateMeeting({ user, request, linked, accountType, initialProjectId, o
   const toggle = (id: string) => setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   return (
-    <PanelCard title="Nueva reunión">
+    <PanelCard
+      title="Nueva reunión"
+      help={{
+        title: 'Nueva reunión',
+        description: 'Formulario para crear una reunión en Teams: motivo, inicio, duración, proyecto (opcional) y participantes. Al crearla, los invitados reciben el aviso y la reunión queda en tu calendario.',
+        roles: {
+          ADMIN: 'Como administrador, puedes crear reuniones de cualquier proyecto o sin proyecto.',
+          AREA_MANAGER: 'Como encargado de área, puedes crear reuniones de los proyectos de tus áreas.',
+          DEAN: 'Como decano, puedes crear reuniones de los proyectos de tus facultades.',
+          TUTOR: 'Como tutor, puedes crear reuniones del proyecto que tutorizas.',
+          STUDENT: 'Como estudiante, normalmente no creas reuniones; ves las que te invitan.',
+        },
+      }}
+    >
       <form onSubmit={submit} className="space-y-4">
         {!linked && <p className="text-sm text-navy/70">Vincula tu cuenta de Microsoft para poder crear reuniones.</p>}
         <Field label="Motivo" value={reason} maxLength={200} required onChange={(e) => setReason(e.target.value)} />
@@ -396,7 +435,20 @@ function MeetingDetail({ user, request, meetingId, onChanged }: { user: CurrentU
   };
 
   return (
-    <PanelCard title="Detalle de la reunión">
+    <PanelCard
+      title="Detalle de la reunión"
+      help={{
+        title: 'Detalle de la reunión',
+        description: 'Muestra motivo, fecha, duración, participantes y enlace de Teams. Si la organizas tú (o eres administrador), además puedes cancelar la reunión y guardar el enlace de grabación.',
+        roles: {
+          ADMIN: 'Como administrador, ves el detalle de cualquier reunión y puedes cancelar reuniones y guardar grabaciones.',
+          AREA_MANAGER: 'Como encargado de área, ves el detalle de las reuniones de tus proyectos; cancelas y gestionas las que organizas tú.',
+          DEAN: 'Como decano, ves el detalle de las reuniones de tus facultades; cancelas y gestionas las que organizas tú.',
+          TUTOR: 'Como tutor, ves el detalle de las reuniones de tu proyecto; cancelas y gestionas las que organizas tú.',
+          STUDENT: 'Como estudiante, ves el detalle de las reuniones a las que te invitaron; no puedes cancelarlas ni cambiar la grabación.',
+        },
+      }}
+    >
       {state.phase === 'loading' && <LoadingState label="Cargando reunión…" />}
       {state.phase === 'error' && <div className="space-y-4"><ErrorNotice error={state.error} /><Button variant="secondary" onClick={reload}>Reintentar</Button></div>}
       {state.phase === 'ready' && (() => {

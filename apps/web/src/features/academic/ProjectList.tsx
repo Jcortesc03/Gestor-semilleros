@@ -31,7 +31,21 @@ export function ProjectList({ projects, selectedId, status, error, search, page,
   };
 
   return (
-    <PanelCard title="Proyectos visibles" action={status === 'ready' ? <span className="text-sm text-navy/70">{total} en total</span> : undefined}>
+    <PanelCard
+      title="Proyectos visibles"
+      action={status === 'ready' ? <span className="text-sm text-navy/70">{total} en total</span> : undefined}
+      help={{
+        title: 'Proyectos visibles',
+        description: 'Lista de proyectos según tu rol, por páginas; usa el buscador para filtrar por título. Al pulsar uno se cargan abajo su detalle, participantes, tableros, actividades y documentos; no se crea ni se borra nada desde aquí.',
+        roles: {
+          ADMIN: 'Como administrador, ves todos los proyectos de la plataforma. Al elegir uno se cargan su detalle, participantes, tableros y documentos para gestionarlos.',
+          AREA_MANAGER: 'Como encargado de área, ves los proyectos de tus áreas asignadas. Al elegir uno se cargan su detalle, participantes, tableros y documentos para gestionarlos.',
+          DEAN: 'Como decano, ves los proyectos de tus facultades. Al elegir uno se cargan su detalle, participantes, tableros y documentos para gestionarlos.',
+          TUTOR: 'Como tutor, ves los proyectos en los que eres tutor. Al elegir uno se cargan su detalle, participantes, tableros y documentos para trabajar en él.',
+          STUDENT: 'Como estudiante, ves los proyectos en los que participas. Al elegir uno se cargan su detalle, tableros, actividades y documentos para consultar y trabajar.',
+        },
+      }}
+    >
       <form className="mb-5 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end" onSubmit={submit}>
         <label className="block space-y-2 text-sm font-semibold">Buscar proyecto por título
           <input

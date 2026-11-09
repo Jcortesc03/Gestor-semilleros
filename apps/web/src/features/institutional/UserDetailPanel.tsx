@@ -49,7 +49,16 @@ export function UserDetailPanel({ userId, currentUserId, request, onChanged }: U
 
   return (
     <div ref={regionRef} tabIndex={-1} className="min-w-0 focus:outline-none">
-      <PanelCard title={detail?.fullName ?? 'Detalle del usuario'}>
+      <PanelCard
+        title={detail?.fullName ?? 'Detalle del usuario'}
+        help={{
+          title: 'Detalle del usuario',
+          description: 'Muestra el usuario elegido con su correo, estado y roles. Permite editar nombre y roles, desactivar o reactivar la cuenta y fijar una contraseña temporal que la persona deberá cambiar al entrar.',
+          roles: {
+            ADMIN: 'Como administrador, gestionas la cuenta elegida: nombre, roles, estado y contraseña temporal. Desactivar le quita el acceso al instante sin borrar su historial.',
+          },
+        }}
+      >
         {loadError !== undefined && <ErrorNotice error={loadError} />}
         {detail === undefined && loadError === undefined && <LoadingState label="Cargando usuario…" />}
         {detail && (

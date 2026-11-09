@@ -27,6 +27,8 @@ FROM nginx:1.29-alpine AS runtime
 
 # Origen del backend que recibe /api/. Solo origen (sin ruta), p. ej. http://backend:3000.
 ENV BACKEND_URL=http://backend:3000
+# Expone el DNS del contenedor como NGINX_LOCAL_RESOLVERS para la directiva resolver de la plantilla.
+ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 
 # La imagen oficial aplica envsubst a /etc/nginx/templates/*.template y deja el resultado en conf.d/.
 COPY apps/web/nginx.conf.template /etc/nginx/templates/default.conf.template
