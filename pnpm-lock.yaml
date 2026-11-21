@@ -167,7 +167,7 @@ importers:
   .:
     devDependencies:
       turbo:
-        specifier: latest
+        specifier: 2.11.10
         version: 2.11.10
 
   apps/backend:

@@ -111,6 +111,7 @@ El backend se organiza como un **monolito modularizado**: un único despliegue, 
 │   │   └── local-setup.md
 │   ├── api/                        # Documentación de la API (auth.md, users.md)
 │   └── decisions/                  # ADRs
+├── .github/workflows/ci.yml        # CI con GitHub Actions (ADR 0020)
 ├── scripts/                        # Automatizaciones del monorepo
 ├── package.json                    # Scripts raíz (delegan en Turborepo)
 ├── pnpm-workspace.yaml             # Workspace de pnpm
@@ -176,6 +177,5 @@ pnpm typecheck
 
 ## Pendiente de definición
 
-- Versión de Turborepo (el resto está en el ADR 0001).
 - Dockerfiles y Compose de despliegue (el Compose local ya existe).
-- Pipeline de CI/CD y herramientas de linting y formato (las pruebas usan Jest + Supertest, ADR 0002).
+- CD (la CI está en el ADR 0020) y herramientas de linting y formato (las pruebas usan Jest + Supertest, ADR 0002).
