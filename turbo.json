@@ -14,7 +14,35 @@
       "cache": false,
       "persistent": true
     },
-    "lint": {},
+    "db:generate": {
+      "inputs": [
+        "prisma/schema.prisma",
+        "prisma.config.ts"
+      ],
+      "outputs": [
+        "src/generated/**"
+      ],
+      "passThroughEnv": [
+        "DATABASE_URL"
+      ]
+    },
+    "lint": {
+      "dependsOn": [
+        "db:generate"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "eslint.config.*",
+        "eslint-suppressions.json",
+        "tsconfig*.json"
+      ]
+    },
+    "lint:fix": {
+      "dependsOn": [
+        "db:generate"
+      ],
+      "cache": false
+    },
     "test": {},
     "typecheck": {
       "dependsOn": [
