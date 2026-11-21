@@ -34,7 +34,8 @@ El alcance, los módulos y el estado se documentan en `README.md`; no los repita
 - **Paginación ([ADR 0017](docs/decisions/0017-paginacion-de-listas.md)):** híbrida. En el servidor (`page`, `pageSize` 1–100, respuesta `{ items, total, page, pageSize }`): proyectos (con `search`), usuarios, reuniones, novedades y documentos del proyecto. En el cliente (`useClientPagination` + `Pagination`): miembros, tableros, actividades, entregas y tablas de la analítica. En la analítica el decano solo ve su facultad en proyectos compartidos.
 - **IA con Claude ([ADR 0018](docs/decisions/0018-recomendaciones-con-claude.md)):** `GET /api/ai/status` y `POST /api/ai/recommendations` (ADMIN, encargado de área, decano; alcance de la analítica). Comprime la analítica (porcentajes enteros, tablas `{cols, rows}`, rankings top/bottom N, bloques por enfoque, seudónimos de personas) y llama a la Messages API con el SDK `@anthropic-ai/sdk`: salida estructurada, razonamiento adaptativo y reintento en el servidor ante rechazos. Requiere `ANTHROPIC_API_KEY`; modelo por defecto `claude-sonnet-5-5` (`ANTHROPIC_MODEL`). Caché en memoria y límite por usuario y hora. Web: sección «Asistente IA».
 - **Recuperación de contraseña ([ADR 0016](docs/decisions/0016-recuperacion-de-contrasena.md)):** código por correo SMTP de 6 dígitos, 10 minutos, 5 intentos y uso único; invalida sesiones previas. Requiere la migración `password_recovery`. No depende del despachador de novedades.
-- **No implementado:** recordatorios, límite de intentos de inicio de sesión, autenticación móvil, HTTPS/infraestructura de producción concreta ni CI/CD.
+- **CI/CD ([ADR 0020](docs/decisions/0020-integracion-y-entrega-continuas.md), propuesto):** se propone GitHub Actions como CI (jobs `quality`, `e2e-api`, `e2e-web`, `docker` y gate `ci-ok`), con protección de `develop` y `master` y política de seguridad. Railway es hoy un despliegue **temporal**, no la infraestructura acordada; el destino definitivo de producción sigue sin decidir y el [ADR 0012](docs/decisions/0012-despliegue-con-contenedores.md) permanece como alternativa. Sin implementar hasta la aprobación.
+- **No implementado:** recordatorios, límite de intentos de inicio de sesión, autenticación móvil, HTTPS/infraestructura de producción concreta ni CI/CD (propuesta en el [ADR 0020](docs/decisions/0020-integracion-y-entrega-continuas.md), aún no aprobada).
 
 
 Por lo tanto:
@@ -87,7 +88,7 @@ Si dos fuentes se contradicen, **detente y reporta**; no elijas una por tu cuent
 
 **Documentos** ([ADR 0013](docs/decisions/0013-documentos-en-s3.md)): `@aws-sdk/client-s3` 3.1164.0 y `@types/multer` 2.3.0; S3 compatible local con RustFS 1.0.4 (`rustfs/rustfs:1.0.4`) en `docker/compose.yaml`.
 
-**Pendiente de definición:** versión de Turborepo (`latest`, fijada solo por el lockfile), linting y formato ([ADR 0019](docs/decisions/0019-linting-y-formato.md), **propuesto**, pendiente de aprobación), CI/CD (requiere su propio ADR), infraestructura de producción concreta (HTTPS, dominio, copias de seguridad), contratos de API de los demás módulos, autenticación móvil, permisos por rol y preguntas abiertas del dominio (`docs/domain/business-rules.md`).
+**Pendiente de definición:** versión de Turborepo (`latest`, fijada solo por el lockfile), linting y formato ([ADR 0019](docs/decisions/0019-linting-y-formato.md), **propuesto**, pendiente de aprobación), CI/CD ([ADR 0020](docs/decisions/0020-integracion-y-entrega-continuas.md), **propuesto**, pendiente de aprobación), infraestructura de producción concreta (HTTPS, dominio, copias de seguridad; Railway es hoy un despliegue temporal y el [ADR 0012](docs/decisions/0012-despliegue-con-contenedores.md) sigue como alternativa), contratos de API de los demás módulos, autenticación móvil, permisos por rol y preguntas abiertas del dominio (`docs/domain/business-rules.md`).
 
 No fijes versiones ni agregues herramientas para cubrir estos pendientes sin aprobación.
 
@@ -195,6 +196,7 @@ Reglas:
 - No presentes comandos como funcionales si aún no producen resultados.
 - No ejecutes instalaciones ni agregues dependencias sin autorización.
 - No inventes scripts: deben existir en un `package.json`.
+- La CI/CD con GitHub Actions está **propuesta** en el [ADR 0020](docs/decisions/0020-integracion-y-entrega-continuas.md): aún no hay workflows ni checks implementados; no presentarla como disponible ni a Railway como infraestructura definitiva.
 - No ejecutes comandos destructivos (`rm -rf`, resets, limpiezas de historial) sin confirmación.
 
 ## 9. Flujo de trabajo para agentes
