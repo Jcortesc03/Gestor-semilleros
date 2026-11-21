@@ -130,7 +130,7 @@ Solo se listan como definidas las decisiones ya tomadas. El resto permanece **po
 | Gestor de paquetes | pnpm | ✅ Definido |
 | Herramientas del monorepo | Turborepo | ✅ Definido |
 | Pruebas | Jest + Supertest | ✅ Definido e implementado en el backend |
-| CI/CD | — | ⏳ Por definir |
+| CI | GitHub Actions | ✅ `.github/workflows/ci.yml` (ADR 0020); CD por definir |
 
 <a id="estructura"></a>
 
@@ -290,7 +290,8 @@ Esta sección se completará con imágenes de la plataforma en funcionamiento.
 - [ ] Autenticación móvil y contratos de API de los demás módulos
 - [x] Permisos por proyecto (proyectos, tableros y actividades)
 - [ ] Resto de la gestión de usuarios
-- [ ] CI/CD
+- [x] CI (GitHub Actions, ADR 0020)
+- [ ] CD (entrega continua)
 - [x] Configuración de Docker para desarrollo y despliegue
 - [ ] MVP del backend (módulos de dominio)
 - [ ] MVP de la aplicación web

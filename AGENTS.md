@@ -34,8 +34,8 @@ El alcance, los módulos y el estado se documentan en `README.md`; no los repita
 - **Paginación ([ADR 0017](docs/decisions/0017-paginacion-de-listas.md)):** híbrida. En el servidor (`page`, `pageSize` 1–100, respuesta `{ items, total, page, pageSize }`): proyectos (con `search`), usuarios, reuniones, novedades y documentos del proyecto. En el cliente (`useClientPagination` + `Pagination`): miembros, tableros, actividades, entregas y tablas de la analítica. En la analítica el decano solo ve su facultad en proyectos compartidos.
 - **IA con Claude ([ADR 0018](docs/decisions/0018-recomendaciones-con-claude.md)):** `GET /api/ai/status` y `POST /api/ai/recommendations` (ADMIN, encargado de área, decano; alcance de la analítica). Comprime la analítica (porcentajes enteros, tablas `{cols, rows}`, rankings top/bottom N, bloques por enfoque, seudónimos de personas) y llama a la Messages API con el SDK `@anthropic-ai/sdk`: salida estructurada, razonamiento adaptativo y reintento en el servidor ante rechazos. Requiere `ANTHROPIC_API_KEY`; modelo por defecto `claude-sonnet-5-5` (`ANTHROPIC_MODEL`). Caché en memoria y límite por usuario y hora. Web: sección «Asistente IA».
 - **Recuperación de contraseña ([ADR 0016](docs/decisions/0016-recuperacion-de-contrasena.md)):** código por correo SMTP de 6 dígitos, 10 minutos, 5 intentos y uso único; invalida sesiones previas. Requiere la migración `password_recovery`. No depende del despachador de novedades.
-- **CI/CD ([ADR 0020](docs/decisions/0020-integracion-y-entrega-continuas.md), propuesto):** se propone GitHub Actions como CI (jobs `quality`, `e2e-api`, `e2e-web`, `docker` y gate `ci-ok`), con protección de `develop` y `master` y política de seguridad. Railway es hoy un despliegue **temporal**, no la infraestructura acordada; el destino definitivo de producción sigue sin decidir y el [ADR 0012](docs/decisions/0012-despliegue-con-contenedores.md) permanece como alternativa. Sin implementar hasta la aprobación.
-- **No implementado:** recordatorios, límite de intentos de inicio de sesión, autenticación móvil, HTTPS/infraestructura de producción concreta ni CI/CD (propuesta en el [ADR 0020](docs/decisions/0020-integracion-y-entrega-continuas.md), aún no aprobada).
+- **CI ([ADR 0020](docs/decisions/0020-integracion-y-entrega-continuas.md), aceptado):** GitHub Actions en `.github/workflows/ci.yml` (jobs `quality`, `e2e-api`, `e2e-web`, `docker` con Trivy, `audit` informativo y gate `ci-ok`, check **CI OK**) en PR y push a `develop` y `master`. Pendientes: protección de ramas (la configura el dueño), Dependabot y CodeQL (paso 4 del ADR) y el CD. Railway es hoy un despliegue **temporal**, no la infraestructura acordada; el destino definitivo de producción sigue sin decidir y el [ADR 0012](docs/decisions/0012-despliegue-con-contenedores.md) permanece como alternativa.
+- **No implementado:** recordatorios, límite de intentos de inicio de sesión, autenticación móvil, HTTPS/infraestructura de producción concreta ni CD (entrega continua; queda para un ADR posterior de hosting).
 
 
 Por lo tanto:
@@ -76,6 +76,7 @@ Si dos fuentes se contradicen, **detente y reporta**; no elijas una por tu cuent
 | Documentos e imágenes | AWS S3 |
 | Autenticación y autorización | Auth.js |
 | Contenedores | Docker |
+| CI | GitHub Actions |
 | Arquitectura | MVC + monolito modular |
 
 **Versiones fijadas** ([ADR 0001](docs/decisions/0001-modelo-de-datos-y-entorno-local.md)): Node.js 24 LTS (`.nvmrc`), pnpm 12.18.0 (`packageManager`, vía Corepack), Prisma 7.10.1 (con `@prisma/adapter-pg`) y PostgreSQL 18.6 (`postgres:18.6-alpine`). Backend y pruebas ([ADR 0002](docs/decisions/0002-autenticacion-y-pruebas.md)): NestJS 12.3.3, TypeScript 6.0.3, `@auth/express` 0.12.3, Argon2id (`@node-rs/argon2`), Jest 30 + ts-jest + Supertest. Correo ([ADR 0005](docs/decisions/0005-notificaciones-y-copias-externas.md)): nodemailer 10.3.1 (SMTP); WhatsApp con BuilderBot 1.4.4 (`@builderbot/bot`, `@builderbot/provider-baileys`) y provider intercambiable, inicialmente Baileys ([ADR 0006](docs/decisions/0006-whatsapp-con-builderbot.md)).
@@ -84,11 +85,13 @@ Si dos fuentes se contradicen, **detente y reporta**; no elijas una por tu cuent
 
 **IA** ([ADR 0018](docs/decisions/0018-recomendaciones-con-claude.md)): `@anthropic-ai/sdk` 1.6.0 (Messages API), modelo por defecto `claude-sonnet-5-5`.
 
+**CI** ([ADR 0020](docs/decisions/0020-integracion-y-entrega-continuas.md)): GitHub Actions con acciones fijadas por SHA; Turborepo 2.11.10 (versión exacta).
+
 **Contenedores** ([ADR 0012](docs/decisions/0012-despliegue-con-contenedores.md)): `node:24-alpine` y `nginx:1.29-alpine`.
 
 **Documentos** ([ADR 0013](docs/decisions/0013-documentos-en-s3.md)): `@aws-sdk/client-s3` 3.1164.0 y `@types/multer` 2.3.0; S3 compatible local con RustFS 1.0.4 (`rustfs/rustfs:1.0.4`) en `docker/compose.yaml`.
 
-**Pendiente de definición:** versión de Turborepo (`latest`, fijada solo por el lockfile), linting y formato ([ADR 0019](docs/decisions/0019-linting-y-formato.md), **propuesto**, pendiente de aprobación), CI/CD ([ADR 0020](docs/decisions/0020-integracion-y-entrega-continuas.md), **propuesto**, pendiente de aprobación), infraestructura de producción concreta (HTTPS, dominio, copias de seguridad; Railway es hoy un despliegue temporal y el [ADR 0012](docs/decisions/0012-despliegue-con-contenedores.md) sigue como alternativa), contratos de API de los demás módulos, autenticación móvil, permisos por rol y preguntas abiertas del dominio (`docs/domain/business-rules.md`).
+**Pendiente de definición:** linting y formato ([ADR 0019](docs/decisions/0019-linting-y-formato.md), **propuesto**, pendiente de aprobación), CD y hosting definitivo (la CI está aprobada en el [ADR 0020](docs/decisions/0020-integracion-y-entrega-continuas.md)), infraestructura de producción concreta (HTTPS, dominio, copias de seguridad; Railway es hoy un despliegue temporal y el [ADR 0012](docs/decisions/0012-despliegue-con-contenedores.md) sigue como alternativa), contratos de API de los demás módulos, autenticación móvil, permisos por rol y preguntas abiertas del dominio (`docs/domain/business-rules.md`).
 
 No fijes versiones ni agregues herramientas para cubrir estos pendientes sin aprobación.
 
@@ -188,6 +191,7 @@ El workspace contiene `@gestor-semilleros/backend` y la primera entrega de `@ges
 | `pnpm db:seed` | ✅ Siembra datos de **desarrollo** (`src/cli/seed.ts`): un usuario por tipo (`admin@example.test`, `encargado.area@`, `decano@`, `tutor@`, `lider@`, `estudiante@`), área, facultad y un proyecto demo. Requiere `SEED_PASSWORD` (política del ADR 0011: 10–256, letra y número), es idempotente y se niega a correr con `NODE_ENV=production`. Ej.: `SEED_PASSWORD='…' pnpm db:seed` (fish: anteponer `env`). |
 | `pnpm db:seed:bulk` | ✅ Seed masiva de **desarrollo** (`src/cli/seed-bulk.ts`): miles de usuarios, proyectos, actividades, adjuntos y reuniones ficticios (`@semillero.example.test`, sufijo ` · demo`) para la analítica. Requiere `SEED_PASSWORD`; `SEED_BULK_SCALE` (1–10) y `SEED_BULK_RESET=1` (borra solo esos datos). No corre en producción; los documentos no tienen archivo en S3. |
 | `pnpm test:e2e` | ✅ Pruebas de la API contra `TEST_DATABASE_URL` (requiere `pnpm db:up`). |
+| CI (GitHub Actions) | ✅ `.github/workflows/ci.yml` en PR y push a `develop`/`master`; reproduce `quality` con `pnpm install --frozen-lockfile && pnpm db:generate && pnpm typecheck && pnpm test && pnpm build`. |
 | `pnpm lint` | Configurado; ningún paquete lo implementa (herramienta pendiente). Propuesta de ESLint/Prettier en el [ADR 0019](docs/decisions/0019-linting-y-formato.md), **propuesto**, pendiente de aprobación; no presentarlo como funcional hasta entonces. |
 | `docker compose -f docker/compose.prod.yaml --env-file docker/.env.prod up -d --build` | ✅ Despliegue completo (PostgreSQL + backend + web nginx) en `WEB_PORT` (8080). Plantilla: `docker/env.prod.example`. |
 

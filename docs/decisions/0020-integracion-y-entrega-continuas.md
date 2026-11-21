@@ -1,6 +1,6 @@
 # ADR 0020 — Integración y entrega continuas (CI/CD)
 
-- **Estado:** propuesto (pendiente de aprobación; no autoriza crear `.github/`, instalar dependencias ni configurar despliegues).
+- **Estado:** aceptado (aprobado por el dueño el 2026-11-20). Autoriza la CI descrita y la fijación de `turbo` a 2.11.10; no autoriza configurar despliegues ni el host de producción.
 - **Fecha:** 2026-11-20.
 - **Relacionado:** [ADR 0001](0001-modelo-de-datos-y-entorno-local.md) (PostgreSQL y Docker Compose local), [ADR 0002](0002-autenticacion-y-pruebas.md) (pruebas), [ADR 0012](0012-despliegue-con-contenedores.md) (contenedores y `compose.prod.yaml`), [ADR 0019](0019-linting-y-formato.md) (linting y formato, también propuesto).
 
@@ -14,11 +14,11 @@ El despliegue actual es **temporal**: Railway (proyecto `gallant-grace`) constru
 
 Existe un hallazgo de seguridad (una credencial privada versionada en el repositorio público) que se gestiona por separado, fuera de este ADR. No se reproduce aquí ningún contenido de credencial, token ni secreto.
 
-## Decisión (propuesta)
+## Decisión
 
 1. **Herramienta de CI: GitHub Actions.** El repositorio, los PR y la integración con GitHub viven en GitHub; Actions permite exigir checks en los PR sin infraestructura adicional. La decisión es solo de CI y es agnóstica del hosting: no fija proveedor de producción ni contradice el ADR 0012.
 
-2. **Un único workflow de CI** (`.github/workflows/ci.yml`, que solo se creará cuando se apruebe este ADR) con estos jobs:
+2. **Un único workflow de CI** (`.github/workflows/ci.yml`) con estos jobs:
 
    | Job | Contenido |
    | --- | --- |
@@ -59,7 +59,7 @@ Existe un hallazgo de seguridad (una credencial privada versionada en el reposit
 - La ejecución completa añade varios minutos por PR (los E2E dominan el tiempo); los jobs corren en paralelo y se mitiga con cachés.
 - Hay que configurar la protección de ramas y las herramientas de seguridad en GitHub, y obtener aprobación para fijar `turbo` y los SHAs de las acciones antes de implementar el workflow.
 - La decisión de CI no resuelve el hosting: Railway sigue siendo un despliegue temporal, con los riesgos de publicar `develop` en producción y de no esperar a la CI, hasta que se apruebe el ADR de hosting/CD.
-- No se crea `.github/`, no se instalan dependencias y no se toca la configuración de despliegue mientras este ADR esté propuesto.
+- La configuración de despliegue (Railway) no se toca: queda para el ADR de hosting/CD.
 
 ## Riesgos
 
@@ -81,4 +81,8 @@ Existe un hallazgo de seguridad (una credencial privada versionada en el reposit
 6. **Transitorio mientras exista Railway:** valorar *Wait for CI* y la separación de entornos por rama, sin convertirlos en dependencia de la CI.
 7. **ADR posterior de CD/hosting:** decidir el destino definitivo y, sobre esa decisión, publicar imágenes en GHCR y promover por *digest*; el ADR 0012 permanece como alternativa.
 
-Este ADR queda **propuesto** hasta que el dueño lo apruebe; mientras tanto no se crean workflows, no se protegen ramas, no se instalan herramientas y no se modifica ningún despliegue.
+## Implementación
+
+- **Pasos 2 y 3 (CI mínima y E2E):** `.github/workflows/ci.yml` con `quality`, `e2e-api`, `e2e-web`, `docker` (con Trivy), `audit` (informativo) y el gate `ci-ok` (nombre del check: **CI OK**). Acciones fijadas por SHA con la etiqueta en un comentario (`actions/checkout` v7.0.1, `actions/setup-node` v7.1.0, `actions/cache` v6.1.0, `actions/upload-artifact` v7.0.2, `docker/setup-buildx-action` v4.4.1, `docker/build-push-action` v7.4.0, `aquasecurity/trivy-action` v0.36.0). `turbo` fijado a 2.11.10 y `passThroughEnv: ["TEST_DATABASE_URL"]` en `test:e2e`.
+- `quality` ejecuta también `pnpm lint`: hoy es un no-op (ningún paquete define `lint`) y pasa a comprobar algo cuando se implemente el ADR 0019, sin cambiar el workflow. `format:check` se añadirá entonces.
+- **Pendiente:** protección de `develop` y `master` con el check requerido **CI OK** (se configura en GitHub, la hace el dueño); paso 4 (Dependabot, CodeQL *default setup*, secret scanning y push protection), que se aborda después; y el ADR de hosting/CD.

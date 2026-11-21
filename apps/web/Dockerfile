@@ -25,6 +25,10 @@ RUN pnpm --filter @gestor-semilleros/web exec vite build
 # ---------- Etapa runtime ----------
 FROM nginx:1.29-alpine AS runtime
 
+# Parche de seguridad de la base (CVE-2026-111497, CRITICAL; detectado por Trivy en la CI, ADR 0020).
+# Se puede quitar cuando la etiqueta nginx:1.29-alpine incluya brotli-libs >= 1.2.1-r0.
+RUN apk upgrade --no-cache brotli-libs
+
 # Origen del backend que recibe /api/. Solo origen (sin ruta), p. ej. http://backend:3000.
 ENV BACKEND_URL=http://backend:3000
 # Expone el DNS del contenedor como NGINX_LOCAL_RESOLVERS para la directiva resolver de la plantilla.

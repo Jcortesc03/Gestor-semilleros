@@ -24,6 +24,6 @@
     "db:studio": "pnpm --filter @gestor-semilleros/backend db:studio"
   },
   "devDependencies": {
-    "turbo": "latest"
+    "turbo": "2.11.10"
   }
 }

@@ -1,0 +1,223 @@
+# Integración continua (ADR 0020). Único check requerido en la protección de ramas: «CI OK» (job ci-ok).
+# Las acciones están fijadas por SHA (comentario con la etiqueta a la que corresponde).
+# No usa secretos: las suites E2E definen secretos sintéticos en el código y transportes `log`.
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, master]
+  push:
+    branches: [develop, master]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: '1'
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+  # Solo para `prisma generate` y `prisma validate`: no se conecta a ninguna base (igual que el Dockerfile).
+  DATABASE_URL: postgresql://build:build@localhost:5432/build
+
+jobs:
+  quality:
+    name: Calidad (typecheck, unitarias, build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: pnpm vía Corepack (packageManager)
+        run: corepack enable && pnpm --version
+      - name: Ruta del store de pnpm
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Caché del store de pnpm
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+      - name: Caché de Turborepo
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm --filter @gestor-semilleros/backend db:validate
+      # No-op mientras ningún paquete defina `lint` (ADR 0019); pasa a ser efectivo cuando lo hagan.
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  e2e-api:
+    name: E2E API (PostgreSQL)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    needs: quality
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_USER: semilleros
+          POSTGRES_PASSWORD: semilleros
+          POSTGRES_DB: semilleros_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U semilleros -d semilleros_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://semilleros:semilleros@localhost:5432/semilleros_test?schema=public
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      # Por filtro de paquete, sin depender del modo de entorno de Turborepo.
+      - run: pnpm --filter @gestor-semilleros/backend test:e2e
+
+  e2e-web:
+    name: E2E web (Playwright)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    needs: quality
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_USER: semilleros
+          POSTGRES_PASSWORD: semilleros
+          POSTGRES_DB: semilleros_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U semilleros -d semilleros_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      s3:
+        # e2e/backend-env.ts fija S3_ENDPOINT=http://localhost:9000 y credenciales sintéticas.
+        image: rustfs/rustfs:1.0.4
+        env:
+          RUSTFS_ACCESS_KEY: semilleros
+          RUSTFS_SECRET_KEY: semilleros-local
+        ports: ['9000:9000']
+    env:
+      TEST_DATABASE_URL: postgresql://semilleros:semilleros@localhost:5432/semilleros_test?schema=public
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+      - name: Caché de los navegadores de Playwright
+        id: playwright-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      # El webServer de Playwright arranca `node dist/main`: el backend debe estar compilado.
+      - run: pnpm --filter @gestor-semilleros/backend build
+      - name: Chromium de Playwright
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @gestor-semilleros/web exec playwright install --with-deps chromium
+      - name: Dependencias del sistema de Chromium (con caché del navegador)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @gestor-semilleros/web exec playwright install-deps chromium
+      - run: pnpm --filter @gestor-semilleros/web test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-traces
+          path: apps/web/test-results/
+          retention-days: 7
+
+  docker:
+    name: Imagen Docker (${{ matrix.app }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [backend, web]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build sin push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
+          push: false
+          load: true
+          tags: gestor-semilleros/${{ matrix.app }}:ci
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+      - name: Escaneo con Trivy (bloquea CRITICAL con corrección disponible)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: gestor-semilleros/${{ matrix.app }}:ci
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+  audit:
+    name: Auditoría de dependencias (informativa)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # Informativa (ADR 0020): no forma parte del gate ci-ok y no marca el check en rojo.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - name: pnpm audit (informativo)
+        id: audit
+        continue-on-error: true
+        run: pnpm audit --prod --audit-level=high
+      - name: Aviso si hay vulnerabilidades altas
+        if: steps.audit.outcome == 'failure'
+        run: echo "::warning title=pnpm audit::Hay avisos altos en dependencias de producción (informativo, ADR 0020). Ver el paso anterior."
+
+  ci-ok:
+    name: CI OK
+    if: always()
+    needs: [quality, e2e-api, e2e-web, docker]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Todos los jobs requeridos pasaron
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Resultados: $RESULTS"
+          for r in $RESULTS; do
+            [ "$r" = "success" ] || { echo "Algún job requerido no pasó ($r)."; exit 1; }
+          done
