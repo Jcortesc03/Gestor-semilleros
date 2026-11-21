@@ -10,6 +10,9 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
     "typecheck": "turbo run typecheck",
@@ -21,9 +24,13 @@
     "db:migrate": "pnpm --filter @gestor-semilleros/backend db:migrate",
     "db:seed": "pnpm --filter @gestor-semilleros/backend db:seed",
     "db:seed:bulk": "pnpm --filter @gestor-semilleros/backend db:seed:bulk",
-    "db:studio": "pnpm --filter @gestor-semilleros/backend db:studio"
+    "db:studio": "pnpm --filter @gestor-semilleros/backend db:studio",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "9.1.7",
+    "lint-staged": "17.6.1",
+    "prettier": "3.10.1",
     "turbo": "latest"
   }
 }
