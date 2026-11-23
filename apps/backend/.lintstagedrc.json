@@ -1,0 +1,3 @@
+{
+  "*.{ts,mjs,js}": ["eslint --fix --pass-on-unpruned-suppressions", "prettier --write"]
+}

@@ -1,6 +1,6 @@
 # ADR 0019 — Linting y formato
 
-- **Estado:** propuesto (pendiente de aprobación; no autoriza instalar dependencias ni crear configuración).
+- **Estado:** aceptado (aprobado por el dueño el 2026-11-20; implementado en el PR 1 de infraestructura).
 - **Fecha:** 2026-11-20.
 - **Relacionado:** [ADR 0002](0002-autenticacion-y-pruebas.md) (TypeScript y pruebas), [ADR 0008](0008-aplicacion-web-y-sistema-visual.md) (aplicación web).
 
@@ -12,7 +12,7 @@ Hoy no hay linter ni formateador: no existen ESLint, Prettier, EditorConfig, hus
 
 Un lint de prueba sobre una copia del repo (390 archivos, ~30 s en modo con tipos) dio 93 errores con `recommended` sin tipos, y 1 115 errores y 2 advertencias con `recommendedTypeChecked` y el cliente de Prisma generado (38 autocorregibles; 234 en `src` — 152 backend y 82 web — y 883 en pruebas). Sin el cliente generado aparecen unos 2 400 falsos positivos. Prettier con `singleQuote` y `printWidth` 100 cambiaría **294 archivos** (~10 000 líneas de diff).
 
-## Decisión (propuesta, pendiente de aprobación)
+## Decisión
 
 1. **ESLint 10 con flat config por aplicación**, no una configuración global: `apps/backend/eslint.config.mjs` (el paquete es CommonJS, así que se usa `.mjs`) y `apps/web/eslint.config.js` (el paquete es ESM). No se usa `eslint.config.ts`, porque exigiría `jiti` como dependencia adicional. ESLint 10 busca la configuración desde el directorio de cada archivo, lo que encaja con Turborepo. Cuando exista móvil se podrá extraer un paquete compartido `packages/eslint-config` con `workspace:*`.
 
@@ -80,4 +80,14 @@ Un lint de prueba sobre una copia del repo (390 archivos, ~30 s en modo con tipo
 5. **Prettier:** un único commit de solo formato, coordinado cuando no haya ramas largas abiertas, con su hash en `.git-blame-ignore-revs`. Aplicarlo solo a archivos tocados vía lint-staged mientras tanto es posible, pero mezcla formato y lógica en cada PR.
 6. **Después:** valorar `strictTypeChecked`, las reglas `stylistic` y `import-x`, y extraer una configuración compartida cuando aparezca `apps/mobile`.
 
-Este ADR queda **propuesto** hasta que el dueño lo apruebe; mientras tanto no se instalan dependencias, no se crean configuraciones de ESLint/Prettier ni se activa `pnpm lint` como comprobación.
+## Notas de implementación (PR 1)
+
+- Todas las versiones de la tabla resolvieron tal cual; `turbo` sigue en 2.11.10 en el lockfile.
+- El preset de `eslint-plugin-react-hooks` 7.1.1 es `configs.flat['recommended-latest']`; el de `eslint-plugin-react-refresh` es `configs.vite`.
+- En lugar de `prelint`, el cliente de Prisma se genera con una tarea `db:generate` de Turborepo (con caché, `outputs: src/generated/**` y `passThroughEnv: DATABASE_URL`) de la que dependen `lint` y `lint:fix`. `prisma.config.ts` exige `DATABASE_URL`: en local sale de `apps/backend/.env`; en CI basta una URL ficticia.
+- Ajuste adicional en web: `no-floating-promises` admite `test`, `it`, `describe` y `suite` de `node:test` (el runner ya espera sus promesas; eran 144 falsos positivos).
+- Supresiones iniciales: `apps/backend/eslint-suppressions.json` y `apps/web/eslint-suppressions.json`. Las advertencias (`require-await` del backend y las reglas del React Compiler) no se suprimen: se muestran sin hacer fallar el lint.
+- `pnpm lint` falla si quedan supresiones sin uso, lo que obliga a podar con `--prune-suppressions` al corregir. En el pre-commit, lint-staged usa `--pass-on-unpruned-suppressions` para no bloquear el commit por ello.
+- `prepare: husky` no rompe las imágenes: sin `.git`, husky lo indica y termina con éxito (comprobado con `docker build` de backend y web).
+- `.prettierignore` excluye también `skill/` (experimentos de agentes con HTML inválido para Prettier).
+- El reformateo masivo con Prettier **no** se hizo en este PR; `format:check` fallará hasta el commit de solo formato. Mientras tanto, el pre-commit aplica `prettier --write` a los archivos que se preparen, con lo que los PR pueden mezclar formato y lógica en los archivos tocados (ver estrategia, punto 5).

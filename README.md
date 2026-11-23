@@ -234,7 +234,8 @@ pnpm --filter @gestor-semilleros/web dev
 | `pnpm --filter @gestor-semilleros/backend admin:create` | Crea un administrador (`ADMIN_EMAIL`, `ADMIN_FULL_NAME`, `ADMIN_PASSWORD`) |
 | `pnpm dev` | Inicia los entregables en modo desarrollo |
 | `pnpm build` | Compila los entregables |
-| `pnpm lint` | Tarea configurada; herramienta de linting pendiente |
+| `pnpm lint` / `pnpm lint:fix` | ESLint en backend y web ([ADR 0019](docs/decisions/0019-linting-y-formato.md)); requiere `DATABASE_URL` para generar el cliente de Prisma |
+| `pnpm format` / `pnpm format:check` | Prettier (el reformateo inicial del código sigue pendiente) |
 | `pnpm test` | Ejecuta las pruebas unitarias |
 | `pnpm test:e2e` | Ejecuta las pruebas de la API (requiere `pnpm db:up`) |
 | `pnpm typecheck` | Verifica los tipos |

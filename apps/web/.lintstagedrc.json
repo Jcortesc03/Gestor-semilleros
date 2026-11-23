@@ -1,0 +1,4 @@
+{
+  "*.{ts,tsx,js}": ["eslint --fix --pass-on-unpruned-suppressions", "prettier --write"],
+  "*.css": "prettier --write"
+}

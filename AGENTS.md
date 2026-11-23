@@ -84,11 +84,13 @@ Si dos fuentes se contradicen, **detente y reporta**; no elijas una por tu cuent
 
 **IA** ([ADR 0018](docs/decisions/0018-recomendaciones-con-claude.md)): `@anthropic-ai/sdk` 1.6.0 (Messages API), modelo por defecto `claude-sonnet-5-5`.
 
+**Linting y formato** ([ADR 0019](docs/decisions/0019-linting-y-formato.md)): ESLint 10.15.0 con flat config por aplicación (`@eslint/js` 10.0.1, `typescript-eslint` 8.73.0 con `recommendedTypeChecked`, `globals` 17.14.0, `eslint-config-prettier` 10.1.8; en web `eslint-plugin-react-hooks` 7.1.1 y `eslint-plugin-react-refresh` 0.5.8), Prettier 3.10.1, husky 9.1.7 y lint-staged 17.6.1 en la raíz. Supresiones masivas versionadas en `apps/*/eslint-suppressions.json` mientras se adopta de forma gradual. `typescript-eslint` 8.73.0 admite TypeScript `<6.1.0`.
+
 **Contenedores** ([ADR 0012](docs/decisions/0012-despliegue-con-contenedores.md)): `node:24-alpine` y `nginx:1.29-alpine`.
 
 **Documentos** ([ADR 0013](docs/decisions/0013-documentos-en-s3.md)): `@aws-sdk/client-s3` 3.1164.0 y `@types/multer` 2.3.0; S3 compatible local con RustFS 1.0.4 (`rustfs/rustfs:1.0.4`) en `docker/compose.yaml`.
 
-**Pendiente de definición:** versión de Turborepo (`latest`, fijada solo por el lockfile), linting y formato ([ADR 0019](docs/decisions/0019-linting-y-formato.md), **propuesto**, pendiente de aprobación), CI/CD ([ADR 0020](docs/decisions/0020-integracion-y-entrega-continuas.md), **propuesto**, pendiente de aprobación), infraestructura de producción concreta (HTTPS, dominio, copias de seguridad; Railway es hoy un despliegue temporal y el [ADR 0012](docs/decisions/0012-despliegue-con-contenedores.md) sigue como alternativa), contratos de API de los demás módulos, autenticación móvil, permisos por rol y preguntas abiertas del dominio (`docs/domain/business-rules.md`).
+**Pendiente de definición:** versión de Turborepo (`latest`, fijada solo por el lockfile), el reformateo masivo con Prettier (commit único de solo formato, lo decide el dueño; [ADR 0019](docs/decisions/0019-linting-y-formato.md)), CI/CD ([ADR 0020](docs/decisions/0020-integracion-y-entrega-continuas.md), **propuesto**, pendiente de aprobación), infraestructura de producción concreta (HTTPS, dominio, copias de seguridad; Railway es hoy un despliegue temporal y el [ADR 0012](docs/decisions/0012-despliegue-con-contenedores.md) sigue como alternativa), contratos de API de los demás módulos, autenticación móvil, permisos por rol y preguntas abiertas del dominio (`docs/domain/business-rules.md`).
 
 No fijes versiones ni agregues herramientas para cubrir estos pendientes sin aprobación.
 
@@ -147,7 +149,7 @@ Detalle completo: [`docs/architecture/estructura.md`](docs/architecture/estructu
 - Documentación, interfaz y mensajes al usuario en español; identificadores en inglés (salvo términos del dominio acordados).
 - Validar datos en los límites del sistema.
 - Commits con **Conventional Commits**.
-- Linting y formato: herramientas **pendientes**; no imponerlas. Existe una propuesta en el [ADR 0019](docs/decisions/0019-linting-y-formato.md), aún no aprobada. Las pruebas aprobadas son Jest en backend y, en web, el runner de Node 24, Vitest + Testing Library y Playwright.
+- Linting y formato: ESLint + Prettier según el [ADR 0019](docs/decisions/0019-linting-y-formato.md). El código nuevo cumple las reglas; las violaciones existentes están congeladas en `eslint-suppressions.json` (al corregirlas, `pnpm --filter <app> exec eslint . --prune-suppressions`). No añadas supresiones nuevas sin justificarlo. El pre-commit (husky + lint-staged) aplica `eslint --fix` y `prettier --write` a los archivos preparados. Las pruebas aprobadas son Jest en backend y, en web, el runner de Node 24, Vitest + Testing Library y Playwright.
 
 ### Backend
 
@@ -188,7 +190,8 @@ El workspace contiene `@gestor-semilleros/backend` y la primera entrega de `@ges
 | `pnpm db:seed` | ✅ Siembra datos de **desarrollo** (`src/cli/seed.ts`): un usuario por tipo (`admin@example.test`, `encargado.area@`, `decano@`, `tutor@`, `lider@`, `estudiante@`), área, facultad y un proyecto demo. Requiere `SEED_PASSWORD` (política del ADR 0011: 10–256, letra y número), es idempotente y se niega a correr con `NODE_ENV=production`. Ej.: `SEED_PASSWORD='…' pnpm db:seed` (fish: anteponer `env`). |
 | `pnpm db:seed:bulk` | ✅ Seed masiva de **desarrollo** (`src/cli/seed-bulk.ts`): miles de usuarios, proyectos, actividades, adjuntos y reuniones ficticios (`@semillero.example.test`, sufijo ` · demo`) para la analítica. Requiere `SEED_PASSWORD`; `SEED_BULK_SCALE` (1–10) y `SEED_BULK_RESET=1` (borra solo esos datos). No corre en producción; los documentos no tienen archivo en S3. |
 | `pnpm test:e2e` | ✅ Pruebas de la API contra `TEST_DATABASE_URL` (requiere `pnpm db:up`). |
-| `pnpm lint` | Configurado; ningún paquete lo implementa (herramienta pendiente). Propuesta de ESLint/Prettier en el [ADR 0019](docs/decisions/0019-linting-y-formato.md), **propuesto**, pendiente de aprobación; no presentarlo como funcional hasta entonces. |
+| `pnpm lint` / `pnpm lint:fix` | ✅ ESLint con tipos en backend y web ([ADR 0019](docs/decisions/0019-linting-y-formato.md)). Turborepo ejecuta antes `db:generate` del backend, que necesita `DATABASE_URL` (en `apps/backend/.env` o en el entorno; basta una URL ficticia). |
+| `pnpm format` / `pnpm format:check` | ✅ Prettier en todo el repo. Hoy `format:check` falla porque el código no se ha reformateado (commit aparte pendiente); no usarlo como check bloqueante todavía. |
 | `docker compose -f docker/compose.prod.yaml --env-file docker/.env.prod up -d --build` | ✅ Despliegue completo (PostgreSQL + backend + web nginx) en `WEB_PORT` (8080). Plantilla: `docker/env.prod.example`. |
 
 Reglas:

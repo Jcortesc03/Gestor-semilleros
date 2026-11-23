@@ -158,12 +158,13 @@ apps/mobile ┘             └──> AWS S3
 El monorepo se gestiona con **pnpm** y **Turborepo**:
 
 - `pnpm-workspace.yaml` define los paquetes en `apps/*` y `packages/*`.
-- `turbo.json` declara las tareas `build`, `dev`, `lint`, `test`, `test:e2e`, `typecheck` y `clean`.
+- `turbo.json` declara las tareas `build`, `dev`, `db:generate`, `lint`, `lint:fix`, `test`, `test:e2e`, `typecheck` y `clean`; `lint` y `lint:fix` dependen de `db:generate` (el lint con tipos del backend necesita el cliente de Prisma).
+- Linting y formato ([ADR 0019](../decisions/0019-linting-y-formato.md)): `eslint.config.*` y `eslint-suppressions.json` en cada app; `.prettierrc.json`, `.prettierignore`, `.editorconfig`, `.husky/` y `.lintstagedrc.json` en la raíz, más un `.lintstagedrc.json` por app.
 - Los scripts de la raíz (`package.json`) delegan en `turbo run`.
 - Cada aplicación o paquete tiene su propio `package.json` con sus scripts (hoy solo existe el del backend).
 - Las dependencias internas se referencian con `workspace:*`.
 
-Comandos desde la raíz (hoy solo el backend los implementa; `lint` aún no tiene herramienta):
+Comandos desde la raíz:
 
 ```bash
 pnpm install
@@ -178,4 +179,4 @@ pnpm typecheck
 
 - Versión de Turborepo (el resto está en el ADR 0001).
 - Dockerfiles y Compose de despliegue (el Compose local ya existe).
-- Pipeline de CI/CD y herramientas de linting y formato (las pruebas usan Jest + Supertest, ADR 0002).
+- Pipeline de CI/CD (las pruebas usan Jest + Supertest, ADR 0002).

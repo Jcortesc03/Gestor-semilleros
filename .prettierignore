@@ -1,0 +1,12 @@
+# Además de lo ignorado por .gitignore (Prettier 3 lo respeta).
+dist
+build
+coverage
+pnpm-lock.yaml
+apps/backend/src/generated
+apps/backend/prisma/migrations
+apps/web/playwright-report
+apps/web/test-results
+**/eslint-suppressions.json
+# Experimentos de agentes, fuera de las apps
+skill

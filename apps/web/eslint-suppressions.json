@@ -1,0 +1,225 @@
+{
+  "src/components/Pagination.tsx": {
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/components/WorkspaceUi.tsx": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/features/academic/api.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/features/analytics/RankingTables.tsx": {
+    "@typescript-eslint/no-duplicate-type-constituents": {
+      "count": 1
+    },
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/features/analytics/charts.tsx": {
+    "react-refresh/only-export-components": {
+      "count": 2
+    }
+  },
+  "src/features/dashboard/parts.tsx": {
+    "react-refresh/only-export-components": {
+      "count": 3
+    }
+  },
+  "src/features/documents/api.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/features/institution/shared.tsx": {
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/features/institutional/api.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/features/institutional/shared.tsx": {
+    "react-refresh/only-export-components": {
+      "count": 7
+    }
+  },
+  "test/academic-api.test.ts": {
+    "@typescript-eslint/require-await": {
+      "count": 6
+    }
+  },
+  "test/ai-api.test.ts": {
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  },
+  "test/analytics-api.test.ts": {
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  },
+  "test/api.test.ts": {
+    "@typescript-eslint/require-await": {
+      "count": 15
+    }
+  },
+  "test/dashboard-api.test.ts": {
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  },
+  "test/directory-api.test.ts": {
+    "@typescript-eslint/require-await": {
+      "count": 2
+    }
+  },
+  "test/documents-api.test.ts": {
+    "@typescript-eslint/no-base-to-string": {
+      "count": 1
+    },
+    "@typescript-eslint/require-await": {
+      "count": 6
+    }
+  },
+  "test/enrollments-api.test.ts": {
+    "@typescript-eslint/require-await": {
+      "count": 4
+    }
+  },
+  "test/institution-api.test.ts": {
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  },
+  "test/institutional-api.test.ts": {
+    "@typescript-eslint/no-base-to-string": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "@typescript-eslint/require-await": {
+      "count": 3
+    }
+  },
+  "test/meetings-api.test.ts": {
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  },
+  "test/ui/academic/fixtures.ts": {
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  },
+  "test/ui/ai/ai-workspace.test.tsx": {
+    "@typescript-eslint/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/require-await": {
+      "count": 2
+    }
+  },
+  "test/ui/analytics/analytics-workspace.test.tsx": {
+    "@typescript-eslint/no-redundant-type-constituents": {
+      "count": 1
+    },
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  },
+  "test/ui/change-password.test.tsx": {
+    "@typescript-eslint/require-await": {
+      "count": 2
+    }
+  },
+  "test/ui/dashboard/dashboard-workspace.test.tsx": {
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  },
+  "test/ui/directory/catalog-selects.test.tsx": {
+    "@typescript-eslint/require-await": {
+      "count": 5
+    }
+  },
+  "test/ui/directory/user-picker.test.tsx": {
+    "@typescript-eslint/require-await": {
+      "count": 6
+    }
+  },
+  "test/ui/enrollments/enrollments-workspace.test.tsx": {
+    "@typescript-eslint/require-await": {
+      "count": 3
+    }
+  },
+  "test/ui/institution/admin-institution.test.tsx": {
+    "@typescript-eslint/require-await": {
+      "count": 8
+    }
+  },
+  "test/ui/institution/area-manager-institution.test.tsx": {
+    "@typescript-eslint/require-await": {
+      "count": 5
+    }
+  },
+  "test/ui/institution/fixtures.ts": {
+    "@typescript-eslint/no-redundant-type-constituents": {
+      "count": 1
+    },
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  },
+  "test/ui/institutional/announcements.test.tsx": {
+    "@typescript-eslint/no-base-to-string": {
+      "count": 1
+    },
+    "@typescript-eslint/no-redundant-type-constituents": {
+      "count": 1
+    },
+    "@typescript-eslint/require-await": {
+      "count": 27
+    }
+  },
+  "test/ui/institutional/fixtures.ts": {
+    "@typescript-eslint/no-redundant-type-constituents": {
+      "count": 1
+    },
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  },
+  "test/ui/institutional/preferences.test.tsx": {
+    "@typescript-eslint/require-await": {
+      "count": 9
+    }
+  },
+  "test/ui/institutional/whatsapp.test.tsx": {
+    "@typescript-eslint/require-await": {
+      "count": 4
+    }
+  },
+  "test/ui/meetings/account-type.test.tsx": {
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  },
+  "test/ui/meetings/meetings-workspace.test.tsx": {
+    "@typescript-eslint/require-await": {
+      "count": 1
+    }
+  }
+}
